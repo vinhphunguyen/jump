@@ -41,15 +41,15 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 	# allocate memory for grid basis and grads once
 	nearPoints,funcs, ders = initialise(grid,basis)
 
-	# if ( typeof(problem.basis) <: CPDIQ4Basis )
-	# 	nearPoints = Vector{Int64}(undef,16)
-	# 	[nearPoints[i]=0 for i=1:16]
-	#     funcs = zeros(16)
-	# 	ders  = zeros(2,16)
-	#
-	# 	nearPointsLin    = [0, 0, 0, 0]
-	# 	funcsLin         = [0., 0., 0., 0.]
-	# end
+	if ( typeof(basis) <: CPDIQ4Basis )
+		nearPoints = Vector{Int64}(undef,16)
+		[nearPoints[i]=0 for i=1:16]
+	    funcs = zeros(16)
+		ders  = zeros(2,16)
+
+		nearPointsLin    = [0, 0, 0, 0]
+		funcsLin         = [0., 0., 0., 0.]
+	end
 
     # if ( typeof(problem.output) <: PyPlotOutput )
 	#   pyFig_RealTime = PyPlot.figure(problem.output.figTitle,
@@ -86,7 +86,10 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 		        vp        = vv[ip]
 		        sigma     = stress[ip]
 				#bodyforce(body,xx[ip],t)
+					# println(nearPoints)
+					# println(support)
 				@inbounds for i = 1:support
+
 					in    = nearPoints[i]; # index of node ‘i’
 					Ni    = funcs[i]
 					dNi   = @view ders[:,i]
@@ -149,7 +152,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 					# mapping the updated particle vel back to the node
 					for i in 1:support
 						in = nearPoints[i] # index of node ‘i’
-					nodalMomentum2[in]  += funcs[i] * mp * vv[ip]
+					    nodalMomentum2[in]  += funcs[i] * mp * vv[ip]
 					end
 			  	end
 	    end
@@ -183,6 +186,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 				support   = getShapeAndGradient(nearPoints,funcs,ders,ip, grid, solid,basis)
 		        #vel_grad .= 0. #zeros(Float64,2,2)
 				vel_grad = SMatrix{2,2}(0., 0., 0., 0.)
+				xxp = xx[ip]
 				for i = 1:support
 					in = nearPoints[i]; # index of node ‘i’
 					Ni = funcs[i]
@@ -190,11 +194,12 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 					m  = nodalMass[in]
 					if ( m > 0.)
 						vI         = nodalMomentum2[in] /m
-					    xx[ip]    += (Ni * nodalMomentum[in]/m) * dtime
+					    xxp       += (Ni * nodalMomentum[in]/m) * dtime
 				        vel_grad  += SMatrix{2,2}(dNi[1]*vI[1], dNi[2]*vI[1],
-				                                     dNi[1]*vI[2], dNi[2]*vI[2])
+				                                  dNi[1]*vI[2], dNi[2]*vI[2])
 				    end
 				end
+				xx[ip]    = xxp
 	            D           = 0.5 * (vel_grad + vel_grad')
 	            strain[ip]  += dtime * D
 				F[ip]       *= (Identity + vel_grad*dtime)
@@ -212,25 +217,30 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 
 		# if CPDI, do extra thing here
 
-		# if ( typeof(grid.basis) <: CPDIQ4Basis )
-		# 	@inbounds for s = 1:solidCount
-		# 		solid = solids[s]
-		# 		@inbounds for c = 1:size(solid.nodes,2)
-		# 		  getShapeFuncs(nearPointsLin,funcsLin, solid.nodes[:,c], grid, solid, LinearBasis())
-		# 		  for i = 1:length(nearPointsLin)
-		# 			  in = nearPointsLin[i]; # index of node ‘i’
-		# 			  Ni = funcsLin[i]
-		# 			  #vI        = nodalMomentum2[in] / nodalMass[in]
-		# 			  if nodalMass[in] > 0.
-		# 				  solid.nodes[:,c]   += (Ni * nodalMomentum[in] / nodalMass[in]) * dtime
-		# 			  end
-		# 		  end
-		# 	    end
-		#     end
-	    # end
+		if ( typeof(basis) <: CPDIQ4Basis )
+			@inbounds for s = 1:solidCount
+				corner_coords = solids[s].nodes
+				@inbounds for c = 1:length(corner_coords)
+				  #xc = corner_coords[c]
+				  #println(xc)
+				  getShapeFuncs(nearPointsLin,funcsLin, corner_coords[c], grid, solids[s], LinearBasis())
+				  for i = 1:length(nearPointsLin)
+					  in = nearPointsLin[i]; # index of node ‘i’
+					  Ni = funcsLin[i]
+					  mI = nodalMass[in]
+					  if mI > 0.
+				        corner_coords[c] += (Ni * nodalMomentum[in] / mI) * dtime
+					  end
+				  end
+				  # println(xc)
+				  # println(corner_coords[c])
+				  # println("haha\n\n")
+			    end
+		    end
+	    end
 
 		if (counter%output.interval == 0)
-			plotParticles(output,solids,[grid.lx, grid.ly],
+			plotParticles_2D(output,solids,[grid.lx, grid.ly],
 			             [grid.nodeCountX, grid.nodeCountY],counter)
 			compute(fixes,t)
 	    end
@@ -347,14 +357,29 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 		# deformable solids only
 		if !solid.rigid continue end
 		xx     = solid.pos
-		ve     = solid.mat.vel
+		vex     = solid.mat.vx
+		vey     = solid.mat.vy
 		@inbounds for ip = 1:solid.parCount
 			getAdjacentGridPoints(nearPointsLin,xx[ip],grid,linBasis)
 #			println(nearPoints)
 			@inbounds for i = 1:4
 				in                  = nearPointsLin[i]; # index of node 'i'
-				nodalMomentum0[in]  = nodalMass[in] * ve
-				nodalMomentum[in]   = nodalMass[in] * ve
+				mi                  = nodalMass[in]
+				if solid.mat.fixed
+				  nodalMomentum[in]   = setindex(nodalMomentum[in],0.,1)
+				  nodalMomentum[in]   = setindex(nodalMomentum[in],0.,2)
+  				  nodalMomentum0[in]  = setindex(nodalMomentum0[in],0.,1)
+  				  nodalMomentum0[in]  = setindex(nodalMomentum0[in],0.,2)
+			    else
+					if vex != 0.
+					  nodalMomentum[in]   = setindex(nodalMomentum[in], mi*vex,1)
+					  nodalMomentum0[in]  = setindex(nodalMomentum0[in],mi*vex,1)
+				    end
+					if vey != 0.
+					  nodalMomentum[in]   = setindex(nodalMomentum[in], mi*vey,2)
+					  nodalMomentum0[in]  = setindex(nodalMomentum0[in],mi*vey,2)
+					end
+				end
 				#println(nodalMomentum)
 			end
 		end
@@ -382,6 +407,8 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 	  	@inbounds for ip = 1:solid.parCount
 			support   = getShapeAndGradient(nearPoints,funcs,ders,ip, grid, solid,basis)
 	        vel_grad  = SMatrix{2,2}(0., 0., 0., 0.)
+			vvp       = vv[ip]
+			xxp       = xx[ip]
 			for i = 1:support
 				in = nearPoints[i]; # index of node 'i'
 				Ni = funcs[i]
@@ -390,11 +417,13 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 			    if (mI > alg.tolerance)
 					invM      = 1.0 / mI
 					vI        = nodalMomentum[in] * invM
-					vv[ip]   += Ni * (nodalMomentum[in] - nodalMomentum0[in]) * invM
-					xx[ip]   += Ni * vI * dtime
+					vvp   += Ni * (nodalMomentum[in] - nodalMomentum0[in]) * invM
+					xxp   += Ni * vI * dtime
 					vel_grad  += SMatrix{2,2}(dNi[1]*vI[1], dNi[2]*vI[1],
 	   										  dNi[1]*vI[2], dNi[2]*vI[2])
 	   		 end
+			 vv[ip]   = vvp
+			 xx[ip]   = xxp
 	   	 end
 	   	 D           = 0.5 * (vel_grad + vel_grad')
 	   	 strain[ip]  += dtime * D
@@ -420,35 +449,37 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 		if !solid.rigid continue end
 
 	  	xx    = solid.pos
-	  	ve    = solid.mat.vel
+	  	vx    = solid.mat.vx
+	  	vy    = solid.mat.vy
 		#println(ve)
         @inbounds for ip = 1:solid.parCount
-	      xx[ip]   += ve * dtime
+	      xx[ip]   += dtime * @SVector [vx,vy]
 	    end
 	end
 
     #### CPDI specific #################################
 	### update corners
-	# if ( typeof(basis) <: CPDIQ4Basis )
-	# 	@inbounds for s = 1:solidCount
-	# 		solid = solids[s]
-	# 		if solid.rigid continue end
-	# 		@inbounds for c = 1:size(solid.nodes,1)
-	# 		  getShapeFuncs(nearPointsLin,funcsLin, solid.nodes[:,c], grid, solid, linBasis)
-	# 		  for i in 1:length(nearPointsLin)
-	# 			  in = nearPointsLin[i]; # index of node ‘i’
-	# 			  Ni = funcsLin[i]
-	# 			  #vI        = nodalMomentum2[in] / nodalMass[in]
-	# 			  if nodalMass[in] > alg.tolerance
-	# 				  solid.nodes[:,c]  += (Ni * nodalMomentum[in] / nodalMass[in]) * dtime
-	# 			  end
-	# 		  end
-	# 		end
-	# 	end
-	# end
+
+	if ( typeof(basis) <: CPDIQ4Basis )
+		@inbounds for s = 1:solidCount
+			corner_coords = solids[s].nodes
+			@inbounds for c = 1:length(corner_coords)
+			  xc = corner_coords[c]
+			  getShapeFuncs(nearPointsLin,funcsLin, xc, grid, solids[s], linBasis)
+			  for i = 1:length(nearPointsLin)
+				  in = nearPointsLin[i]; # index of node ‘i’
+				  Ni = funcsLin[i]
+				  mI = nodalMass[in]
+				  if mI > 0.
+					xc   += (Ni * nodalMomentum[in] / mI) * dtime
+				  end
+			  end
+			end
+		end
+	end
 
 	if (counter%output.interval == 0)
-		plotParticles(output,solids,[grid.lx, grid.ly],
+		plotParticles_2D(output,solids,[grid.lx, grid.ly],
 					 [grid.nodeCountX, grid.nodeCountY],counter)
 		compute(fixes,t)
 	end

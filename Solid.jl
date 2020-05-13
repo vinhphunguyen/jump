@@ -15,6 +15,7 @@ module Solid
     using LinearAlgebra  # if not yet installed, in REPL, do import Pkg and Pkd.add("LinearAlgebra")
     using StaticArrays   # if not yet installed, in REPL, do import Pkg and Pkd.add("StaticArrays")
 	using Images
+	using Printf
 
 
     using Material
@@ -83,7 +84,7 @@ module Solid
 		mat                 :: T
 
         # for CPDIs
-		nodes
+		nodes               :: Vector{SVector{2,Float64}}  # position
 		elems
 
 		rigid               :: Bool                          # rigid body or
@@ -118,7 +119,7 @@ module Solid
 				rigid = true
 			end
 			return new{T}(m,vol,vol0,copy(coords),coords,velo,F,strain,stress,gradVel,
-			    Cmat,parCount,mat,0,0, rigid,col, dam, copy(velo), copy(dam))
+			    Cmat,parCount,mat,fill(zeros(2),1),0, rigid,col, dam, copy(velo), copy(dam))
         end
 
         #if particles are CPDI, from a mesh
@@ -134,22 +135,27 @@ module Solid
 			vol      = zeros(parCount)
 			vol0     = zeros(parCount)
 			x        = fill(zeros(2),parCount)
+			nodesX   = fill(zeros(2),size(nodes,2))
 			velo     = fill(zeros(2),parCount)
 
 			for e = 1:parCount
-			    coord = nodes[:,elems[e,:]]
+			    coord =  nodes[:,elems[e,:]]
 				a     = 0.5*( coord[1,1]*coord[2,2]  - coord[1,2]*coord[2,1]
-						   + coord[1,2]*coord[2,3]  - coord[1,3]*coord[2,2]
-						   + coord[1,3]*coord[2,4]  - coord[1,4]*coord[2,3]
-						   + coord[1,4]*coord[2,1]  - coord[1,1]*coord[2,4])
+						    + coord[1,2]*coord[2,3]  - coord[1,3]*coord[2,2]
+						    + coord[1,3]*coord[2,4]  - coord[1,4]*coord[2,3]
+						    + coord[1,4]*coord[2,1]  - coord[1,1]*coord[2,4])
 			    vol[e]  = a;
 			    vol0[e] = a;
 			    m[e]    = a*mat.density;
 			    x[e]    = vec(mean(coord,dims=2)); # center of each element=particle
 			end
 
+			for i=1:size(nodes,2)
+				nodeX[i] = @SVector [nodes[1,i], nodes[2,i]]
+			end
+
 			new{T}(m,vol,vol0,copy(x),x,velo,F,strain,stress,gradVel,
-			    Cmat,parCount,mat,nodes,elems)
+			    Cmat,parCount,mat,nodesX,elems)
 		end
         # particles from a mesh
 		function Solid2D(fileName,mat::T) where {T <: MaterialType}
@@ -165,6 +171,7 @@ module Solid
 			vol      = zeros(parCount)
 			vol0     = zeros(parCount)
 			x        = fill(zeros(2),parCount)
+			nodesX   = fill(zeros(2),size(nodes,2))
 			velo     = fill(zeros(2),parCount)
 			#println(size(nodes,2))
 			#println(parCount)
@@ -180,13 +187,17 @@ module Solid
 			    x[e]    = vec(mean(coord,dims=2)) # center of each element=particle
 			end
 
+			for i=1:size(nodes,2)
+				nodesX[i] = @SVector [nodes[1,i], nodes[2,i]]
+			end
+
 			rigid    = false
 			if ( typeof(mat) <: RigidMaterial )
 				rigid = true
 			end
 
 			new{T}(m,vol,vol0,copy(x),x,velo,F,strain,stress,gradVel,Cmat,parCount,mat,
-			    nodes[1:2,:],elems,rigid)
+			    nodesX,elems,rigid)
 		end
 
 		# particles from an image 'fileName'
@@ -233,26 +244,23 @@ module Solid
    ###      Solid3D
    ##################################################
 
-   struct Solid3D
+   struct Solid3D{T<:MaterialType}
 	   mass                :: Vector{Float64}
 	   volumeInitial       :: Vector{Float64}
 	   volume              :: Vector{Float64}
 
 	   pos                 :: Vector{SVector{3,Float64}}  # position
 	   velocity            :: Vector{SVector{3,Float64}}  # velocity
-	   #       momentum         :: Vector{SVector{2,Float64}}  # momentum
-	   # externalForce    :: Vector{SVector{2,Float64}}  # force
 
 	   deformationGradient :: Vector{SMatrix{3,3,Float64,9}}  # F, 3x3 matrix
-	   defGradientIncrement:: Vector{SMatrix{3,3,Float64,9}}  # positi3,3
 	   strain              :: Vector{SMatrix{3,3,Float64,9}}  # strain, 3x3 matrix
 	   stress              :: Vector{MMatrix{3,3,Float64,9}}  # stress
 
 	   parCount            :: Int64
 
-	   mat                 :: MaterialType
+	   mat                 :: T
 
-	   function Solid3D(coords::Vector{SVector{3,Float64}},mat::MaterialType)
+	   function Solid3D(coords::Vector{SVector{3,Float64}},mat::T) where {T <: MaterialType}
 		   parCount = length(coords)
 		   Identity = SMatrix{3,3}(1, 0, 0,  0, 1, 0, 0, 0, 1)
 		   F        = fill(Identity,parCount)
@@ -261,9 +269,10 @@ module Solid
 		   stress   = fill(zeros(3,3),parCount)
 		   m        = fill(mat.density,parCount)
 		   vol      = fill(0,parCount)
+		   vol0     = fill(0,parCount)
 		   #x        = fill(zeros(2),parCount)
 		   velo     = fill(zeros(3),parCount)
-		   new(m,vol,vol,coords,velo,F,dF,strain,stress,parCount,mat)
+		   return new{T}(m,vol0,vol,coords,velo,F,strain,stress,parCount,mat)
 	   end
   end
 
@@ -342,6 +351,77 @@ module Solid
 
 	   return(thisMaterialDomain)
    end
+
+   # ring with braze of length l0
+   # cellular materials
+   function buildParticleForRingWithBraze(fCenter::Array{Float64},
+	                                      innerRad, outerRad, l0, fOffset)
+	  thisMaterialDomain = Vector{SVector{2,Float64}}(undef,0)
+	  coord              = SVector{2,Float64}
+
+	  fRadius = floor(outerRad/fOffset) * fOffset	#just in case radius is not a multiple of offset
+	  for fy in -fRadius+0.5*fOffset:fOffset:+fRadius-0.5*fOffset
+		  for fx in -fRadius+0.5*fOffset:fOffset:+fRadius-0.5*fOffset
+			  if (fx^2 + fy^2 < outerRad^2) && (fx^2 + fy^2 > innerRad^2)
+				  coord = [fCenter[1] + fx; fCenter[2] + fy]
+				  push!(thisMaterialDomain, coord)
+			  end
+		  end
+	  end
+
+	  # handling the braze, which is a rectagle
+
+	  AB      = 0.5*l0
+	  R       = outerRad
+	  x       = sqrt(R^2-AB^2)
+	  CB      = R - x
+      count = 0
+	  # println(AB)
+	  # println(CB)
+	  for fy in -AB+0.5*fOffset:fOffset:+AB-0.5*fOffset
+		  for fx in -CB+0.5*fOffset:fOffset:+CB-0.5*fOffset
+			  # compute the coords in global coords
+			  coord = [fCenter[1] + R + fx; fCenter[2] + fy]
+			  # coords with origin at the ring center
+			  dx1   = coord[1] - fCenter[1]
+			  dx2   = coord[2] - fCenter[2]
+
+			  if (dx1^2 + dx2^2 > R^2)
+				  # coords with origin at 0' (center of the right ring)
+	  			  xx = coord[1] - fCenter[1] - 2*R
+	  			  yy = coord[2] - fCenter[2]
+				  if ( xx^2 + yy^2 > R^2)
+				    push!(thisMaterialDomain, coord)
+					count += 1
+			      end
+			  end
+		  end
+	  end
+	  # for the horizontal braze_length
+	  for fy in -CB+0.5*fOffset:fOffset:+CB-0.5*fOffset
+		  for fx in -AB+0.5*fOffset:fOffset:+AB-0.5*fOffset
+			  # compute the coords in global coords
+			  coord = [fCenter[1] + fx; fCenter[2] + R + fy]
+			  # coords with origin at the ring center
+			  dx1   = coord[1] - fCenter[1]
+			  dx2   = coord[2] - fCenter[2]
+
+			  if (dx1^2 + dx2^2 > R^2)
+				  # coords with origin at 0' (center of the right ring)
+	  			  xx = coord[1] - fCenter[1]
+	  			  yy = coord[2] - fCenter[2] - 2*R
+				  if ( xx^2 + yy^2 > R^2)
+				    push!(thisMaterialDomain, coord)
+					count += 1
+			      end
+			  end
+		  end
+	  end
+	  @printf("Number of braze material points: %d \n", count)
+
+	  return(thisMaterialDomain)
+	 end
+
    ###############################################################
    # buildParticleForCylinder, z-axis
    ###############################################################
@@ -416,8 +496,8 @@ module Solid
 
 	function move_cpdi(solid,dx)
 	   x1 = solid.nodes
-	   @inbounds for p = 1 : size(x1,2)
-		  x1[:,p] += dx
+	   @inbounds for p = 1 : length(x1)
+		  x1[p] += dx
 	   end
 	   x2 = solid.pos
 	   @inbounds for p = 1 : solid.parCount
@@ -443,6 +523,29 @@ module Solid
 		  xx[p] = setindex(xx[p],xq,1)
 		  xx[p] = setindex(xx[p],yq,2)
 	   end
+	end
+
+    # from a given coords (which is actually a geometry)
+	# make a rectanglular pattern of nx x ny objects with
+	# distance in x dir = dx, and in y-dir = dy
+	# coded for cellular structure modeling
+	function make_rectangular_pattern(coords,nx,ny;dx=0.,dy=0.)
+		res      = Vector{SVector{2,Float64}}(undef,0)
+		ptsCount = length(coords)
+		for j=1:ny
+			for i=1:nx
+              for p=1:ptsCount
+				  # coords of the original point
+				  x0 = coords[p][1]
+				  y0 = coords[p][2]
+				  # coors of the generated point
+				  x  = x0 + (i-1) * dx
+				  y  = y0 + (j-1) * dy
+				  push!(res,@SVector[x,y])
+			  end
+			end
+		end
+		return res
 	end
 
 	# function doCellParticleInteraction(solid::Solid2D,grid::Grid2D)
@@ -476,6 +579,6 @@ module Solid
    # end
 
 	export buildParticleForCircle, buildParticleForRing, buildParticleForRectangle, buildParticleForRectangleWithANotch, buildParticleForSegment, rotate,
-	buildParticleForSphere, buildParticleForCylinder, toXArray,toYArray,assign_velocity, move, move_cpdi
+	buildParticleForSphere, buildParticleForRingWithBraze, buildParticleForCylinder, toXArray,toYArray,assign_velocity, move, move_cpdi, make_rectangular_pattern
 	export Solid1D, Solid2D, Solid3D
 end

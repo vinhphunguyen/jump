@@ -16,6 +16,7 @@ import PyPlot
 
 using Solid
 using Material
+using Grid
 
 abstract type OutputType end
 
@@ -50,7 +51,7 @@ struct OvitoOutput <: OutputType
     end
 end
 
-function plotParticles(plot::PyPlotOutput,solids::Vector{Solid2D},
+function plotParticles(plot::PyPlotOutput,solids,
                        lims::Vector{Float64},ncells::Vector{Int64},counter::Int64)
     fileName = string(plot.dir,"$(Int(counter)).pdf")
 	#array_x         = [toXArray(solids[i]) for i = 1:length(solids)]
@@ -113,14 +114,14 @@ end
 # -25 25
 #ITEM: ATOMS id type x y z damage s11 s22 s33 s12 s13 s23 vx T ienergy
 #0 1 10.5401 -1.50408 -0.647102 0 -16.9889 -19.2388 -13.7454 11.4435 4.68828 -2.59562 3346.25 298 0
-function plotParticles(plot::OvitoOutput,solids,
+function plotParticles_2D(plot::OvitoOutput,solids,
           lims::Vector{Float64},ncells::Vector{Int64},counter::Int64)
 	parCount = 0
 	for s=1:length(solids)
 		parCount += solids[s].parCount
 	end
 	fileName = string(plot.dir,"dump_p.","$(Int(counter)).LAMMPS")
-	println(fileName)
+	#println(fileName)
 	file = open(fileName, "a")
     write(file, "ITEM: TIMESTEP \n")
     write(file, "0\n")
@@ -188,8 +189,8 @@ function plotParticles(plot::OvitoOutput,solids,
 	close(file)
 end
 
-function plotParticles(plot::OvitoOutput,solids::Vector{Solid3D},
-          lims::Vector{Float64},ncells::Vector{Int64},counter::Int64)
+function plotParticles_3D(plot::OvitoOutput,solids,
+          lims::Vector{Float64},ncells::Vector{Int64},counter::Int64) where {T<:MaterialType}
 	parCount = 0
 	for s=1:length(solids)
 		parCount += solids[s].parCount
@@ -206,7 +207,7 @@ function plotParticles(plot::OvitoOutput,solids::Vector{Solid3D},
 	write(file, "0 $(lims[2])\n")
 	write(file, "0 $(lims[3])\n")
 
-	write(file, "ITEM: ATOMS id type x y z")
+	write(file, "ITEM: ATOMS id type x y z ")
 	@inbounds for v in plot.outs
 		write(file, v)
 		write(file, " ")
@@ -254,7 +255,7 @@ function plotParticles(plot::OvitoOutput,solids::Vector{Solid3D},
 	close(file)
 end
 
-function plotParticles(plot::OvitoOutput,grid,counter::Int64)
+function plotGrid(plot::OvitoOutput,grid::Grid2D,counter::Int64)
 	fileName = string(plot.dir,"dump_g.","$(Int(counter)).LAMMPS")
 	println(fileName)
 	file = open(fileName, "a")
@@ -277,6 +278,6 @@ function plotParticles(plot::OvitoOutput,grid,counter::Int64)
 end
 
 export OutputType, PyPlotOutput, OvitoOutput
-export plotParticles, writeParticles
+export plotGrid,plotParticles_2D, plotParticles_3D, writeParticles
 
 end

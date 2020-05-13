@@ -164,7 +164,7 @@ function loadGMSH(sFile::String)
 			end
 		end
 		#println(arrayElement_ID)
-        println(inodes)
+        #println(inodes)
 
 		@printf("	nNodes: %d, nElements: %d\n", nNodes, nElements)
 		return (arrayNode_Coordinate,inodes)

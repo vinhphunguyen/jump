@@ -18,6 +18,7 @@ using  Grid
 using  Solid
 using  Printf
 using  StaticArrays   # if not yet installed, in REPL, do import Pkg and Pkd.add("StaticArrays")
+using  TimerOutputs
 
 include("Bsplines.jl")
 
@@ -29,8 +30,12 @@ export getAdjacentGridPoints, quad_bspline_type1, quad_bspline_type2,
 abstract type BasisType end
 
 struct LinearBasis      <: BasisType      end
-struct CPDIQ4Basis      <: BasisType      end
 struct QuadBsplineBasis <: BasisType      end
+
+struct CPDIQ4Basis      <: BasisType
+	allNeighbors::Vector{Int64}
+	function CPDIQ4Basis() return new(repeat(0:0, inner=16)) end
+end
 
 #################################################################
 # getAdjacentGridPoints: 1D
@@ -62,20 +67,24 @@ function getAdjacentGridPoints(nearPts,xp,grid::Grid2D,basis::LinearBasis)
 end
 
 # used in CPDI basis functions evaluation
-function getAdjacentGridPoints(xp,grid::Grid2D,basis::LinearBasis)
+function getNearestGridPoints(points,start,xp,grid::Grid2D)
 	fLength_Cell_x = grid.dxI
 	fLength_Cell_y = grid.dyI
 
 	iBottomLeft_i  = floor(Int64,(xp[1]-grid.xmin) * fLength_Cell_x + 1.)
 	iBottomLeft_j  = floor(Int64,(xp[2]-grid.ymin) * fLength_Cell_y + 1.)
+	#
+	# if(iBottomLeft_j < 1 || iBottomLeft_j > grid.nodeCountY)
+	# 	@printf("Index out of bounds: j: %d \n", iBottomLeft_j)
+	# 	@printf("xp[2]: %e \n", xp[2])
+	# end
 
-	if(iBottomLeft_j < 1 || iBottomLeft_j > grid.nodeCountY)
-		@printf("Index out of bounds: j: %d \n", iBottomLeft_j)
-		@printf("xp[2]: %e \n", xp[2])
-	end
-
-	iIndex   = index2DTo1D(iBottomLeft_i, iBottomLeft_j,   grid.nodeCountX, grid.nodeCountY)
-	return [iIndex, iIndex+1, iIndex+grid.nodeCountX,iIndex+1+grid.nodeCountX ]
+	iIndex   = index2DTo1D(iBottomLeft_i, iBottomLeft_j,
+	                       grid.nodeCountX, grid.nodeCountY)
+	points[start]   = iIndex
+	points[start+1] = iIndex+1
+	points[start+2] = iIndex+grid.nodeCountX
+	points[start+3] = iIndex+1+grid.nodeCountX
 end
 
 #################################################################
@@ -213,8 +222,10 @@ end
 # outputs: nearPoints, funcs and and ders
 function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
                              ders::Matrix{Float64},p::Int64, grid::Grid3D, solid,basis::LinearBasis)
-	xp = solid.pos[p]
-	getAdjacentGridPoints(nearPoints,xp,grid,basis)
+	xp = solid.pos[p][1]
+	yp = solid.pos[p][2]
+	zp = solid.pos[p][3]
+	getAdjacentGridPoints(nearPoints,solid.pos[p],grid,basis)
 
 	dxI = grid.dxI
 	dyI = grid.dyI
@@ -222,15 +233,18 @@ function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 
 	@inbounds for i = 1:8
 		index      = nearPoints[i]
-		v2Distance = xp - grid.pos[index]
 
-		Nx = 1.0 - abs(v2Distance[1]) * dxI
-		Ny = 1.0 - abs(v2Distance[2]) * dyI
-		Nz = 1.0 - abs(v2Distance[3]) * dzI
+		xip        = xp - grid.pos[index][1]
+		yip        = yp - grid.pos[index][2]
+		zip        = zp - grid.pos[index][3]
 
-		dNdx = -Ny*Nz*sign(v2Distance[1]) * dxI
-		dNdy = -Nx*Nz*sign(v2Distance[2]) * dyI
-		dNdz = -Nx*Ny*sign(v2Distance[3]) * dzI
+		Nx = 1.0 - abs(xip) * dxI
+		Ny = 1.0 - abs(yip) * dyI
+		Nz = 1.0 - abs(zip) * dzI
+
+		dNdx = -Ny*Nz*sign(xip) * dxI
+		dNdy = -Nx*Nz*sign(yip) * dyI
+		dNdz = -Nx*Ny*sign(zip) * dzI
 
 		funcs[i]    = Nx * Ny * Nz
 		ders[1,i]   = dNdx
@@ -507,26 +521,59 @@ end
 # outputs: nearPoints, funcs and and ders
 function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
                            p::Int64, grid::Grid2D, solid,basis::LinearBasis)
-	xp = solid.pos[p]
+	xp  = solid.pos[p]
+	xp1 = xp[1]
+	xp2 = xp[2]
 	getAdjacentGridPoints(nearPoints,xp,grid,basis)
 
 	dxI = grid.dxI
 	dyI = grid.dyI
 
 	@inbounds for i = 1:4
-		index      = nearPoints[i]
-		v2Distance = xp - grid.pos[index]
+		index  = nearPoints[i]
+		dx     = xp1 - grid.pos[index][1]
+		dy     = xp2 - grid.pos[index][2]
 
-		Nx = 1.0 - abs(v2Distance[1]) * dxI
-		Ny = 1.0 - abs(v2Distance[2]) * dyI
-
+		Nx = 1.0 - abs(dx) * dxI
+		Ny = 1.0 - abs(dy) * dyI
 		funcs[i]    = Nx * Ny
 	end
 	return 4
 end
 
 #################################################################
-# getShapeAndGradient: 2D, modified quadratic bspline basis
+# getShapeFunctions: 3D, linear basis
+# outputs: nearPoints, funcs
+function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
+                          p::Int64, grid::Grid3D, solid,basis::LinearBasis)
+	xp = solid.pos[p]
+	getAdjacentGridPoints(nearPoints,xp,grid,basis)
+
+	dxI = grid.dxI
+	dyI = grid.dyI
+	dzI = grid.dzI
+
+	xp1 = xp[1]
+	xp2 = xp[2]
+	xp3 = xp[3]
+
+	@inbounds for i = 1:8
+		index  = nearPoints[i]
+		dx     = xp1 - grid.pos[index][1]
+		dy     = xp2 - grid.pos[index][2]
+		dz     = xp3 - grid.pos[index][3]
+
+		Nx = 1.0 - abs(dx) * dxI
+		Ny = 1.0 - abs(dy) * dyI
+		Nz = 1.0 - abs(dz) * dzI
+
+		funcs[i]    = Nx * Ny * Nz
+	end
+	return 8
+end
+
+#################################################################
+# getShapeFunctions: 2D, modified quadratic bspline basis
 # outputs: nearPoints, funcs and and ders
 function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 						   p::Int64, grid::Grid2D, solid,basis::QuadBsplineBasis)
@@ -636,11 +683,13 @@ function getShapeFuncs(nearPoints::Vector{Int64}, funcs::Vector{Float64},xp, gri
 	end
 end
 
-function getShapeIp(xp, xI,grid::Grid2D, basis::LinearBasis)
-	v2Distance = xp - xI
+# used in CPDI for each corner xp and node I
+function getShapeIp(xp, xI,grid::Grid2D)
+	x = xp[1] - xI[1]
+	y = xp[2] - xI[2]
 
-	Nx = 1.0 - abs(v2Distance[1]) * grid.dxI
-	Ny = 1.0 - abs(v2Distance[2]) * grid.dyI
+	Nx = 1.0 - abs(x) * grid.dxI
+	Ny = 1.0 - abs(y) * grid.dyI
 
 	if (Nx < 0.0) Nx = 0.0 end
 	if (Ny < 0.0) Ny = 0.0 end
@@ -654,17 +703,17 @@ end
 
 function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
                          ders::Matrix{Float64},p::Int64, grid::Grid2D, solid,basis::CPDIQ4Basis)
-	 nodeIds = solid.elems[p,:]
-	 corners = solid.nodes[:,nodeIds]
+	 nodeIds = @view solid.elems[p,:]
+	 nodes   = solid.nodes
 
-	 x11     = corners[1,1]
-	 x12     = corners[2,1]
-	 x21     = corners[1,2]
-	 x22     = corners[2,2]
-	 x31     = corners[1,3]
-	 x32     = corners[2,3]
-	 x41     = corners[1,4]
-	 x42     = corners[2,4]
+	 x11     = nodes[nodeIds[1]][1]
+	 x12     = nodes[nodeIds[1]][2]
+	 x21     = nodes[nodeIds[2]][1]
+	 x22     = nodes[nodeIds[2]][2]
+	 x31     = nodes[nodeIds[3]][1]
+	 x32     = nodes[nodeIds[3]][2]
+	 x41     = nodes[nodeIds[4]][1]
+	 x42     = nodes[nodeIds[4]][2]
 
 	 Vp     = 0.5*   ( x11*x22  - x21*x12 +
 	                   x21*x32  - x31*x22 +
@@ -677,41 +726,58 @@ function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	 c3   = (x31-x41)*(x42-x12) - (x32-x42)*(x41-x11)
 	 c4   = (x31-x41)*(x32-x22) - (x32-x42)*(x31-x21)
 
-	 wf   = (1/(36*Vp))*[4*c1+2*c2+2*c3+c4 2*c1+4*c2+c3+2*c4
-	                       c1+2*c2+2*c3+4*c4 2*c1+c2+4*c3+2*c4]
+	 wf   = (1/(36*Vp))*@SVector [4*c1+2*c2+2*c3+c4, 2*c1+4*c2+c3+2*c4,
+	                              c1+2*c2+2*c3+4*c4, 2*c1+c2+4*c3+2*c4]
 
-	 wg   = zeros(2,4)
+	 wg   = 1/(2*Vp) * MMatrix{2,4}(x22-x42, x41-x21,
+	                                 x32-x12, x11-x31,
+						            -x22+x42, -x41+x21,
+						            -x32+x12, -x11+x31)
 
-	 wg[:,1] = [x22-x42 x41-x21]
-	 wg[:,2] = [x32-x12 x11-x31]
-	 wg[:,3] = -wg[:,1]
-	 wg[:,4] = -wg[:,2]
-
-	 wg      *= 1/(2*Vp)
+	 # wg[:,1] = [x22-x42 x41-x21]
+	 # wg[:,2] = [x32-x12 x11-x31]
+	 # wg[:,3] = -wg[:,1]
+	 # wg[:,4] = -wg[:,2]
+	 #wg      *= 1/(2*Vp)
 
 	 # nodes I where phi_I(xp) are non-zero
-	 nearPts = Vector{Int64}(undef,16)
+	 nearPts = basis.allNeighbors
 	 @inbounds for c=1:4
-	     nearPts[(c-1)*4+1:c*4] = getAdjacentGridPoints(corners[:,c],grid)
+	  getNearestGridPoints(nearPts,4*c-3,nodes[nodeIds[c]],grid)
 	 end
-	 nearPts   = unique(nearPts)
-	 x         = findall(iszero, nearPts)
-	 if length(x) > 0 @error("Zero index: %d \n", p) end
-	 nodeCount = length(nearPts)
-	 nearPoints[1:nodeCount] = nearPts
+	 #@timeit "20" temp     = unique(nearPts)
+	 temp     = Set(nearPts)
+	 # x         = findall(iszero, nearPts)
+	 # if length(x) > 0 @error("Zero index: %d \n", p) end
+	 nodeCount = length(temp)
+	 nearPoints[1:nodeCount] = collect(temp) # no alloc
+
+	 #println(nearPoints)
 
 	 # compute phi_I(xp) and first derivatives
-
-	 funcs .= 0.
-	 ders  .= 0.
-
 	 @inbounds for i=1:nodeCount
-	     xI = grid.pos[nearPoints[i]]
+	     xI  = grid.pos[nearPoints[i]]
+		 Ns  = 0.
+		 dN1 = 0.
+		 dN2 = 0.
 	     @inbounds for c=1:4
-	         N           = getShapeIp(corners[:,c], xI,grid)
-	         funcs[i]   += wf[c]  *N
-	         ders[:,i]  += wg[:,c]*N
+			 # using a function less allocation than directly!!!
+	        N           = getShapeIp(nodes[nodeIds[c]], xI,grid)
+            # xp = nodes[nodeIds[c]]
+			# x = xp[1] - xI[1]
+			# y = xp[2] - xI[2]
+			#
+			# Nx = 1.0 - abs(x) * grid.dxI
+			# Ny = 1.0 - abs(y) * grid.dyI
+			# N = Nx * Ny
+
+	        Ns   += wf[c]  *N
+	        dN1  += wg[1,c]*N
+	        dN2  += wg[2,c]*N
 	     end
+		 funcs[i]   = Ns
+		 ders[1,i]  = dN1
+		 ders[2,i]  = dN2
 	 end
 	 return nodeCount
 end
@@ -721,17 +787,17 @@ end
 # outputs: nearPoints, funcs and and ders
 function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
                          p::Int64, grid::Grid2D, solid,basis::CPDIQ4Basis)
-	 nodeIds = solid.elems[p,:]
-	 corners = solid.nodes[:,nodeIds]
+	 nodeIds = @view solid.elems[p,:]
+	 nodes   = solid.nodes
 
-	 x11     = corners[1,1]
-	 x12     = corners[2,1]
-	 x21     = corners[1,2]
-	 x22     = corners[2,2]
-	 x31     = corners[1,3]
-	 x32     = corners[2,3]
-	 x41     = corners[1,4]
-	 x42     = corners[2,4]
+	 x11     = nodes[nodeIds[1]][1]
+	 x12     = nodes[nodeIds[1]][2]
+	 x21     = nodes[nodeIds[2]][1]
+	 x22     = nodes[nodeIds[2]][2]
+	 x31     = nodes[nodeIds[3]][1]
+	 x32     = nodes[nodeIds[3]][2]
+	 x41     = nodes[nodeIds[4]][1]
+	 x42     = nodes[nodeIds[4]][2]
 
 	 Vp     = 0.5*   ( x11*x22  - x21*x12 +
 	                   x21*x32  - x31*x22 +
@@ -744,28 +810,40 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	 c3   = (x31-x41)*(x42-x12) - (x32-x42)*(x41-x11)
 	 c4   = (x31-x41)*(x32-x22) - (x32-x42)*(x31-x21)
 
-	 wf   = (1/(36*Vp))*[4*c1+2*c2+2*c3+c4 2*c1+4*c2+c3+2*c4
-	                       c1+2*c2+2*c3+4*c4 2*c1+c2+4*c3+2*c4]
+	 wf   = (1/(36*Vp))*@SVector [4*c1+2*c2+2*c3+c4, 2*c1+4*c2+c3+2*c4,
+	                              c1+2*c2+2*c3+4*c4, 2*c1+c2+4*c3+2*c4]
 	# nodes I where phi_I(xp) are non-zero
-		nearPts = Vector{Int64}(undef,16)
-		@inbounds for c=1:4
-			nearPts[(c-1)*4+1:c*4] = getAdjacentGridPoints(corners[:,c],grid)
-		end
-		nearPts   = unique(nearPts)
-		nodeCount = length(nearPts)
-		nearPoints[1:nodeCount] = nearPts
+		# nearPts = Vector{Int64}(undef,16)
+		# @inbounds for c=1:4
+		# 	nearPts[(c-1)*4+1:c*4] = getNearestGridPoints(nodes[nodeIds[c]],grid)
+		# end
+		# nearPts   = unique(nearPts)
+		# nodeCount = length(nearPts)
+		# nearPoints[1:nodeCount] = nearPts
+
+     nearPts = basis.allNeighbors
+   	 @inbounds for c=1:4
+   	  getNearestGridPoints(nearPts,4*c-3,nodes[nodeIds[c]],grid)
+   	 end
+   	 #@timeit "20" temp     = unique(nearPts)
+   	 temp     = Set(nearPts)
+   	 # x         = findall(iszero, nearPts)
+   	 # if length(x) > 0 @error("Zero index: %d \n", p) end
+   	 nodeCount = length(temp)
+   	 nearPoints[1:nodeCount] = collect(temp) # no alloc
 
 	 # compute phi_I(xp) and first derivatives
 
-	 funcs .= 0.
-
 	 @inbounds for i=1:nodeCount
-	     xI = grid.pos[nearPoints[i]]
-	     @inbounds for c=1:4
-	         N           = getShapeIp(corners[:,c], xI,grid)
-	         funcs[i]   += wf[c]  *N
-	     end
-	 end
+ 		xI  = grid.pos[nearPoints[i]]
+ 		Ns  = 0.
+ 		@inbounds for c=1:4
+ 			# using a function less allocation than directly!!!
+ 		   N           = getShapeIp(nodes[nodeIds[c]], xI,grid)
+ 		   Ns   += wf[c]  *N
+ 		end
+ 		funcs[i]   = Ns
+ 	end
 
 	 return nodeCount
 end

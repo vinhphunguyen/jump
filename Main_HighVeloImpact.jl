@@ -23,6 +23,7 @@ using Basis
 using BodyForce
 using Material
 using Algorithm
+using Util
 
 function main()
 	fGravity  = 0.0
@@ -73,9 +74,6 @@ function main()
 
 	bodyforce = ConstantBodyForce2D(fGravity)
 
-	@printf("	Disk,   number of material points: %d \n", solid1.parCount)
-	@printf("	Target, number of material points: %d \n", solid2.parCount)
-	@printf("	Total number of material points:   %d \n", solid1.parCount+solid2.parCount)
 
     # Boundary conditions
 
@@ -96,6 +94,8 @@ function main()
 	fix      = DisplacementFix(solids,[29.8 40.],"impact-results/")
     algo1     =  MUSL(1.)
     algo2     =  USL(1e-11)
+
+	report(grid,solids,dtime)
 
 	# reset_timer!()
 	# @time solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)

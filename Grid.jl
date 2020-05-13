@@ -137,6 +137,7 @@ module Grid
 
      mass      :: Vector{Float64}
      pos       :: Vector{SVector{3,Float64}}
+     momentum0 :: Vector{MVector{3,Float64}}
      momentum  :: Vector{MVector{3,Float64}}
      momentum2 :: Vector{MVector{3,Float64}}  # for MUSL algorithm
      force     :: Vector{MVector{3,Float64}}
@@ -158,6 +159,7 @@ module Grid
         nodeCount = iN_x*iN_y*iN_z
 
         mass         = fill(0,iN_x*iN_y)
+        momentum0    = fill(zeros(3),nodeCount)
         momentum     = fill(zeros(3),nodeCount)
         momentum2    = fill(zeros(3),nodeCount)
         force        = fill(zeros(3),nodeCount)
@@ -180,7 +182,7 @@ module Grid
            end
       end
       new(fGL_x, fGL_y, fGL_z, dx, dy, dz, dxI, dyI, dzI, nodeCount, iN_x,
-          iN_y,iN_z, iN_x*iN_y, mass, pos, momentum, momentum2, force,idx,idy,idz)
+          iN_y,iN_z, iN_x*iN_y, mass, pos, momentum0,momentum, momentum2, force,idx,idy,idz)
      end
   end
 # ----------------------------------------------------------------------

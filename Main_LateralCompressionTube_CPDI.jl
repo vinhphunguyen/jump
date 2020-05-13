@@ -1,7 +1,7 @@
 # Phu Nguyen, Monash University
 # 20 March, 2020 (Coronavirus outbreak)
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/jMPM/src")
+push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
 # import Gadfly
 import PyPlot
 using Printf
@@ -47,18 +47,18 @@ function main()
 	coords3  = buildParticleForRectangle([50.0; grid.dx/2], 100.0, grid.dx, fOffsetR)
 
 	material1 = ElastoPlasticMaterial(steelE,steelNu,steelRho,steelFy,steelK,7898)
-	material2 = RigidMaterial([0.,-v],steelRho)
-	material3 = RigidMaterial([0.,0.],steelRho)
+	material2 = RigidMaterial(0.,-v,steelRho)
+	material3 = RigidMaterial(0.,0.,steelRho)
 
 	c_dil     = sqrt((material1.lambda + 2*material1.mu)/material1.density)
 	dt        = grid.dx/c_dil
 	dtime     = 0.2 * dt
 
-	solid1 = Solid2D("tube.msh",material1)
-    solid2 = Solid2D(coords2,material2)
-    solid3 = Solid2D(coords3,material3)
+	solid1    = Solid2D("tube.msh",material1)
+    solid2    = Solid2D(coords2,material2)
+    solid3    = Solid2D(coords3,material3)
 
-    solids = [solid1, solid2, solid3]
+    solids    = [solid1, solid2, solid3]
 
 	bodyforce = ConstantBodyForce2D(fGravity)
 
@@ -75,16 +75,14 @@ function main()
     interval= 1000
 
 	output2  = OvitoOutput(interval,"tubes-cpdi/",["pstrain", "vonMises"])
-	#fix      = DisplacementFix(solids,[29.8 40.],"impact-results/")
+	fix      = EmptyFix()
 
-
-	problem   = ExplicitSolidMechanics2D(grid,solids,basis,Tf,bodyforce,output2,[])
     algo1     =  MUSL()
     algo2     =  USL(0.)
 
 	plotParticles(problem.output,solids,[grid.lx, grid.ly],[grid.nodeCountX, grid.nodeCountY],0)
     plotParticles(problem.output,grid,0)
-    solve(problem, algo2, dtime)
+    solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
 end
 
-@btime main()
+@time main()

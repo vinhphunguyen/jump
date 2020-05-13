@@ -27,8 +27,15 @@ Identity   = UniformScaling(1.)
 # RigidMaterial: model rigid bodies
 ###############################################################
 struct RigidMaterial <: MaterialType
-	vel::Vector{Float64}
+	vx
+	vy
 	density    # not used, but needed for compability with density of non-rigid materials
+	fixed::Bool
+	function RigidMaterial(vx,vy,density)
+		fixed = false
+		if vx == 0. && vy == 0. fixed = true end
+		return new(vx,vy,density,fixed)
+	end
 end
 
 
@@ -46,13 +53,14 @@ struct ElasticMaterial <: MaterialType
 	l0     ::Float64
 	fac    ::Float64
 
-	function ElasticMaterial(E,nu,density,Gf,l)
+	function ElasticMaterial(E,nu,density;Gf=0.,l=0.)
 		lambda = E*nu/(1+nu)/(1-2*nu)
 		mu     = E/2/(1+nu)
 
         new(E,nu,density,lambda,mu,Gf,l,0.5/E)
     end
 end
+
 # do not update solid.stress!!!
 function update_stress!(sigma::MMatrix{2,2,Float64},mat::ElasticMaterial,
 	                    epsilon::SMatrix{2,2,Float64},F, J,ip)

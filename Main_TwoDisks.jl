@@ -79,8 +79,8 @@ function main()
     @printf("Vol  : %+.6e \n", sum(solid1.volume)+sum(solid2.volume))
     @printf("Vol0 : %+.6e \n", sum(solid1.volumeInitial)+sum(solid2.volumeInitial))
 
-    Tf       = 0.0001#3.5 #3.5e-0
-    interval = 1000
+    Tf       = 3.5 #3.5e-0
+    interval = 5000
 	dtime    = 1e-3
 
     bodyforce = ConstantBodyForce2D(fGravity)
@@ -95,13 +95,13 @@ function main()
 
     #@code_warntype solve_explicit_dynamics_2D(grid,solids,basis,algo1,output,Tf,dtime)
 
-    reset_timer!()
-	@time solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
-    print_timer()
+    # reset_timer!()
+	# @time solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
+    # print_timer()
 
-    #solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
 
-    # plotting energies
+    #= plotting energies
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
 	PyPlot.clf()
 	pyPlot01 = PyPlot.gca()
@@ -121,7 +121,7 @@ function main()
 	PyPlot.plot(fix.recordTime, c="green", fix.kinEnergy + fix.strEnergy, "-", label="\$ K+U \$", linewidth=1.0)
 	PyPlot.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., fontsize=8)
 	PyPlot.savefig("plot_2Disk_Julia.pdf")
-
+=#
 end
 
 @time main()

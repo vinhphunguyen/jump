@@ -2,7 +2,7 @@
 # Phu Nguyen, Monash University
 # 20 March, 2020 (Coronavirus outbreak)
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/jMPM/src")
+push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
 # import Gadfly
 import PyPlot
 using Printf
@@ -23,6 +23,7 @@ using Algorithm
 using Material
 using BodyForce
 using Basis
+using Fix
 
 function main()
 
@@ -76,19 +77,15 @@ function main()
 
     Tf      = 3.5 #3.5e-0
     interval= 120
+	dtime   = 1e-3
 
-    bodyforce = ConstantBodyForce3D(fGravity)
-
-	output1  = PyPlotOutput(interval,"results3D/","Two Disks Collision",(4., 4.))
 	output2  = OvitoOutput(interval,"results3D/",["pressure", "vx", "vz"])
-	#fix     =
+	fix      = EnergiesFix(solids,"results3D/energies.txt")
 
-    problem = ExplicitSolidMechanics3D(grid,solids,basis,Tf,bodyforce,output2,[])
-    algo1    = USL(1e-9)
-    algo2    = MUSL()
-	algo3    = APIC()
-    #solve(problem,algo1,dtime=0.001)
-    solve(problem,algo1,0.001)
+
+    algo2    = MUSL(.99)
+
+    solve_explicit_dynamics_3D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
 
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
 	PyPlot.clf()
@@ -103,12 +100,12 @@ function main()
 	pyPlot01[:set_xticks](collect(0.0:1.0:4.0))
 	pyPlot01[:tick_params](axis="both", which="major", labelsize=8)
 	pyPlot01[:set_yticks](collect(0.0:0.2:1.0))
-	PyPlot.plot(problem.recordTime, c="blue", problem.kinEnergy, "-", label="\$ K \$", linewidth=1.0)
+	PyPlot.plot(fix.recordTime, c="blue", fix.kinEnergy, "-", label="\$ K \$", linewidth=1.0)
 	#PyPlot.hold(true)
-	PyPlot.plot(problem.recordTime, c="red", problem.strEnergy, "-", label="\$ U \$", linewidth=1.0)
-	PyPlot.plot(problem.recordTime, c="green", problem.kinEnergy + problem.strEnergy, "-", label="\$ K+U \$", linewidth=1.0)
+	PyPlot.plot(fix.recordTime, c="red", fix.strEnergy, "-", label="\$ U \$", linewidth=1.0)
+	PyPlot.plot(fix.recordTime, c="green", fix.kinEnergy + fix.strEnergy, "-", label="\$ K+U \$", linewidth=1.0)
 	PyPlot.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., fontsize=8)
-	PyPlot.savefig("plot_2Disk_Julia.pdf")
+	PyPlot.savefig("plot_3Disk_Julia.pdf")
 
 end
 
