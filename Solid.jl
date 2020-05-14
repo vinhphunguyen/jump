@@ -355,7 +355,7 @@ module Solid
    # ring with braze of length l0
    # cellular materials
    function buildParticleForRingWithBraze(fCenter::Array{Float64},
-	                                      innerRad, outerRad, l0, fOffset)
+	                                      innerRad, outerRad, l0, fOffset, fOffsetB)
 	  thisMaterialDomain = Vector{SVector{2,Float64}}(undef,0)
 	  coord              = SVector{2,Float64}
 
@@ -369,8 +369,7 @@ module Solid
 		  end
 	  end
 
-	  # handling the braze, which is a rectagle
-
+	  # handling the vertical braze, which is a rectagle
 	  AB      = 0.5*l0
 	  R       = outerRad
 	  x       = sqrt(R^2-AB^2)
@@ -378,8 +377,8 @@ module Solid
       count = 0
 	  # println(AB)
 	  # println(CB)
-	  for fy in -AB+0.5*fOffset:fOffset:+AB-0.5*fOffset
-		  for fx in -CB+0.5*fOffset:fOffset:+CB-0.5*fOffset
+	  for fy in -AB+0.5*fOffsetB:fOffsetB:+AB-0.5*fOffsetB
+		  for fx in -CB+0.5*fOffsetB:fOffsetB:+CB-0.5*fOffsetB
 			  # compute the coords in global coords
 			  coord = [fCenter[1] + R + fx; fCenter[2] + fy]
 			  # coords with origin at the ring center
@@ -398,8 +397,8 @@ module Solid
 		  end
 	  end
 	  # for the horizontal braze_length
-	  for fy in -CB+0.5*fOffset:fOffset:+CB-0.5*fOffset
-		  for fx in -AB+0.5*fOffset:fOffset:+AB-0.5*fOffset
+	  for fy in -CB+0.5*fOffsetB:fOffsetB:+CB-0.5*fOffsetB
+		  for fx in -AB+0.5*fOffsetB:fOffsetB:+AB-0.5*fOffsetB
 			  # compute the coords in global coords
 			  coord = [fCenter[1] + fx; fCenter[2] + R + fy]
 			  # coords with origin at the ring center

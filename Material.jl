@@ -53,13 +53,15 @@ struct ElasticMaterial <: MaterialType
 	l0     ::Float64
 	fac    ::Float64
 
-	function ElasticMaterial(E,nu,density;Gf=0.,l=0.)
+	function ElasticMaterial(E,nu,density,Gf,l)
 		lambda = E*nu/(1+nu)/(1-2*nu)
 		mu     = E/2/(1+nu)
 
         new(E,nu,density,lambda,mu,Gf,l,0.5/E)
     end
 end
+
+ElasticMaterial(E,nu,rho)=ElasticMaterial(E,nu,density,0.,0.)
 
 # do not update solid.stress!!!
 function update_stress!(sigma::MMatrix{2,2,Float64},mat::ElasticMaterial,

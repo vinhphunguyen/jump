@@ -82,15 +82,15 @@ function main()
     Tf      = 1e3
     interval= 1000
 
-	output2   = OvitoOutput(interval,"tubes/",["pstrain", "vonMises"])
+	output2   = OvitoOutput(interval,"tubes/",["pstrain", "vonMises","vy"])
 	fix       = EmptyFix()
     algo1     =  MUSL(0.99)
     algo2     =  USL(0.)
 
 	report(grid,solids,dtime)
 
-	#plotParticles(problem.output,solids,[grid.lx, grid.ly],[grid.nodeCountX, grid.nodeCountY],0)
-    plotParticles(output2,grid,0)
+	#plotParticles_2D(output2,solids,[grid.lx, grid.ly],[grid.nodeCountX, grid.nodeCountY],0)
+    plotGrid(output2,grid,0)
     solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
 
 	# reset_timer!()

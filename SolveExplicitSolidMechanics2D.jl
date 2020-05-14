@@ -38,6 +38,8 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 	vvp           = zeros(2)
 	body          = zeros(2)
 
+	alpha         = alg.alpha
+
 	# allocate memory for grid basis and grads once
 	nearPoints,funcs, ders = initialise(grid,basis)
 
@@ -89,15 +91,14 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 					# println(nearPoints)
 					# println(support)
 				@inbounds for i = 1:support
-
-					in    = nearPoints[i]; # index of node ‘i’
+					id    = nearPoints[i]; # index of node ‘i’
 					Ni    = funcs[i]
 					dNi   = @view ders[:,i]
 					Nim   = Ni * fMass
 					# mass, momentum, internal force and external force
-					nodalMass[in]       +=  Nim
-					nodalMomentum0[in]  +=  Nim * vp
-	                nodalForce[in] -= fVolume * @SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],
+					nodalMass[id]       +=  Nim
+					nodalMomentum0[id]  +=  Nim * vp
+	                nodalForce[id] -= fVolume * @SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],
 	                                                     sigma[2,1] * dNi[1] + sigma[2,2] * dNi[2]]
 				end
 		  	end
@@ -143,12 +144,13 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 						Ni = funcs[i]
 						mI = nodalMass[in]
 						if ( mI > 0 )
-							vx += Ni * (nodalMomentum[in][1] - alg.alpha*nodalMomentum0[in][1])/mI
-							vy += Ni * (nodalMomentum[in][2] - alg.alpha*nodalMomentum0[in][2])/mI
+							mii = Ni / mI
+							vx += mii * (nodalMomentum[in][1] - alpha*nodalMomentum0[in][1])
+							vy += mii * (nodalMomentum[in][2] - alpha*nodalMomentum0[in][2])
 						end
 					end
-					vv[ip] = setindex(vv[ip],alg.alpha*vp0[1] + vx,1)
-					vv[ip] = setindex(vv[ip],alg.alpha*vp0[2] + vy,2)
+					vv[ip] = setindex(vv[ip],alpha*vp0[1] + vx,1)
+					vv[ip] = setindex(vv[ip],alpha*vp0[2] + vy,2)
 					# mapping the updated particle vel back to the node
 					for i in 1:support
 						in = nearPoints[i] # index of node ‘i’
@@ -199,7 +201,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 				                                  dNi[1]*vI[2], dNi[2]*vI[2])
 				    end
 				end
-				xx[ip]    = xxp
+				xx[ip]      = xxp
 	            D           = 0.5 * (vel_grad + vel_grad')
 	            strain[ip]  += dtime * D
 				F[ip]       *= (Identity + vel_grad*dtime)
@@ -363,21 +365,21 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 			getAdjacentGridPoints(nearPointsLin,xx[ip],grid,linBasis)
 #			println(nearPoints)
 			@inbounds for i = 1:4
-				in                  = nearPointsLin[i]; # index of node 'i'
-				mi                  = nodalMass[in]
+				id                  = nearPointsLin[i]; # index of node 'i'
+				mi                  = nodalMass[id]
 				if solid.mat.fixed
-				  nodalMomentum[in]   = setindex(nodalMomentum[in],0.,1)
-				  nodalMomentum[in]   = setindex(nodalMomentum[in],0.,2)
-  				  nodalMomentum0[in]  = setindex(nodalMomentum0[in],0.,1)
-  				  nodalMomentum0[in]  = setindex(nodalMomentum0[in],0.,2)
+				  nodalMomentum[id]   = setindex(nodalMomentum[id],0.,1)
+				  nodalMomentum[id]   = setindex(nodalMomentum[id],0.,2)
+  				  nodalMomentum0[id]  = setindex(nodalMomentum0[id],0.,1)
+  				  nodalMomentum0[id]  = setindex(nodalMomentum0[id],0.,2)
 			    else
 					if vex != 0.
-					  nodalMomentum[in]   = setindex(nodalMomentum[in], mi*vex,1)
-					  nodalMomentum0[in]  = setindex(nodalMomentum0[in],mi*vex,1)
+					  nodalMomentum[id]   = setindex(nodalMomentum[id], mi*vex,1)
+					  nodalMomentum0[id]  = setindex(nodalMomentum0[id],mi*vex,1)
 				    end
 					if vey != 0.
-					  nodalMomentum[in]   = setindex(nodalMomentum[in], mi*vey,2)
-					  nodalMomentum0[in]  = setindex(nodalMomentum0[in],mi*vey,2)
+					  nodalMomentum[id]   = setindex(nodalMomentum[id], mi*vey,2)
+					  nodalMomentum0[id]  = setindex(nodalMomentum0[id],mi*vey,2)
 					end
 				end
 				#println(nodalMomentum)
@@ -415,25 +417,25 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 				dNi= @view ders[:,i]
 				mI = nodalMass[in]
 			    if (mI > alg.tolerance)
-					invM      = 1.0 / mI
-					vI        = nodalMomentum[in] * invM
-					vvp   += Ni * (nodalMomentum[in] - nodalMomentum0[in]) * invM
-					xxp   += Ni * vI * dtime
+					invM       = 1.0 / mI
+					vI         = nodalMomentum[in] * invM
+					vvp       += Ni * (nodalMomentum[in] - nodalMomentum0[in]) * invM
+					xxp       += Ni * vI * dtime
 					vel_grad  += SMatrix{2,2}(dNi[1]*vI[1], dNi[2]*vI[1],
 	   										  dNi[1]*vI[2], dNi[2]*vI[2])
-	   		 end
-			 vv[ip]   = vvp
-			 xx[ip]   = xxp
-	   	 end
-	   	 D           = 0.5 * (vel_grad + vel_grad')
-	   	 strain[ip]  += dtime * D
-	   	 F[ip]       *= (Identity + vel_grad*dtime)
-	   	 J            = det(F[ip])
-	   	 if ( J < 0. )
-	   		 @printf("Troubled particle: %f %f \n", xx[ip][1], xx[ip][2])
-	   		 println(F[ip])
-	   		 @error("J is negative\n")
-	   	 end
+		   		end
+		   	 end
+			 vv[ip]      = vvp
+			 xx[ip]      = xxp
+		   	 D           = 0.5 * (vel_grad + vel_grad')
+		   	 strain[ip]  += dtime * D
+		   	 F[ip]       *= (Identity + vel_grad*dtime)
+		   	 J            = det(F[ip])
+		   	 if ( J < 0. )
+		   		 @printf("Troubled particle: %f %f \n", xx[ip][1], xx[ip][2])
+		   		 println(F[ip])
+		   		 @error("J is negative\n")
+		   	 end
 	   	 vol[ip]     = J * vol0[ip]
 	   	 #@timeit "3" update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
 	   	 update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)

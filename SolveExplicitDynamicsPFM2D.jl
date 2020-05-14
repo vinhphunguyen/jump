@@ -20,10 +20,10 @@ using Fix
 ######################################################################
 # Modified Update Stress Last
 ######################################################################
-function solve_explicit_dynamics_PFM_2D(grid,solids,basis,alg::MUSL,output,Tf,dtime)
-	t       = 0.
-    counter = 0
-    Identity      = SMatrix{2,2}(1, 0, 0, 1)
+function solve_explicit_dynamics_PFM_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,dtime)
+	t             = 0.
+    counter       = 0
+    Identity      = UniformScaling(1.)
 
 	solidCount    = length(solids)
 
@@ -36,14 +36,14 @@ function solve_explicit_dynamics_PFM_2D(grid,solids,basis,alg::MUSL,output,Tf,dt
 	nodalDamage0   = grid.damage0
 	nodalDamage    = grid.damage
 
-	vel_grad      = zeros(Float64,2,2)
-	D             = zeros(Float64,2,2)
+	D             = SMatrix{2,2}(0., 0., 0., 0.) #zeros(Float64,2,2)
 	vvp           = zeros(2)
 	damgrad       = zeros(2)
 	interval      = output.interval
+	alpha         = alg.alpha
 
 	# allocate memory for grid basis and grads once
-	nearPoints,funcs, ders = initialise(basis,grid)
+	nearPoints,funcs, ders = initialise(grid,basis)
 	nearPointsLin    = [0, 0, 0, 0]
 	funcsLin         = [0., 0., 0., 0.]
 	linBasis         = LinearBasis()
@@ -72,7 +72,7 @@ function solve_explicit_dynamics_PFM_2D(grid,solids,basis,alg::MUSL,output,Tf,dt
 		  nodalForce[i]     = @SVector [0., 0.]
 	    end
 	    # ===========================================
-	    # particle to grid
+	    # particle to grid (deformable solids)
 	    # ===========================================
 		#println(problem.bodyforce.g)
 		for s = 1:solidCount
@@ -89,20 +89,22 @@ function solve_explicit_dynamics_PFM_2D(grid,solids,basis,alg::MUSL,output,Tf,dt
 		        support   = getShapeAndGradient(nearPoints,funcs,ders,ip, grid, solid, basis)
 		        fVolume   = vol[ip]
 		        fMass     = mm[ip]
-		        vp        = vv[ip]
 		        sigma     = stress[ip]
+				vp        = vv[ip]
 				d         = dam[ip]
 				degrad    = (1-d)^2 # AT1/2 only
-				#body      = problem.bodyforce(xx[ip],t)
 				@inbounds for i = 1:support
 					in    = nearPoints[i]; # index of node ‘i’
 					Ni    = funcs[i]
-					dNi   = ders[:,i]
+					dNi   = @view ders[:,i]
+					Nim   = Ni * fMass
 					# mass, momentum, internal force and external force
-					nodalMass[in]       += Ni * fMass
-					nodalMomentum0[in]  += Ni * fMass * vp
-					nodalForce[in]      -=      fVolume * sigma * dNi * degrad
-					nodalForce[in]      +=      fMass   * body  *  Ni
+					nodalMass[in]       += Nim
+					nodalMomentum0[in]  += Nim * vp
+					nodalForce[in]      -=   fVolume *  degrad  *
+					@SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],
+	                         sigma[2,1] * dNi[1] + sigma[2,2] * dNi[2]]
+					#nodalForce[in]      +=      fMass   * body  *  Ni
 				end
 		  	end
 		end
@@ -128,27 +130,32 @@ function solve_explicit_dynamics_PFM_2D(grid,solids,basis,alg::MUSL,output,Tf,dt
 	        # end
 		end
 
+		# ===========================================
+		# particle to grid (rigid solids)
+		# ===========================================
+
 		@inbounds for s = 1:solidCount
 			solid  = solids[s]
-			# deformable solids only
+			# rigid solids only
 			if !solid.rigid continue end
 			xx     = solid.pos
-			ve     = solid.mat.vel
+			ve     = @SVector[solid.mat.vx,solid.mat.vy]
 			@inbounds for ip = 1:solid.parCount
 				getAdjacentGridPoints(nearPointsLin,xx[ip],grid,linBasis)
 	#			println(nearPoints)
-				@inbounds for i = 1:length(nearPointsLin)
-					in                  = nearPointsLin[i]; # index of node 'i'
-					nodalMomentum0[in]  = nodalMass[in] * ve
-					nodalMomentum[in]   = nodalMass[in] * ve
+				@inbounds for i = 1:4
+					id                  = nearPointsLin[i]; # index of node 'i'
+					mI                  = nodalMass[id]
+					nodalMomentum0[id]  = mI * ve
+					nodalMomentum[id]   = mI * ve
 					#println(nodalMomentum)
 				end
 			end
 		end
 
-	    # ===========================================
+	    # ============================================
 	    # grid to particle 1: particle vel update only
-	    # ===========================================
+	    # ============================================
 		for s = 1:solidCount
 			  	solid = solids[s]
 				if solid.rigid continue end
@@ -156,7 +163,8 @@ function solve_explicit_dynamics_PFM_2D(grid,solids,basis,alg::MUSL,output,Tf,dt
 			  	mm    = solid.mass
 			  	vv    = solid.velocity
 			  	@inbounds @simd for ip = 1:solid.parCount
-					vp0     = vv[ip]
+					vp0    = vv[ip]
+					mp     = mm[ip]
 					vx     = 0.
 					vy     = 0.
 			        support = getShapeFunctions(nearPoints,funcs,ip, grid, solid, basis)
@@ -165,32 +173,35 @@ function solve_explicit_dynamics_PFM_2D(grid,solids,basis,alg::MUSL,output,Tf,dt
 						Ni = funcs[i]
 						mI = nodalMass[in]
 						if ( mI > 0 )
-							vx += Ni * (nodalMomentum[in][1] - alg.alpha*nodalMomentum0[in][1])/mI
-							vy += Ni * (nodalMomentum[in][2] - alg.alpha*nodalMomentum0[in][2])/mI
+							mii = Ni / mI
+							vx += mii * (nodalMomentum[in][1] - alpha*nodalMomentum0[in][1])
+							vy += mii * (nodalMomentum[in][2] - alpha*nodalMomentum0[in][2])
 						end
 					end
-					vv[ip] = setindex(vv[ip],alg.alpha*vp0[1] + vx,1)
-					vv[ip] = setindex(vv[ip],alg.alpha*vp0[2] + vy,2)
+					vv[ip] = setindex(vv[ip],alpha*vp0[1] + vx,1)
+					vv[ip] = setindex(vv[ip],alpha*vp0[2] + vy,2)
+					vvp    = vv[ip]
 					# mapping the updated particle vel back to the node
 					for i in 1:support
-						in = nearPoints[i] # index of node ‘i’
-						nodalMomentum2[in]  += funcs[i] * mm[ip] * vv[ip]
+						id = nearPoints[i] # index of node ‘i’
+						nodalMomentum2[id]  += funcs[i] * mp * vvp
 					end
 			  	end
 	    end
 
 		@inbounds for s = 1:solidCount
    			solid  = solids[s]
-   			# deformable solids only
+   			# rigid solids only
    			if !solid.rigid continue end
    			xx     = solid.pos
-   			ve     = solid.mat.vel
+   			ve     = @SVector [solid.mat.vx,solid.mat.vy]
    			@inbounds for ip = 1:solid.parCount
    				getAdjacentGridPoints(nearPointsLin,xx[ip],grid,linBasis)
    	#			println(nearPoints)
-   				@inbounds for i = 1:length(nearPointsLin)
+   				@inbounds for i = 1:4
    					in                  = nearPointsLin[i]; # index of node 'i'
-   					nodalMomentum2[in]  = nodalMass[in] * ve
+					mI                  = nodalMass[in]
+   					nodalMomentum2[in]  = mI * ve
    					#println(nodalMomentum)
    				end
    			end
@@ -213,21 +224,23 @@ function solve_explicit_dynamics_PFM_2D(grid,solids,basis,alg::MUSL,output,Tf,dt
 		  	strain = solid.strain
 			crackForce    = solid.crackForce
 		  	@inbounds @simd for ip = 1:solid.parCount
-				support=getShapeAndGradient(nearPoints,funcs,ders,ip, grid, solid, basis)
-				#getShapeAndGradient(nearPoints,funcs,ders,xx[ip], grid)
-		        vel_grad .= 0. #zeros(Float64,2,2)
+				support   = getShapeAndGradient(nearPoints,funcs,ders,ip, grid, solid, basis)
+		        vel_grad  = SMatrix{2,2}(0., 0., 0., 0.)
+				xxp       = xx[ip]
 				for i = 1:support
 					in = nearPoints[i]; # index of node ‘i’
 					Ni = funcs[i]
 					dNi= ders[:,i]
-					m = nodalMass[in]
+					m  = nodalMass[in]
 					if ( m > 0.)
 						vI         = nodalMomentum2[in] /m
-						xx[ip]    += (Ni * nodalMomentum[in]/m) * dtime
-						vel_grad .+= vI*dNi'
+						xxp       += (Ni * nodalMomentum[in]/m) * dtime
+						vel_grad  += SMatrix{2,2}(dNi[1]*vI[1], dNi[2]*vI[1],
+			   									  dNi[1]*vI[2], dNi[2]*vI[2])
 				    end
 				end
-	            D            .= 0.5 * (vel_grad.+vel_grad')
+				xx[ip]       = xxp
+	            D            = 0.5 * (vel_grad+vel_grad')
 	            strain[ip]  += dtime * D
 				F[ip]       *= (Identity + vel_grad*dtime)
 				J           = det(F[ip])
@@ -244,37 +257,22 @@ function solve_explicit_dynamics_PFM_2D(grid,solids,basis,alg::MUSL,output,Tf,dt
 
 		# if CPDI, do extra thing here
 
-		if ( typeof(basis) <: CPDIQ4Basis )
-			@inbounds for s = 1:solidCount
-				solid = solids[s]
-				@inbounds for c = 1:size(solid.nodes,2)
-				  getShapeFuncs(nearPointsLin,funcsLin, solid.nodes[:,c], grid, solid, LinearBasis())
-				  for i = 1:length(nearPointsLin)
-					  in = nearPointsLin[i]; # index of node ‘i’
-					  Ni = funcsLin[i]
-					  #vI        = nodalMomentum2[in] / nodalMass[in]
-					  if nodalMass[in] > 0.
-						  solid.nodes[:,c]   += (Ni * nodalMomentum[in] / nodalMass[in]) * dtime
-					  end
-				  end
-			    end
-		    end
-	    end
 
 		##################################################
 		# update position of rigid solids
 		##################################################
 		@inbounds for s = 1:solidCount
 			# only rigid solids here
-			solid = solids[s]
+		  	solid = solids[s]
 			if !solid.rigid continue end
 
-			xx    = solid.pos
-			ve    = solid.mat.vel
+		  	xx    = solid.pos
+		  	vx    = solid.mat.vx
+		  	vy    = solid.mat.vy
 			#println(ve)
-			@inbounds for ip = 1:solid.parCount
-			  xx[ip]   += ve * dtime
-			end
+	        @inbounds for ip = 1:solid.parCount
+		      xx[ip]   += dtime * @SVector [vx,vy]
+		    end
 		end
 
 		############################################################
@@ -312,12 +310,13 @@ function solve_explicit_dynamics_PFM_2D(grid,solids,basis,alg::MUSL,output,Tf,dt
 				@inbounds for i = 1:support
 					in    = nearPoints[i]; # index of node ‘i’
 					Ni    = funcs[i]
-					dNi   = ders[:,i]
+					dNi   = @view ders[:,i]
 					# mass, momentum, internal force and external force
-					nodalMass[in]     += Ni  * fVolume
-					nodalDamage0[in]  += Ni  * fVolume * d
-					nodalPFForce[in]  += (Ni * (domega*Ybar + dalpha*coef1) +
-					                        coef2*(dNi[1]*gradDam[1]+dNi[2]*gradDam[2])) * fVolume
+					NiVol = Ni  * fVolume
+					nodalMass[in]     += NiVol
+					nodalDamage0[in]  += NiVol * d
+					nodalPFForce[in]  += NiVol * ( domega*Ybar + dalpha*coef1 ) +
+					                    coef2*( dNi[1]*gradDam[1]+dNi[2]*gradDam[2] ) * fVolume
 				end
 			end
 		end
@@ -328,7 +327,7 @@ function solve_explicit_dynamics_PFM_2D(grid,solids,basis,alg::MUSL,output,Tf,dt
 		@inbounds for i=1:grid.nodeCount
 			dI = nodalDamage0[i] - xi*nodalPFForce[i]
 			if dI < 0   dI = 0. end
-			if dI > 1.0 dI = 1. end
+			#if dI > 1.0 dI = 1. end
 			nodalDamage[i] = dI
 			# apply Dirichet boundary conditions
 			# if grid.fixedXNodes[i] == 1
@@ -351,32 +350,38 @@ function solve_explicit_dynamics_PFM_2D(grid,solids,basis,alg::MUSL,output,Tf,dt
 	    # ===========================================
 		@inbounds for s = 1:solidCount
 		  	solid = solids[s]
-		  	xx    = solid.pos
-		  	mm    = solid.mass
-		  	vol   = solid.volume
+		  	#xx    = solid.pos
+		  	#mm    = solid.mass
+		  	#vol   = solid.volume
 			dam   = solid.damage
 			gradDamage= solid.gradDamage
 		  	@inbounds @simd for ip = 1:solid.parCount
 				support  = getShapeAndGradient(nearPoints,funcs,ders,ip, grid, solid, basis)
 				damgrad .= 0.
+				dd       = 0.
 				for i = 1:support
-					in = nearPoints[i]; # index of node ‘i’
+					id = nearPoints[i]; # index of node ‘i’
 					Ni = funcs[i]
-					dNi= ders[:,i]
-					m =  nodalMass[in]
+					dNi= @view ders[:,i]
+					m  =  nodalMass[id]
 					if ( m > 0.)
-						dam[ip]  += Ni * ( nodalDamage[in] - nodalDamage0[in]) / m
-						damgrad  += dNi*nodalDamage[in] /m
+						dI = nodalDamage[id] / m
+						#dam[ip]  += Ni * ( nodalDamage[id] - nodalDamage0[id]) / m
+						dd       += Ni  * dI
+						damgrad  += dNi * dI
 				    end
 				end
+				if dd < 0. dd = 0. end
+				if dd > 1. dd = 1. end
+				dam[ip]        = dd
 				gradDamage[ip] = damgrad
 		  	end
 		end
 
 		if (counter%interval == 0)
-			plotParticles(output,solids,[grid.lx, grid.ly],
+			plotParticles_2D(output,solids,[grid.lx, grid.ly],
 			             [grid.nodeCountX, grid.nodeCountY],counter)
-			se,ke    = computeEnergies(solids)
+			#se,ke    = computeEnergies(solids)
 			# push!(problem.kinEnergy,ke)
 			# push!(problem.strEnergy,se)
 			# push!(problem.recordTime,t)

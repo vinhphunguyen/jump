@@ -10,7 +10,7 @@
 #
 # -----------------------------------------------------------------------
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/jMPM/src")
+push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
 #
 import PyPlot
 using Printf
@@ -29,10 +29,11 @@ using Algorithm
 using Material
 using BodyForce
 using Basis
+using Fix
 
 function main()
     # problem  material parameters: N, mm and s
-	fGravity      = 0.0
+
 	density       = 2400e-12
 	youngModulus  = 40000.0
 	poissonRatio  = 0.2
@@ -46,7 +47,7 @@ function main()
 	d  = 5.
 	D  = 10.
 
-	vel = 50.  # velocity of the impactor
+	vel = 100.  # velocity of the impactor
 
     numx = 121
     numy = 50
@@ -63,8 +64,8 @@ function main()
     rectangle    = buildParticleForRectangleWithANotch([0.;0.],L, W, fOffset,-0.5*grid.dx,0.5*grid.dx,0.)
 
     material1    = ElasticMaterial(youngModulus,poissonRatio,density,Gf,l0)
-    material2    = RigidMaterial([0.,0.],  density)
-    material3    = RigidMaterial([0.,-vel],density)
+    material2    = RigidMaterial(0.,0.,  density)
+    material3    = RigidMaterial(0.,-vel,density)
 
     solid1       = Solid2D(rectangle,material1)
     solid2       = Solid2D([leftCircle;rightCircle],material2)
@@ -97,17 +98,15 @@ function main()
     Tf       = 3.5 #3.5e-0
     interval = 100
 
-    bodyforce = ConstantBodyForce2D(fGravity)
 	output2   = OvitoOutput(interval,"three-point-bending-results/",
-	                         ["sigmaxx","damage","crackforce"])
-	#fix     =
-    problem   = ExplicitDynamicsPhaseField2D(grid,solids,basis,Tf,bodyforce,output2,[])
+	                         ["sigmaxx","damage","crackforce","vy"])
+	fix       = EmptyFix()
     algo1     = USL(1e-9)
     algo2     = MUSL(0.99)
 
-	plotParticles(problem.output,solids,[grid.lx, grid.ly],[grid.nodeCountX, grid.nodeCountY],0)
-    plotParticles(problem.output,grid,0)
-    solve(problem,algo2,dtime)
+	plotParticles_2D(output2,solids,[grid.lx, grid.ly],[grid.nodeCountX, grid.nodeCountY],0)
+    plotGrid(output2,grid,0)
+    solve_explicit_dynamics_PFM_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
 end
 
 @time main()

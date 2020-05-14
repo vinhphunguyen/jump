@@ -22,7 +22,7 @@ using Fix
 using Basis
 using Util
 
-#function main()
+function main()
 	steelRho  = 8250e-12
     steelE    = 197.6e3
     steelNu   = 0.3
@@ -31,8 +31,8 @@ using Util
 
     innerDiameter = 4.0 #mm
     outerDiameter = 5.0 #mm
-	nx            = 2 # number of cells along x-dir
-	ny            = 2 # number of cells along y-dir
+	nx            = 8 # number of cells along x-dir
+	ny            = 8 # number of cells along y-dir
     l0            = outerDiameter * nx + 10.
     h0            = outerDiameter * ny + 2 # two outer skins of 1mm each
 	braze_length  = 1.5
@@ -46,10 +46,13 @@ using Util
 	grid  = Grid2D(0.,l0,0,h0,noElemsX, noElemsY)
 	basis = LinearBasis()
     # solid creation
-    ppc      = 6
-	fOffset  = grid.dx/ppc
-	fOffsetR = grid.dx/2
-	coords1  = buildParticleForRingWithBraze([outerDiameter/2; outerDiameter/2], 0.5*innerDiameter, 0.5*outerDiameter, braze_length , fOffset)
+    ppc       = 6
+	fOffset   = grid.dx/ppc
+	fOffsetB  = grid.dx/8   # for braze
+	fOffsetR  = grid.dx/2
+
+	coords1  = buildParticleForRingWithBraze([outerDiameter/2; outerDiameter/2], 0.5*innerDiameter,
+	                0.5*outerDiameter, braze_length, fOffset, fOffsetB)
     coords   = make_rectangular_pattern(coords1,nx,ny,dx=outerDiameter,dy=outerDiameter)
 	coords2  = buildParticleForRectangle([grid.lx/2;0.5],         grid.lx, grid.dx, fOffsetR)
 	coords3  = buildParticleForRectangle([grid.lx/2;grid.ly-.5], grid.lx, grid.dx, fOffsetR)
@@ -84,7 +87,7 @@ using Util
 
 	plotParticles_2D(output2,solids,[grid.lx, grid.ly],[grid.nodeCountX, grid.nodeCountY],0)
     plotGrid(output2,grid,0)
-    #solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
-# end
-#
-# @time main()
+    solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
+end
+
+@time main()
