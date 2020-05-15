@@ -111,7 +111,7 @@ module Solid
 			#x        = fill(zeros(2),parCount)
 			velo     = fill(zeros(2),parCount)
 			
-			return (m,vol,vol0,copy(coords),coords,velo,F,strain,stress,gradVel,
+			return new(m,vol,vol0,copy(coords),coords,velo,F,strain,stress,gradVel,
 			    Cmat,parCount,fill(zeros(2),1),0,col, dam, copy(velo), copy(dam))
         end
 
