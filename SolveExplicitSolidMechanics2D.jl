@@ -21,7 +21,7 @@ using Fix
 ######################################################################
 # Modified Update Stress Last
 ######################################################################
-function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,dtime)
+function solve_explicit_dynamics_2D(grid,solids,basis,mats,algo=alg::MUSL,output=output,fixes=fixes,Tf,dtime)
 	t             = 0.   # not t = 0 => type instability issue
     counter       = 0
     Identity      = UniformScaling(1.)
@@ -181,7 +181,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 		  	vol   = solid.volume
 		  	vol0  = solid.volumeInitial
 		  	F     = solid.deformationGradient
-		  	mat   = solid.mat
+		  	mat   = mats[s]
 		  	stress = solid.stress
 		  	strain = solid.strain
 		  	@inbounds @simd for ip = 1:solid.parCount
@@ -256,7 +256,7 @@ end
 ######################################################################
 # Update Stress Last
 ######################################################################
-function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,dtime)
+function solve_explicit_dynamics_2D(grid,solids,basis,mats,algo=alg::USL,output=output,fixes=fixes,Tf,dtime)
     t       = 0.
     counter = 0
 
@@ -300,9 +300,9 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
     # ===========================================
 
 	@inbounds for s = 1:solidCount
+		mat    = mats[s]
+		if ( typeof(mat) <: RigidMaterial ) continue end
 		solid  = solids[s]
-		# deformable solids only
-		if solid.rigid continue end
 		xx     = solid.pos
 		mm     = solid.mass
 		vv     = solid.velocity
@@ -354,13 +354,13 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 	# particle to grid (rigid solids)
 	# ===========================================
 
-	@inbounds for s = 1:solidCount
+	@inbounds for s = 1:solidCount		
+		mat    = mats[s]
+		if !( typeof(mat) <: RigidMaterial ) continue end
 		solid  = solids[s]
-		# deformable solids only
-		if !solid.rigid continue end
 		xx     = solid.pos
-		vex     = solid.mat.vx
-		vey     = solid.mat.vy
+		vex    = solid.mat.vx
+		vey    = solid.mat.vy
 		@inbounds for ip = 1:solid.parCount
 			getAdjacentGridPoints(nearPointsLin,xx[ip],grid,linBasis)
 #			println(nearPoints)
@@ -393,16 +393,15 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 
     @inbounds for s = 1:solidCount
 		# only deformable solids here
+		mat   = mats[s]
+		if ( typeof(mat) <: RigidMaterial ) continue end
 	  	solid = solids[s]
-		if solid.rigid continue end
-
 	  	xx    = solid.pos
 	  	mm    = solid.mass
 	  	vv    = solid.velocity
 	  	vol   = solid.volume
 	  	vol0  = solid.volumeInitial
 	  	F     = solid.deformationGradient
-	  	mat   = solid.mat
 	  	stress = solid.stress
 	  	strain = solid.strain
 
@@ -447,12 +446,12 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
     ##################################################
 	@inbounds for s = 1:solidCount
 		# only rigid solids here
-	  	solid = solids[s]
-		if !solid.rigid continue end
-
+		mat    = mats[s]
+		if !( typeof(mat) <: RigidMaterial ) continue end
+        solid = solids[s]
 	  	xx    = solid.pos
-	  	vx    = solid.mat.vx
-	  	vy    = solid.mat.vy
+	  	vx    = mat.vx
+	  	vy    = mat.vy
 		#println(ve)
         @inbounds for ip = 1:solid.parCount
 	      xx[ip]   += dtime * @SVector [vx,vy]
@@ -481,7 +480,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 	end
 
 	if (counter%output.interval == 0)
-		plotParticles_2D(output,solids,[grid.lx, grid.ly],
+		plotParticles(output,solids,[grid.lx, grid.ly],
 					 [grid.nodeCountX, grid.nodeCountY],counter)
 		compute(fixes,t)
 	end

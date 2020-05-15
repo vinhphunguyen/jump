@@ -54,8 +54,8 @@ function main()
 
     material = ElasticMaterial(youngModulus,poissonRatio,density,0,0)
 
-    solid1 = Solid2D(coords1,material)
-    solid2 = Solid2D(coords2,material)
+    solid1   = Solid2D(coords1)
+    solid2   = Solid2D(coords2)
 
     solid1.mass          .*= dx * dx
     solid1.volume        .= dx * dx
@@ -72,6 +72,7 @@ function main()
     assign_velocity(solid2,-v0)
 
     solids = [solid1, solid2]
+    mats   = [material,material]
 
     @printf("Total number of material points: %d \n", solid1.parCount+solid2.parCount)
     @printf("Total number of grid points:     %d\n", grid.nodeCount)
@@ -99,7 +100,7 @@ function main()
 	# @time solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
     # print_timer()
 
-    solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_2D(grid,solids,basis,mats,algo=algo1,output=output2,fixes=fix,Tf,dtime)
 
     #= plotting energies
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
