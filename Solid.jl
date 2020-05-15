@@ -64,7 +64,7 @@ module Solid
 	# Createa solid by: solid = Solid2D(coords,mat)
 	# Createa solid by: solid = Solid2D(coords,mat)
     ###########################################################
-	struct Solid2D{T <: MaterialType}
+	struct Solid2D
 		mass                :: Vector{Float64}
 		volumeInitial       :: Vector{Float64}
 		volume              :: Vector{Float64}
