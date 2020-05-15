@@ -21,7 +21,7 @@ using Fix
 ######################################################################
 # Modified Update Stress Last
 ######################################################################
-function solve_explicit_dynamics_2D(grid,solids,basis,mats,algo=alg::MUSL,output=output,fixes=fixes,Tf,dtime)
+function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::MUSL,output,fixes,Tf,dtime)
 	t             = 0.   # not t = 0 => type instability issue
     counter       = 0
     Identity      = UniformScaling(1.)
@@ -256,7 +256,7 @@ end
 ######################################################################
 # Update Stress Last
 ######################################################################
-function solve_explicit_dynamics_2D(grid,solids,basis,mats,algo=alg::USL,output=output,fixes=fixes,Tf,dtime)
+function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::USL,output,fixes,Tf,dtime)
     t       = 0.
     counter = 0
 

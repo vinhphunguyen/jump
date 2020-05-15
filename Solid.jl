@@ -103,11 +103,11 @@ module Solid
 			stress   = fill(zeros(2,2),parCount)
 			gradVel  = fill(zeros(2,2),parCount)
 			Cmat     = fill(zeros(2,2),parCount)
-			m        = fill(mat.density,parCount)
 			vol      = zeros(parCount)
 			vol0     = zeros(parCount)
 			col      = zeros(parCount)
 			dam      = zeros(parCount)
+			m        = fill(1.0,parCount)
 			#x        = fill(zeros(2),parCount)
 			velo     = fill(zeros(2),parCount)
 			
@@ -124,7 +124,7 @@ module Solid
 			stress   = fill(zeros(2,2),parCount)
 			gradVel  = fill(zeros(2,2),parCount)
 			Cmat     = fill(zeros(2,2),parCount)
-			m        = fill(mat.density,parCount)
+			m        = fill(1.0,parCount)
 			vol      = zeros(parCount)
 			vol0     = zeros(parCount)
 			x        = fill(zeros(2),parCount)
@@ -160,7 +160,7 @@ module Solid
 			stress   = fill(zeros(2,2),parCount)
 			gradVel  = fill(zeros(2,2),parCount)
 			Cmat     = fill(zeros(2,2),parCount)
-			m        = fill(mat.density,parCount)
+			m        = fill(1.0,parCount)
 			vol      = zeros(parCount)
 			vol0     = zeros(parCount)
 			x        = fill(zeros(2),parCount)
@@ -216,12 +216,12 @@ module Solid
 			stress   = fill(zeros(2,2),parCount)
 			gradVel  = fill(zeros(2,2),parCount)
 			Cmat     = fill(zeros(2,2),parCount)
-			m        = fill(dx*dy*material.density,parCount)
+			m        = fill(dx*dy,parCount)
 			vol      = fill(dx*dy,parCount)
 			vol0     = fill(dx*dy,parCount)
 			velo     = fill(zeros(2),parCount)
 
-			new{T}(m,vol,vol0,copy(xVec),xVec,velo,F,strain,stress,gradVel,
+			new(m,vol,vol0,copy(xVec),xVec,velo,F,strain,stress,gradVel,
 			    Cmat,parCount,0,0)
 		end
    end
@@ -253,7 +253,7 @@ module Solid
 		   dF       = fill(Identity,parCount)
 		   strain   = fill(zeros(3,3),parCount)
 		   stress   = fill(zeros(3,3),parCount)
-		   m        = fill(mat.density,parCount)
+		   m        = fill(1.0,parCount)
 		   vol      = fill(0,parCount)
 		   vol0     = fill(0,parCount)
 		   #x        = fill(zeros(2),parCount)

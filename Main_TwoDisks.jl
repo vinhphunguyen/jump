@@ -57,11 +57,11 @@ function main()
     solid1   = Solid2D(coords1)
     solid2   = Solid2D(coords2)
 
-    solid1.mass          .*= dx * dx
+    solid1.mass          .*= dx * dx * material.density
     solid1.volume        .= dx * dx
     solid1.volumeInitial .= dx * dx
 
-    solid2.mass          .*= dx * dx
+    solid2.mass          .*= dx * dx * material.density
     solid2.volume        .= dx * dx
     solid2.volumeInitial .= dx * dx
 
@@ -100,7 +100,7 @@ function main()
 	# @time solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
     # print_timer()
 
-    solve_explicit_dynamics_2D(grid,solids,basis,mats,algo=algo1,output=output2,fixes=fix,Tf,dtime)
+    solve_explicit_dynamics_2D(grid,solids,basis,mats,algo1,output2,fix,Tf,dtime)
 
     #= plotting energies
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
