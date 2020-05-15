@@ -81,13 +81,9 @@ module Solid
 
 		parCount            :: Int64
 
-		mat                 :: T
-
         # for CPDIs
 		nodes               :: Vector{SVector{2,Float64}}  # position
 		elems
-
-		rigid               :: Bool                          # rigid body or
 
 		color               :: Vector{Float64} # used to classify surface particles
 		damage              :: Vector{Float64} # for contact in TLMPM
@@ -99,7 +95,7 @@ module Solid
         #Point(x::T, y::T) where {T<:Real} = Point{T}(x,y);
 
         # if particle coords are given
-        function Solid2D(coords::Vector{SVector{2,Float64}},mat::T) where {T <: MaterialType}
+        function Solid2D(coords::Vector{SVector{2,Float64}})
         	parCount = length(coords)
 			Identity = SMatrix{2,2}(1, 0, 0, 1)
 			F        = fill(Identity,parCount)
@@ -114,16 +110,13 @@ module Solid
 			dam      = zeros(parCount)
 			#x        = fill(zeros(2),parCount)
 			velo     = fill(zeros(2),parCount)
-			rigid    = false
-			if ( typeof(mat) <: RigidMaterial )
-				rigid = true
-			end
-			return new{T}(m,vol,vol0,copy(coords),coords,velo,F,strain,stress,gradVel,
-			    Cmat,parCount,mat,fill(zeros(2),1),0, rigid,col, dam, copy(velo), copy(dam))
+			
+			return (m,vol,vol0,copy(coords),coords,velo,F,strain,stress,gradVel,
+			    Cmat,parCount,fill(zeros(2),1),0,col, dam, copy(velo), copy(dam))
         end
 
         #if particles are CPDI, from a mesh
-		function Solid2D(nodes,elems,mat::T) where {T <: MaterialType}
+		function Solid2D(nodes,elems)
 			parCount = size(elems,1)
 			Identity = SMatrix{2,2}(1, 0, 0, 1)
 			F        = fill(Identity,parCount)
@@ -154,11 +147,11 @@ module Solid
 				nodeX[i] = @SVector [nodes[1,i], nodes[2,i]]
 			end
 
-			new{T}(m,vol,vol0,copy(x),x,velo,F,strain,stress,gradVel,
-			    Cmat,parCount,mat,nodesX,elems)
+			new(m,vol,vol0,copy(x),x,velo,F,strain,stress,gradVel,
+			    Cmat,parCount,nodesX,elems)
 		end
         # particles from a mesh
-		function Solid2D(fileName,mat::T) where {T <: MaterialType}
+		function Solid2D(fileName)
 			nodes,elems = loadGMSH(fileName)
 			parCount = size(elems,1)
 			Identity = SMatrix{2,2}(1, 0, 0, 1)
@@ -191,19 +184,14 @@ module Solid
 				nodesX[i] = @SVector [nodes[1,i], nodes[2,i]]
 			end
 
-			rigid    = false
-			if ( typeof(mat) <: RigidMaterial )
-				rigid = true
-			end
-
-			new{T}(m,vol,vol0,copy(x),x,velo,F,strain,stress,gradVel,Cmat,parCount,mat,
-			    nodesX,elems,rigid)
+			new(m,vol,vol0,copy(x),x,velo,F,strain,stress,gradVel,Cmat,parCount,
+			    nodesX,elems)
 		end
 
 		# particles from an image 'fileName'
 		# lx = physical length of the image in x-dir
 		# all pixels are used!!!
-		function Solid2D(fileName,lx, ly, phaseId, material::T) where {T <: MaterialType}
+		function Solid2D(fileName,lx, ly, phaseId)
 			img      = load(fileName)               # read the image
 			imgg     = Gray.(img)                   # convert to gray scale
 			mat      = convert(Array{Float64}, imgg) # convert to float64 matrix
@@ -234,7 +222,7 @@ module Solid
 			velo     = fill(zeros(2),parCount)
 
 			new{T}(m,vol,vol0,copy(xVec),xVec,velo,F,strain,stress,gradVel,
-			    Cmat,parCount,material,0,0)
+			    Cmat,parCount,0,0)
 		end
    end
 
@@ -244,7 +232,7 @@ module Solid
    ###      Solid3D
    ##################################################
 
-   struct Solid3D{T<:MaterialType}
+   struct Solid3D
 	   mass                :: Vector{Float64}
 	   volumeInitial       :: Vector{Float64}
 	   volume              :: Vector{Float64}
@@ -258,9 +246,7 @@ module Solid
 
 	   parCount            :: Int64
 
-	   mat                 :: T
-
-	   function Solid3D(coords::Vector{SVector{3,Float64}},mat::T) where {T <: MaterialType}
+	   function Solid3D(coords::Vector{SVector{3,Float64}})
 		   parCount = length(coords)
 		   Identity = SMatrix{3,3}(1, 0, 0,  0, 1, 0, 0, 0, 1)
 		   F        = fill(Identity,parCount)
@@ -272,7 +258,7 @@ module Solid
 		   vol0     = fill(0,parCount)
 		   #x        = fill(zeros(2),parCount)
 		   velo     = fill(zeros(3),parCount)
-		   return new{T}(m,vol0,vol,coords,velo,F,strain,stress,parCount,mat)
+		   return new(m,vol0,vol,coords,velo,F,strain,stress,parCount)
 	   end
   end
 
