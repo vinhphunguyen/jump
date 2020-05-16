@@ -114,7 +114,7 @@ end
 # -25 25
 #ITEM: ATOMS id type x y z damage s11 s22 s33 s12 s13 s23 vx T ienergy
 #0 1 10.5401 -1.50408 -0.647102 0 -16.9889 -19.2388 -13.7454 11.4435 4.68828 -2.59562 3346.25 298 0
-function plotParticles(plot::OvitoOutput,solids::Vector{Solid2D},
+function plotParticles(plot::OvitoOutput,solids::Vector{Solid2D}, mats,
           lims::Vector{Float64},ncells::Vector{Int64},counter::Int64)
 	parCount = 0
 	for s=1:length(solids)
@@ -142,7 +142,7 @@ function plotParticles(plot::OvitoOutput,solids::Vector{Solid2D},
 	@inbounds for s=1:length(solids)
 		x       = solids[s].pos
 		elastic = false
-		mat     = solids[s].mat
+		mat     = mats[s]
 		stress  = solids[s].stress
 		velocity = solids[s].velocity
 		if ( typeof(mat) <: ElasticMaterial ) || ( typeof(mat) <: RigidMaterial )
@@ -189,7 +189,7 @@ function plotParticles(plot::OvitoOutput,solids::Vector{Solid2D},
 	close(file)
 end
 
-function plotParticles(plot::OvitoOutput,solids::Vector{Solid3D},
+function plotParticles(plot::OvitoOutput,solids::Vector{Solid3D}, mats,
           lims::Vector{Float64},ncells::Vector{Int64},counter::Int64) where {T<:MaterialType}
 	parCount = 0
 	for s=1:length(solids)
@@ -217,7 +217,7 @@ function plotParticles(plot::OvitoOutput,solids::Vector{Solid3D},
 	@inbounds for s=1:length(solids)
 		x       = solids[s].pos
 		elastic = false
-		mat     = solids[s].mat
+		mat     = mats[s]
 		if ( typeof(mat) <: ElasticMaterial ) elastic = true end
 		@inbounds for p = 1:length(x)
 			id += 1

@@ -73,7 +73,7 @@ module Solid
 		pos                 :: Vector{SVector{2,Float64}}  # position
 		velocity            :: Vector{SVector{2,Float64}}  # velocity
 
-        deformationGradient :: Vector{SMatrix{2,2,Float64,4}}  # F, 2x2 matrix
+        F                   :: Vector{SMatrix{2,2,Float64,4}}  # F, 2x2 matrix
 		strain              :: Vector{SMatrix{2,2,Float64,4}}  # stress, 2x2 matrix
 		stress              :: Vector{MMatrix{2,2,Float64,4}}  # strain
 		gradVelo            :: Vector{MMatrix{2,2,Float64,4}}  # velocity gradient

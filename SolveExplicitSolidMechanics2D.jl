@@ -34,7 +34,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::MUSL,output,fixe
 	nodalForce     = grid.force
 
 	#vel_grad      = zeros(Float64,2,2)
-	D             = SMatrix{2,2}(0., 0., 0., 0.) #zeros(Float64,2,2)
+	#D             = SMatrix{2,2}(0., 0., 0., 0.) #zeros(Float64,2,2)
 	vvp           = zeros(2)
 	body          = zeros(2)
 
@@ -176,14 +176,14 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::MUSL,output,fixe
 		@inbounds for s = 1:solidCount
 		  	solid = solids[s]
 		  	xx    = solid.pos
-		  	mm    = solid.mass
+		  	#mm    = solid.mass
 		  	vv    = solid.velocity
-		  	vol   = solid.volume
-		  	vol0  = solid.volumeInitial
-		  	F     = solid.deformationGradient
+		  	#vol   = solid.volume
+		  	#vol0  = solid.volumeInitial
+		  	#F     = solid.deformationGradient
 		  	mat   = mats[s]
-		  	stress = solid.stress
-		  	strain = solid.strain
+		  	#stress = solid.stress
+		  	#strain = solid.strain
 		  	@inbounds @simd for ip = 1:solid.parCount
 				support   = getShapeAndGradient(nearPoints,funcs,ders,ip, grid, solid,basis)
 		        #vel_grad .= 0. #zeros(Float64,2,2)
@@ -202,18 +202,8 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::MUSL,output,fixe
 				    end
 				end
 				xx[ip]      = xxp
-	            D           = 0.5 * (vel_grad + vel_grad')
-	            strain[ip]  += dtime * D
-				F[ip]       *= (Identity + vel_grad*dtime)
-				J            = det(F[ip])
-				if ( J < 0. )
-					@printf("Troubled particle: %f %f \n", xx[ip][1], xx[ip][2])
-					println(F[ip])
-					@error("J is negative\n")
-				end
-				vol[ip]     = J * vol0[ip]
-				#@timeit "3"  update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
-				update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
+				# hope this interface works for all materials!!!
+	   	        update_stress!(ip,solid,mat,vel_grad,dtime)
 		  	end
 		end
 
@@ -242,7 +232,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::MUSL,output,fixe
 	    end
 
 		if (counter%output.interval == 0)
-			plotParticles_2D(output,solids,[grid.lx, grid.ly],
+			plotParticles_2D(output,solids,mats, [grid.lx, grid.ly],
 			             [grid.nodeCountX, grid.nodeCountY],counter)
 			compute(fixes,t)
 	    end
@@ -397,13 +387,13 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::USL,output,fixes
 		if ( typeof(mat) <: RigidMaterial ) continue end
 	  	solid = solids[s]
 	  	xx    = solid.pos
-	  	mm    = solid.mass
+	  	#mm    = solid.mass
 	  	vv    = solid.velocity
-	  	vol   = solid.volume
-	  	vol0  = solid.volumeInitial
-	  	F     = solid.deformationGradient
-	  	stress = solid.stress
-	  	strain = solid.strain
+	  	#vol   = solid.volume
+	  	#vol0  = solid.volumeInitial
+	  	#F     = solid.deformationGradient
+	  	#stress = solid.stress
+	  	#strain = solid.strain
 
 	  	@inbounds for ip = 1:solid.parCount
 			support   = getShapeAndGradient(nearPoints,funcs,ders,ip, grid, solid,basis)
@@ -425,19 +415,9 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::USL,output,fixes
 		   		end
 		   	 end
 			 vv[ip]      = vvp
-			 xx[ip]      = xxp
-		   	 D           = 0.5 * (vel_grad + vel_grad')
-		   	 strain[ip]  += dtime * D
-		   	 F[ip]       *= (Identity + vel_grad*dtime)
-		   	 J            = det(F[ip])
-		   	 if ( J < 0. )
-		   		 @printf("Troubled particle: %f %f \n", xx[ip][1], xx[ip][2])
-		   		 println(F[ip])
-		   		 @error("J is negative\n")
-		   	 end
-	   	 vol[ip]     = J * vol0[ip]
-	   	 #@timeit "3" update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
-	   	 update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
+			 xx[ip]      = xxp		   	 
+	   	 # hope this interface works for all materials!!!
+	   	 update_stress!(ip,solid,mat,vel_grad,dtime)
 	 end
 	end
 
@@ -480,8 +460,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::USL,output,fixes
 	end
 
 	if (counter%output.interval == 0)
-		plotParticles(output,solids,[grid.lx, grid.ly],
-					 [grid.nodeCountX, grid.nodeCountY],counter)
+		plotParticles(output,solids,mats, [grid.lx, grid.ly], [grid.nodeCountX, grid.nodeCountY],counter)
 		compute(fixes,t)
 	end
 

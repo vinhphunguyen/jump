@@ -15,7 +15,7 @@ using TimerOutputs
 using StaticArrays
 using LinearAlgebra
 
-
+#using Solid
 using Util
 
 abstract type MaterialType end
@@ -64,15 +64,27 @@ end
 ElasticMaterial(E,nu,rho)=ElasticMaterial(E,nu,density,0.,0.)
 
 # do not update solid.stress!!!
-function update_stress!(sigma::MMatrix{2,2,Float64},mat::ElasticMaterial,
-	                    epsilon::SMatrix{2,2,Float64},F, J,ip)
-  sigma    .= mat.lambda * (epsilon[1,1]+epsilon[2,2]) * UniformScaling(1.) +
+function update_stress!(ip,solid,mat::ElasticMaterial,vel_grad::SMatrix{2,2,Float64},dtime)
+	 D             = SMatrix{2,2}(0., 0., 0., 0.) #zeros(Float64,2,2)
+     D                  = 0.5 * (vel_grad + vel_grad')
+	 solid.strain[ip]  += dtime * D
+	 solid.F[ip]       *= (Identity + vel_grad*dtime)
+	 J                  = det(solid.F[ip])
+     solid.vol[ip]      = J * solid.vol0[ip]
+     epsilon            = solid.strain[ip]
+     solid.stress[ip]  .= mat.lambda * (epsilon[1,1]+epsilon[2,2]) * UniformScaling(1.) +
               2.0 * mat.mu * epsilon
 end
 
-function update_stress!(sigma::MMatrix{3,3,Float64},mat::ElasticMaterial,
-						epsilon::SMatrix{3,3,Float64},F, J,ip)
-  sigma    .= mat.lambda * (epsilon[1,1]+epsilon[2,2]+epsilon[3,3]) * UniformScaling(1.) + 2.0 * mat.mu * epsilon
+function update_stress!(ip,solid,mat::ElasticMaterial,vel_grad::SMatrix{3,3,Float64},dtime)
+     D                  = 0.5 * (vel_grad + vel_grad')
+	 solid.strain[ip]  += dtime * D
+	 solid.F[ip]       *= (Identity + vel_grad*dtime)
+	 J                  = det(solid.F[ip])
+     solid.vol[ip]      = J * solid.vol0[ip]
+     epsilon            = solid.strain[ip]
+     solid.stress[ip]  .= mat.lambda * (epsilon[1,1]+epsilon[2,2]+epsilon[3,3]) * UniformScaling(1.) +
+              2.0 * mat.mu * epsilon
 end
 
 function computeCrackDrivingForce(stress,mat::ElasticMaterial)
@@ -107,9 +119,15 @@ end
  	end
  end
  # do not update solid.stress!!!
- function update_stress!(sigma::MMatrix{2,2,Float64},mat::NeoHookeanMaterial,
-	                     epsilon::SMatrix{2,2,Float64}, F, J, ip)
-   sigma    .= (1.0/J)*( mat.mu*(F*F'-Identity) + mat.lambda*log(J)*Identity )
+ function update_stress!(ip,solid,mat::NeoHookeanMaterial,vel_grad,dtime)
+     D                  = 0.5 * (vel_grad + vel_grad')
+	 solid.strain[ip]  += dtime * D
+	 solid.F[ip]       *= (Identity + vel_grad*dtime)
+	 J                  = det(F[ip])
+     solid.vol[ip]      = J * solid.vol0[ip]
+     
+     F                  = solid.F[ip]
+     solid.stress[ip]  .= (1.0/J)*( mat.mu*(F*F'-UniformScaling(1.)) + mat.lambda*log(J)*UniformScaling(1.) )
  end
 
 
