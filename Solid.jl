@@ -66,9 +66,10 @@ module Solid
     ###########################################################
 	struct Solid2D
 		mass                :: Vector{Float64}
+		density             :: Vector{Float64}
 		volumeInitial       :: Vector{Float64}
 		volume              :: Vector{Float64}
-
+		
 		pos0                :: Vector{SVector{2,Float64}}  # position
 		pos                 :: Vector{SVector{2,Float64}}  # position
 		velocity            :: Vector{SVector{2,Float64}}  # velocity
@@ -107,11 +108,10 @@ module Solid
 			vol0     = zeros(parCount)
 			col      = zeros(parCount)
 			dam      = zeros(parCount)
-			m        = fill(1.0,parCount)
-			#x        = fill(zeros(2),parCount)
+			m        = fill(1.0,parCount)			
 			velo     = fill(zeros(2),parCount)
 			
-			return new(m,vol,vol0,copy(coords),coords,velo,F,strain,stress,gradVel,
+			return new(m,copy(m),vol,vol0,copy(coords),coords,velo,F,strain,stress,gradVel,
 			    Cmat,parCount,fill(zeros(2),1),0,col, dam, copy(velo), copy(dam))
         end
 
@@ -137,9 +137,9 @@ module Solid
 						    + coord[1,2]*coord[2,3]  - coord[1,3]*coord[2,2]
 						    + coord[1,3]*coord[2,4]  - coord[1,4]*coord[2,3]
 						    + coord[1,4]*coord[2,1]  - coord[1,1]*coord[2,4])
-			    vol[e]  = a;
-			    vol0[e] = a;
-			    m[e]    = a*mat.density;
+			    vol[e]  = a
+			    vol0[e] = a
+			    m[e]    = a
 			    x[e]    = vec(mean(coord,dims=2)); # center of each element=particle
 			end
 
@@ -147,7 +147,7 @@ module Solid
 				nodeX[i] = @SVector [nodes[1,i], nodes[2,i]]
 			end
 
-			new(m,vol,vol0,copy(x),x,velo,F,strain,stress,gradVel,
+			new(m,copy(m),vol,vol0,copy(x),x,velo,F,strain,stress,gradVel,
 			    Cmat,parCount,nodesX,elems)
 		end
         # particles from a mesh
@@ -176,7 +176,7 @@ module Solid
 							+ coord[1,4]*coord[2,1]  - coord[1,1]*coord[2,4])
 			    vol[e]  = a
 			    vol0[e] = a
-			    m[e]    = a*mat.density
+			    m[e]    = a
 			    x[e]    = vec(mean(coord,dims=2)) # center of each element=particle
 			end
 
@@ -184,7 +184,7 @@ module Solid
 				nodesX[i] = @SVector [nodes[1,i], nodes[2,i]]
 			end
 
-			new(m,vol,vol0,copy(x),x,velo,F,strain,stress,gradVel,Cmat,parCount,
+			new(m,copy(m),vol,vol0,copy(x),x,velo,F,strain,stress,gradVel,Cmat,parCount,
 			    nodesX,elems)
 		end
 
@@ -217,11 +217,12 @@ module Solid
 			gradVel  = fill(zeros(2,2),parCount)
 			Cmat     = fill(zeros(2,2),parCount)
 			m        = fill(dx*dy,parCount)
+			density  = fill(1.0,  parCount)
 			vol      = fill(dx*dy,parCount)
 			vol0     = fill(dx*dy,parCount)
 			velo     = fill(zeros(2),parCount)
 
-			new(m,vol,vol0,copy(xVec),xVec,velo,F,strain,stress,gradVel,
+			new(m,density,vol,vol0,copy(xVec),xVec,velo,F,strain,stress,gradVel,
 			    Cmat,parCount,0,0)
 		end
    end

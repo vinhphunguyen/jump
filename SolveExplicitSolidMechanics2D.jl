@@ -176,7 +176,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::MUSL,output,fixe
 		@inbounds for s = 1:solidCount
 		  	solid = solids[s]
 		  	xx    = solid.pos
-		  	mm    = solid.mass
+		  	#mm    = solid.mass
 		  	vv    = solid.velocity
 		  	vol   = solid.volume
 		  	vol0  = solid.volumeInitial
@@ -242,7 +242,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::MUSL,output,fixe
 	    end
 
 		if (counter%output.interval == 0)
-			plotParticles_2D(output,solids,[grid.lx, grid.ly],
+			plotParticles_2D(output,solids,mats,[grid.lx, grid.ly],
 			             [grid.nodeCountX, grid.nodeCountY],counter)
 			compute(fixes,t)
 	    end
@@ -289,7 +289,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::USL,output,fixes
     # reset grid data
     # ===========================================
 
-    @inbounds for i = 1:grid.nodeCount
+    Threads.@threads for i = 1:grid.nodeCount
 	  nodalMass[i]      = 0.
 	  nodalMomentum0[i] =  @SVector [0., 0.]
 	  nodalForce[i]     =  @SVector [0., 0.]
@@ -299,7 +299,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::USL,output,fixes
     # particle to grid (deformable solids)
     # ===========================================
 
-	@inbounds for s = 1:solidCount
+	for s = 1:solidCount
 		mat    = mats[s]
 		if ( typeof(mat) <: RigidMaterial ) continue end
 		solid  = solids[s]
@@ -309,7 +309,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::USL,output,fixes
 		vol    = solid.volume
 		stress = solid.stress
 
-	  	@inbounds for ip = 1:solid.parCount
+	    for ip = 1:solid.parCount
 	        #getShapeAndGradient(nearPoints,funcs,ders,xx[ip], grid)
 			support   = getShapeAndGradient(nearPoints,funcs,ders,ip, grid, solid,basis)
 	        fVolume   = vol[ip]
@@ -337,7 +337,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::USL,output,fixes
 	# update grid
 	# ===========================================
 
-	@inbounds for i=1:grid.nodeCount
+	Threads.@threads for i=1:grid.nodeCount
 		nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
         # apply Dirichet boundary conditions
         if grid.fixedXNodes[i] == 1
@@ -354,14 +354,14 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::USL,output,fixes
 	# particle to grid (rigid solids)
 	# ===========================================
 
-	@inbounds for s = 1:solidCount		
+	for s = 1:solidCount		
 		mat    = mats[s]
 		if !( typeof(mat) <: RigidMaterial ) continue end
 		solid  = solids[s]
 		xx     = solid.pos
 		vex    = solid.mat.vx
 		vey    = solid.mat.vy
-		@inbounds for ip = 1:solid.parCount
+		for ip = 1:solid.parCount
 			getAdjacentGridPoints(nearPointsLin,xx[ip],grid,linBasis)
 #			println(nearPoints)
 			@inbounds for i = 1:4
@@ -391,13 +391,13 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::USL,output,fixes
     # grid to particle (deformable solids)
     # ===========================================
 
-    @inbounds for s = 1:solidCount
+    for s = 1:solidCount
 		# only deformable solids here
 		mat   = mats[s]
 		if ( typeof(mat) <: RigidMaterial ) continue end
 	  	solid = solids[s]
 	  	xx    = solid.pos
-	  	mm    = solid.mass
+	  	#mm    = solid.mass
 	  	vv    = solid.velocity
 	  	vol   = solid.volume
 	  	vol0  = solid.volumeInitial
@@ -405,7 +405,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::USL,output,fixes
 	  	stress = solid.stress
 	  	strain = solid.strain
 
-	  	@inbounds for ip = 1:solid.parCount
+	  	for ip = 1:solid.parCount
 			support   = getShapeAndGradient(nearPoints,funcs,ders,ip, grid, solid,basis)
 	        vel_grad  = SMatrix{2,2}(0., 0., 0., 0.)
 			vvp       = vv[ip]
@@ -480,7 +480,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,mats,alg::USL,output,fixes
 	end
 
 	if (counter%output.interval == 0)
-		plotParticles(output,solids,[grid.lx, grid.ly],
+		plotParticles(output,solids,mats,[grid.lx, grid.ly],
 					 [grid.nodeCountX, grid.nodeCountY],counter)
 		compute(fixes,t)
 	end

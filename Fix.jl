@@ -60,6 +60,7 @@ struct EnergiesFix <: FixBase
     end
 end
 
+
 function compute(fix::EmptyFix,time)
 end
 

@@ -140,11 +140,13 @@ function plotParticles(plot::OvitoOutput,solids::Vector{Solid2D}, mats,
 	write(file, "\n")
     id = 0
 	@inbounds for s=1:length(solids)
-		x       = solids[s].pos
-		elastic = false
-		mat     = mats[s]
-		stress  = solids[s].stress
-		velocity = solids[s].velocity
+	    solid    = solids[s]
+		x        = solid.pos
+		elastic  = false
+		mat      = mats[s]
+		stress   = solid.stress
+		velocity = solid.velocity
+		damage   = solid.damage
 		if ( typeof(mat) <: ElasticMaterial ) || ( typeof(mat) <: RigidMaterial )
 			elastic = true
 		end

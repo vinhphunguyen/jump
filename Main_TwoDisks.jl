@@ -59,11 +59,11 @@ function main()
 
     solid1.mass          .*= dx * dx * material.density
     solid1.volume        .= dx * dx
-    solid1.volumeInitial .= dx * dx
+    solid1.volumeInitial       .= dx * dx
 
     solid2.mass          .*= dx * dx * material.density
     solid2.volume        .= dx * dx
-    solid2.volumeInitial .= dx * dx
+    solid2.volumeInitial       .= dx * dx
 
     v0 = SVector{2,Float64}([0.1  0.1])
 
@@ -81,7 +81,7 @@ function main()
     @printf("Vol0 : %+.6e \n", sum(solid1.volumeInitial)+sum(solid2.volumeInitial))
 
     Tf       = 3.5 #3.5e-0
-    interval = 500
+    interval = 200
 	dtime    = 1e-3
 
     bodyforce = ConstantBodyForce2D(fGravity)
