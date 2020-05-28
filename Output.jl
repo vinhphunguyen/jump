@@ -13,6 +13,8 @@
 module Output
 import Glob
 import PyPlot
+using  WriteVTK
+using StaticArrays
 
 using Solid
 using Material
@@ -41,6 +43,25 @@ struct OvitoOutput <: OutputType
 		if isdir(dir)
 			#command = 'rm *.LAMMPS'
 			dumpfiles = Glob.glob(string(dir,"*.LAMMPS"))
+			if (length(dumpfiles) > 0 )
+				[rm(file)  for file in dumpfiles]
+			end
+		else
+			mkdir(dir)
+		end
+        new(interval,dir,outs)
+    end
+end
+
+struct VTKOutput <: OutputType
+	interval      ::Int64
+	dir           ::String
+	outs          ::Vector{String}
+
+	function VTKOutput(interval::Int64,dir::String,outs)
+		if isdir(dir)
+			#command = 'rm *.LAMMPS'
+			dumpfiles = Glob.glob(string(dir,"*.vtu"))
 			if (length(dumpfiles) > 0 )
 				[rm(file)  for file in dumpfiles]
 			end
@@ -277,7 +298,71 @@ function plotGrid(plot::OvitoOutput,grid::Grid2D,counter::Int64)
 	close(file)
 end
 
-export OutputType, PyPlotOutput, OvitoOutput
-export plotGrid,plotParticles_2D, plotParticles_3D, writeParticles
+function plotParticles_2D(plot::VTKOutput,solids,counter::Int64)
+	my_vtk_file = string(plot.dir,"particle_","$(Int(counter))")
+	nodeCount = 0
+	for s=1:length(solids)
+		nodeCount += solids[s].nodeCount
+	end
+	points      = zeros(2,nodeCount)
+	cc = 1
+	cells = MeshCell[]
+	p     = Vector{Float64}(undef,0)
+	for s=1:length(solids)
+		solid = solids[s]
+		xx    = solid.pos
+		elems = solid.elems
+		stress= solid.stress
+		shift = (s-1)*solid.nodeCount
+		for ip=1:solid.nodeCount
+			points[1,cc] = xx[ip][1]
+			points[2,cc] = xx[ip][2]
+			cc += 1
+		end
+		for e=1:solid.parCount
+			inds =elems[e,:] .+ shift
+		    c    = MeshCell(VTKCellTypes.VTK_QUAD, inds)
+            push!(cells, c)
+            sigma = stress[e]
+            push!(p, sigma[1,1]+sigma[2,2])
+        end
+	end
+	vtkfile     = vtk_grid(my_vtk_file, points, cells)
+	# write data 
+	vtkfile["Pressure", VTKCellData()] = p
+	outfiles    = vtk_save(vtkfile)
+end
+
+function plotGrid_2D(plot::VTKOutput,grid)
+	my_vtk_file = string(plot.dir,"grid")
+
+	points      = zeros(2,grid.nodeCount)
+
+	xx=grid.pos
+	
+	@inbounds for i = 1:grid.nodeCount
+		points[1,i] = xx[i][1] 
+		points[2,i] = xx[i][2]
+	end
+
+	
+	cells = MeshCell[]
+	for j = 1:grid.nodeCountY-1
+		for i = 1:grid.nodeCountX-1
+			node1   = i + (j-1)*grid.nodeCountX
+			node2   = node1 + 1
+			node3   = node1 + grid.nodeCountX
+			node4   = node3 + 1
+            inds    = @SVector[node1,node2,node4,node3]
+		    c    = MeshCell(VTKCellTypes.VTK_QUAD, inds)
+            push!(cells, c)
+        end
+	end
+	vtkfile     = vtk_grid(my_vtk_file, points, cells)
+	outfiles    = vtk_save(vtkfile)
+end
+
+export OutputType, PyPlotOutput, OvitoOutput, VTKOutput
+export plotGrid,plotParticles_2D, plotParticles_3D, writeParticles, plotGrid_2D
 
 end

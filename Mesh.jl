@@ -14,9 +14,10 @@ module Mesh
 
 using Printf
 using LinearAlgebra
+using StaticArrays
 using DelimitedFiles
 
-export lagrange_basis!
+export lagrange_basis!, lagrange_basis_derivatives!
 export Line2, Tri3, Quad4
 
 struct Line2 end
@@ -50,6 +51,59 @@ function lagrange_basis!(N, dNdxi, type::Quad4,coord)
                  -(1+eta)     1-xi];
 end
 
+function lagrange_basis!(N, type::Quad4,xieta,coords)
+	xi     = xieta[1];
+	eta    = xieta[2];
+
+	N      .=    SVector{4}( 0.25*(1-xi)*(1-eta),
+					         0.25*(1+xi)*(1-eta),
+					         0.25*(1+xi)*(1+eta),
+					         0.25*(1-xi)*(1+eta) )
+				         
+
+    dN1dxi  = -0.25 * (1-eta)
+    dN1deta = -0.25 * (1-xi)
+    dN2dxi  =  0.25 * (1-eta)
+    dN2deta = -0.25 * (1+xi)
+    dN3dxi  =  0.25 * (1+eta)
+    dN3deta =  0.25 * (1+xi)
+    dN4dxi  = -0.25 * (1+eta)
+    dN4deta =  0.25 * (1-xi)
+
+    J11     = dN1dxi  * coords[1][1] + dN2dxi  * coords[2][1] + dN3dxi  * coords[3][1] + dN4dxi  * coords[4][1]
+    J12     = dN1dxi  * coords[1][2] + dN2dxi  * coords[2][2] + dN3dxi  * coords[3][2] + dN4dxi  * coords[4][2]
+    J21     = dN1deta * coords[1][1] + dN2deta * coords[2][1] + dN3deta * coords[3][1] + dN4deta * coords[4][1]
+    J22     = dN1deta * coords[1][2] + dN2deta * coords[2][2] + dN3deta * coords[3][2] + dN4deta * coords[4][2]
+
+    return J11*J22 - J12*J21
+
+end
+
+function lagrange_basis_derivatives!(dNdx, type::Quad4,xieta,coords)
+	xi     = xieta[1];
+	eta    = xieta[2];
+
+    dN1dxi  = -0.25 * (1-eta)
+    dN1deta = -0.25 * (1-xi)
+    dN2dxi  =  0.25 * (1-eta)
+    dN2deta = -0.25 * (1+xi)
+    dN3dxi  =  0.25 * (1+eta)
+    dN3deta =  0.25 * (1+xi)
+    dN4dxi  = -0.25 * (1+eta)
+    dN4deta =  0.25 * (1-xi)
+
+    J11     = dN1dxi  * coords[1][1] + dN2dxi  * coords[2][1] + dN3dxi  * coords[3][1] + dN4dxi  * coords[4][1]
+    J12     = dN1dxi  * coords[1][2] + dN2dxi  * coords[2][2] + dN3dxi  * coords[3][2] + dN4dxi  * coords[4][2]
+    J21     = dN1deta * coords[1][1] + dN2deta * coords[2][1] + dN3deta * coords[3][1] + dN4deta * coords[4][1]
+    J22     = dN1deta * coords[1][2] + dN2deta * coords[2][2] + dN3deta * coords[3][2] + dN4deta * coords[4][2]
+
+    dNdx    .= inv(SMatrix{2,2}(J11,J21,J12,J22))*SMatrix{2,4}(dN1dxi,dN1deta,
+    	                                                      dN2dxi,dN2deta,
+    	                                                      dN3dxi,dN3deta,
+    	                                                      dN4dxi,dN4deta) 
+    return J11*J22 - J12*J21
+
+end
 
 function square_node_array(pt1,pt2,pt3,pt4,numnod_u,numnod_v)
     xi_pts  = LinRange(-1.,1.,numnod_u);
@@ -110,11 +164,12 @@ function loadGMSH(sFile::String)
 		@printf("\nLoading .msh file: %s \n", sFile)
 		hFile     = open(sFile)
 		arrayLine = readlines(hFile)
+		lengthCnt = length(arrayLine)
 
 		# read the total number of nodes and elements from file
-		nNodes::Int = 0
-		nElements::Int = 0
-		for indexLine = 1:length(arrayLine)
+		nNodes::Int      = 0
+		nElements::Int   = 0
+		for indexLine = 1:lengthCnt
 			if(occursin(arrayLine[indexLine], "\$Nodes"))
 				nNodes = parse(Int, arrayLine[indexLine+1])
 			end
@@ -126,7 +181,7 @@ function loadGMSH(sFile::String)
 		# reading node coords
 		arrayNode_ID = Array{Int,1}(undef,nNodes)
 		arrayNode_Coordinate = Array{Float64,2}(undef,3,nNodes)
-		for indexLine = 1:length(arrayLine)
+		for indexLine = 1:lengthCnt
 			if(occursin(arrayLine[indexLine], "\$Nodes"))
 				@printf("	Reading %d nodes\n", nNodes)
 				for indexNode = 1:nNodes
@@ -142,7 +197,7 @@ function loadGMSH(sFile::String)
 		# reading element data
 		arrayElement_ID = Array{Int,1}()
 		inodes          = Array{Int,2}(undef,0,4) # for 4-node tetrahedron/quad only
-		for indexLine = 1:length(arrayLine)
+		for indexLine = 1:lengthCnt
 			if(occursin(arrayLine[indexLine], "\$Elements"))
 				@printf("	Reading %d elements\n", nElements)
 				for indexElement = 1:nElements

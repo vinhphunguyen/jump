@@ -60,6 +60,18 @@ struct EnergiesFix <: FixBase
     end
 end
 
+struct StressFix <: FixBase
+    solids
+    file
+    function StressFix(solids,filename)
+        if (isfile(filename))
+            rm(filename)
+        end
+        file = open(filename, "a")
+        new(solids,file)
+    end
+end
+
 function compute(fix::EmptyFix,time)
 end
 
@@ -96,18 +108,23 @@ function compute(fix::EnergiesFix,time)
     write(fix.file, "$(time) $(KE) $(SE)\n")
 end
 
-function closeFile(fix::DisplacementFix)
+function compute(fix::StressFix,time)
+    #println(fix.index)    
+    write(fix.file, "$(fix.solids[1].strain[1][1,1]) $(fix.solids[1].stress[1][1,1]) \n")
+end
+
+function closeFile(fix::FixBase)
     close(fix.file)
 end
 
-function closeFile(fix::EnergiesFix)
-    close(fix.file)
-end
+# function closeFile(fix::EnergiesFix)
+#     close(fix.file)
+# end
 
 struct MaximumPlasticStrainFix <: FixBase
 
 end
 
-export FixBase, EmptyFix, EnergiesFix, DisplacementFix, MaximumPlasticStrainFix
+export FixBase, EmptyFix, EnergiesFix, DisplacementFix, StressFix, MaximumPlasticStrainFix
 export compute, closeFile
 end
