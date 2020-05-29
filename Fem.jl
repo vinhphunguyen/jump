@@ -17,6 +17,7 @@ struct FEM2D{T <: MaterialType}
 	pos0                :: Vector{SVector{2,Float64}}  # node coords initial
 	pos                 :: Vector{SVector{2,Float64}}  # position
 	velocity            :: Vector{SVector{2,Float64}}  # velocity
+	dU                  :: Vector{SVector{2,Float64}}  # incremental displacements
 	fint                :: Vector{SVector{2,Float64}}  # internal forces at FE nodes
 
 	deformationGradient :: Vector{SMatrix{2,2,Float64,4}}  # F, 2x2 matrix
@@ -30,6 +31,8 @@ struct FEM2D{T <: MaterialType}
 	mat                 :: T
 
 	elems               
+	# cells               :: Array{MeshCell,1}
+	# index               :: Int64
 
 	# particles from a mesh
 	function FEM2D(fileName,mat::T) where {T <: MaterialType}
@@ -53,7 +56,8 @@ struct FEM2D{T <: MaterialType}
 		end
 
 
-		new{T}(m,vol,nodesX,copy(nodesX),velo,copy(velo),F,strain,stress,parCount,nodeCount,mat,elems)
+		new{T}(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),F,
+			   strain,stress,parCount,nodeCount,mat,elems)
 	end
 end
 

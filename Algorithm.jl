@@ -9,11 +9,15 @@ module Algorithm
 		tolerance::Float64
 	end
 
+	struct TLFEM  <: AlgorithmType  
+		tolerance::Float64
+    end
+
 	struct MUSL <: AlgorithmType
 		alpha::Float64   # FLIP/PIC mixing param
 	end
 	struct APIC <: AlgorithmType end
 
 
-    export AlgorithmType, USL, MUSL, APIC, FEM
+    export AlgorithmType, USL, MUSL, APIC, FEM, TLFEM
 end

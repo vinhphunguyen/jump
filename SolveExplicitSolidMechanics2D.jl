@@ -41,6 +41,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 	alpha         = alg.alpha
 
 	# allocate memory for grid basis and grads once
+	show(basis)
 	nearPoints,funcs, ders = initialise(grid,basis)
 
 	if ( typeof(basis) <: CPDIQ4Basis )

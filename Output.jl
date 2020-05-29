@@ -58,6 +58,7 @@ struct VTKOutput <: OutputType
 	dir           ::String
 	outs          ::Vector{String}
 
+
 	function VTKOutput(interval::Int64,dir::String,outs)
 		if isdir(dir)
 			#command = 'rm *.LAMMPS'
@@ -308,15 +309,19 @@ function plotParticles_2D(plot::VTKOutput,solids,counter::Int64)
 	cc = 1
 	cells = MeshCell[]
 	p     = Vector{Float64}(undef,0)
+	velo  = zeros(2,nodeCount)
 	for s=1:length(solids)
 		solid = solids[s]
 		xx    = solid.pos
 		elems = solid.elems
 		stress= solid.stress
+		ve    = solid.velocity
 		shift = (s-1)*solid.nodeCount
 		for ip=1:solid.nodeCount
 			points[1,cc] = xx[ip][1]
 			points[2,cc] = xx[ip][2]
+			velo[1,cc]   = ve[ip][1]
+			velo[2,cc]   = ve[ip][2]
 			cc += 1
 		end
 		for e=1:solid.parCount
@@ -329,7 +334,8 @@ function plotParticles_2D(plot::VTKOutput,solids,counter::Int64)
 	end
 	vtkfile     = vtk_grid(my_vtk_file, points, cells)
 	# write data 
-	vtkfile["Pressure", VTKCellData()] = p
+	vtkfile["Pressure", VTKCellData()]  = p
+	vtkfile["Velocity", VTKPointData()] = velo
 	outfiles    = vtk_save(vtkfile)
 end
 

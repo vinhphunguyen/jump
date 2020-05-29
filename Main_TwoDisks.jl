@@ -41,12 +41,12 @@ function main()
 
 
     # create the grid of a 1 x 1 square, with 20 x 20 cells
-	basis = LinearBasis()
-	basis = QuadBsplineBasis()
-    grid  =  Grid2D(0.0,1.0,0.0,1.0,41, 41)
+    grid  =  Grid2D(0.0,1.0,0.0,1.0,11, 11)
+    basis = LinearBasis()
+    #basis = QuadBsplineBasis()
 
     rad     = 0.2
-	ppc     = 2
+	ppc     = 8
     fOffset = grid.dx/ppc
     dx      = fOffset
     coords1 = buildParticleForCircle([0.2; 0.2], rad, fOffset)
@@ -68,8 +68,8 @@ function main()
     v0 = SVector{2,Float64}([0.1  0.1])
 
     # assign initial velocity for the particles
-    assign_velocity(solid1, v0)
-    assign_velocity(solid2,-v0)
+    Solid.assign_velocity(solid1, v0)
+    Solid.assign_velocity(solid2,-v0)
 
     solids = [solid1, solid2]
 
@@ -80,10 +80,8 @@ function main()
     @printf("Vol0 : %+.6e \n", sum(solid1.volumeInitial)+sum(solid2.volumeInitial))
 
     Tf       = 3.5 #3.5e-0
-    interval = 5000
+    interval = 200
 	dtime    = 1e-3
-
-    bodyforce = ConstantBodyForce2D(fGravity)
 
 	output1  = PyPlotOutput(interval,"results/","Two Disks Collision",(4., 4.))
 	output2  = OvitoOutput(interval,"results/",["pressure"])
@@ -98,10 +96,10 @@ function main()
     # reset_timer!()
 	# @time solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
     # print_timer()
-
+    
     solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
 
-    #= plotting energies
+    # plotting energies
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
 	PyPlot.clf()
 	pyPlot01 = PyPlot.gca()
@@ -121,7 +119,7 @@ function main()
 	PyPlot.plot(fix.recordTime, c="green", fix.kinEnergy + fix.strEnergy, "-", label="\$ K+U \$", linewidth=1.0)
 	PyPlot.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., fontsize=8)
 	PyPlot.savefig("plot_2Disk_Julia.pdf")
-=#
+
 end
 
 @time main()

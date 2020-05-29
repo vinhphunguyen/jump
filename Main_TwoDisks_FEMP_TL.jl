@@ -62,10 +62,10 @@ using Util
 	dtime    = 1e-3
 
 	#output1  = PyPlotOutput(interval,"twodisks-results/","Two Disks Collision",(4., 4.))
-	output2  = VTKOutput(interval,"twodisks-femp/",["pressure"])
-	fix      = EnergiesFix(solids,"twodisks-femp/energies.txt")
+	output2  = VTKOutput(interval,"twodisks-femp-tl/",["pressure"])
+	fix      = EnergiesFix(solids,"twodisks-femp-tl/energies.txt")
 
-    algo1    = USL(1e-9)
+    algo1    = TLFEM(0.)
 
 	report(grid,solids,dtime)
 

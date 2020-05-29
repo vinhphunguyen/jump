@@ -97,14 +97,44 @@ function compute(fix::EnergiesFix,time)
 		stress = solid.stress
 		strain = solid.strain
 
-		for ip = 1:solid.parCount
-	      KE += 0.5 * mm[ip]  * dot(vv[ip],vv[ip])
-	      SE += 0.5 * vol[ip] * sum(stress[ip].*strain[ip])
-	  	end
+        for ip = 1:solid.parCount
+          KE += 0.5 * mm[ip]  * dot(vv[ip],vv[ip])
+          SE += 0.5 * vol[ip] * sum(stress[ip].*strain[ip])
+        end
 	end
 	push!(fix.kinEnergy,KE)
 	push!(fix.strEnergy,SE)
 	push!(fix.recordTime,time)
+    write(fix.file, "$(time) $(KE) $(SE)\n")
+end
+
+function compute_femp(fix::EnergiesFix,time)
+    KE     = 0.
+    SE     = 0.
+    solids = fix.solids
+    for s = 1:length(solids)
+        solid  = solids[s]
+
+        mm     = solid.mass
+        vv     = solid.velocity
+        vol    = solid.volume
+        stress = solid.stress
+        strain = solid.strain
+        
+
+        for ip = 1:solid.nodeCount
+          KE += 0.5 * mm[ip]  * dot(vv[ip],vv[ip])
+          #SE += 0.5 * vol[ip] * sum(stress[ip].*strain[ip])
+        end
+
+        for ip = 1:solid.parCount
+          #KE += 0.5 * mm[ip]  * dot(vv[ip],vv[ip])
+          SE += 0.5 * vol[ip] * sum(stress[ip].*strain[ip])
+        end
+    end
+    push!(fix.kinEnergy,KE)
+    push!(fix.strEnergy,SE)
+    push!(fix.recordTime,time)
     write(fix.file, "$(time) $(KE) $(SE)\n")
 end
 
@@ -126,5 +156,5 @@ struct MaximumPlasticStrainFix <: FixBase
 end
 
 export FixBase, EmptyFix, EnergiesFix, DisplacementFix, StressFix, MaximumPlasticStrainFix
-export compute, closeFile
+export compute, closeFile, compute_femp
 end
