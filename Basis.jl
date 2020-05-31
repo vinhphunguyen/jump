@@ -34,7 +34,9 @@ struct QuadBsplineBasis <: BasisType      end
 
 struct CPDIQ4Basis      <: BasisType
 	allNeighbors::Vector{Int64}
-	function CPDIQ4Basis() return new(repeat(0:0, inner=16)) end
+	function CPDIQ4Basis() 
+		return new(repeat(0:0, inner=16)) 
+	end
 end
 
 #################################################################
@@ -140,7 +142,7 @@ end
 # getShapeAndGradient: 1D, linear basis
 # outputs: nearPoints, funcs and and ders
 function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
-						 ders::Vector{Float64},p::Int64, grid::Grid1D, solid,basis::LinearBasis)
+						     ders::Vector{Float64},p::Int64, grid::Grid1D, solid,basis::LinearBasis)
 	xp = solid.pos[p]
 	getAdjacentGridPoints(nearPoints,xp,grid,basis)
 

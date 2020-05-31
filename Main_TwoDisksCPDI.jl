@@ -47,8 +47,8 @@ function main()
     v0 = SVector{2,Float64}([ 0.1  0.1])
 
     # assign initial velocity for the particles
-    assign_velocity(solid1, v0)
-    assign_velocity(solid2,-v0)
+    Solid.assign_velocity(solid1, v0)
+    Solid.assign_velocity(solid2,-v0)
     # as the mesh was created with the center of the disk at (0,0)
 	#move(solid1,SVector{2,Float64}([ 0.2+grid.dx  0.2+grid.dx]))
 	#move(solid2,SVector{2,Float64}([ 0.8-grid.dx  0.8-grid.dx]))
@@ -62,8 +62,8 @@ function main()
 	dtime    = 1e-3
 
 	#output1  = PyPlotOutput(interval,"twodisks-results/","Two Disks Collision",(4., 4.))
-	output2  = OvitoOutput(interval,"twodisks-results/",["pressure"])
-	fix      = EnergiesFix(solids,"twodisks-results/energies.txt")
+	output2  = OvitoOutput(interval,"twodisks-cpdi-results/",["pressure"])
+	fix      = EnergiesFix(solids,"twodisks-cpdi-results/energies.txt")
 
     algo1    = USL(1e-9)
     algo2    = MUSL(.99)
@@ -71,7 +71,7 @@ function main()
 	report(grid,solids,dtime)
 
 	#plotParticles(problem.output,solids,[grid.lx, grid.ly],[grid.nodeCountX, grid.nodeCountY],0)
-    plotParticles(output2,grid,0)
+    #plotParticles_2D(output2,grid,0)
 
 	#reset_timer!()
     solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)

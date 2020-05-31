@@ -18,11 +18,13 @@ using StaticArrays
 using DelimitedFiles
 
 export lagrange_basis!, lagrange_basis_derivatives!
-export Line2, Tri3, Quad4
+export Line2, Tri3, Quad4, Tet4, Hexa8
 
 struct Line2 end
-struct Tri3 end
+struct Tri3  end
 struct Quad4 end
+struct Hexa4 end
+struct Tet4  end
 
 function lagrange_basis!(N, dNdxi, type::Line2,coord)
 	xi   = coord[1];
@@ -79,6 +81,82 @@ function lagrange_basis!(N, type::Quad4,xieta,coords)
 
 end
 
+function lagrange_basis!(N, type::Hexa4,xieta,coords)
+	xi     = xieta[1]
+	eta    = xieta[2]
+	zeta   = xieta[3]
+
+	N      .=    SVector{8}( 0.125*(1-xi)*(1-eta)*(1-zeta),
+					         0.125*(1+xi)*(1-eta)*(1-zeta),
+					         0.125*(1+xi)*(1+eta)*(1-zeta),
+					         0.125*(1-xi)*(1+eta)*(1-zeta),
+					         0.125*(1-xi)*(1-eta)*(1+zeta),
+					         0.125*(1+xi)*(1-eta)*(1+zeta),
+					         0.125*(1+xi)*(1+eta)*(1+zeta),
+					         0.125*(1-xi)*(1+eta)*(1+zeta)
+					          )
+				         
+
+    dN1dxi   = -0.125*(1-eta)*(1-zeta)
+    dN1deta  = -0.125*(1-xi)*(1-zeta)
+    dN1dzeta = -0.125*(1-xi)*(1-eta)
+
+    dN2dxi   =  0.125*(1-eta)*(1-zeta)
+    dN2deta  = -0.125*(1+xi)*(1-zeta)
+    dN2dzeta = -0.125*(1+xi)*(1-eta)
+
+    dN3dxi   =  0.125*(1+eta)*(1-zeta)
+    dN3deta  =  0.125*(1+xi)*(1-zeta)
+    dN3dzeta = -0.125*(1+xi)*(1+eta)
+
+    dN4dxi   = -0.125*(1+eta)*(1-zeta)
+    dN4deta  =  0.125*(1-xi)*(1-zeta)
+    dN4dzeta = -0.125*(1-xi)*(1+eta)
+
+    dN5dxi   = -0.125*(1-eta)*(1+zeta)
+    dN5deta  = -0.125*(1-xi)*(1+zeta)
+    dN5dzeta = 0.125*(1-xi)*(1-eta)
+
+    dN6dxi   = 0.125*(1-eta)*(1+zeta)
+    dN6deta  = -0.125*(1+xi)*(1+zeta)
+    dN6dzeta = 0.125*(1+xi)*(1-eta)
+
+    dN7dxi   = 0.125*(1+eta)*(1+zeta)
+    dN7deta  = 0.125*(1+xi)*(1+zeta)
+    dN7dzeta = 0.125*(1+xi)*(1+eta)
+
+    dN8dxi   = -0.125*(1+eta)*(1+zeta)
+    dN8deta  =  0.125*(1-xi)*(1+zeta)
+    dN8dzeta =  0.125*(1-xi)*(1+eta)
+
+    J11 = dN1dxi * coords[1][1] + dN2dxi * coords[2][1] + dN3dxi  * coords[3][1] + dN4dxi * coords[4][1] +
+          dN5dxi * coords[5][1] + dN6dxi * coords[6][1] + dN7dxi  * coords[7][1] + dN8dxi * coords[8][1]
+
+    J12 = dN1dxi * coords[1][2] + dN2dxi * coords[2][2] + dN3dxi * coords[3][2] + dN4dxi * coords[4][2]+
+          dN5dxi * coords[5][2] + dN6dxi * coords[6][2] + dN7dxi * coords[7][2] + dN8dxi * coords[8][2]
+
+    J13 = dN1dxi * coords[1][3] + dN2dxi * coords[2][3] + dN3dxi * coords[3][3] + dN4dxi * coords[4][3]+
+          dN5dxi * coords[5][3] + dN6dxi * coords[6][3] + dN7dxi * coords[7][3] + dN8dxi * coords[8][3]              
+    J21 = dN1deta  * coords[1][1] + dN2deta  * coords[2][1] + dN3deta  * coords[3][1] + dN4deta * coords[4][1] +  dN5deta  * coords[5][1] + dN6deta  * coords[6][1] + dN7deta  * coords[7][1] + dN8deta * coords[8][1]
+
+    J22 = dN1deta  * coords[1][2] + dN2deta  * coords[2][2] + dN3deta  * coords[3][2] + dN4deta * coords[4][2]+
+          dN5deta  * coords[5][2] + dN6deta  * coords[6][2] + dN7deta  * coords[7][2] + dN8deta * coords[8][2]
+
+    J23 = dN1deta  * coords[1][3] + dN2deta  * coords[2][3] + dN3deta  * coords[3][3] + dN4deta * coords[4][3]+
+          dN5deta  * coords[5][3] + dN6deta  * coords[6][3] + dN7deta  * coords[7][3] + dN8deta * coords[8][3]    
+
+    J31 = dN1dzeta * coords[1][1] + dN2dzeta * coords[2][1] + dN3dzeta * coords[3][1] + dN4dzeta * coords[4][1] + dN5dzeta * coords[5][1] + dN6dzeta * coords[6][1] + dN7dzeta * coords[7][1] + dN8dzeta * coords[8][1]
+
+    J32 = dN1dzeta * coords[1][2] + dN2dzeta * coords[2][2] + dN3dzeta * coords[3][2] + dN4dzeta * coords[4][2]+
+          dN5dzeta * coords[5][2] + dN6dzeta * coords[6][2] + dN7dzeta * coords[7][2] + dN8dzeta * coords[8][2]
+
+    J33 = dN1dzeta * coords[1][3] + dN2dzeta * coords[2][3] + dN3dzeta * coords[3][3] + dN4dzeta * coords[4][3]+
+          dN5dzeta * coords[5][3] + dN6dzeta * coords[6][3] + dN7dzeta * coords[7][3] + dN8dzeta * coords[8][3]      
+
+    return det(SMatrix{3,3}(J11,J12,J13;J21,J22,J23;J31,J32,J33))
+
+end
+
 function lagrange_basis_derivatives!(dNdx, type::Quad4,xieta,coords)
 	xi     = xieta[1];
 	eta    = xieta[2];
@@ -98,10 +176,87 @@ function lagrange_basis_derivatives!(dNdx, type::Quad4,xieta,coords)
     J22     = dN1deta * coords[1][2] + dN2deta * coords[2][2] + dN3deta * coords[3][2] + dN4deta * coords[4][2]
 
     dNdx    .= inv(SMatrix{2,2}(J11,J21,J12,J22))*SMatrix{2,4}(dN1dxi,dN1deta,
-    	                                                      dN2dxi,dN2deta,
-    	                                                      dN3dxi,dN3deta,
-    	                                                      dN4dxi,dN4deta) 
+    	                                                       dN2dxi,dN2deta,
+    	                                                       dN3dxi,dN3deta,
+    	                                                       dN4dxi,dN4deta) 
     return J11*J22 - J12*J21
+
+end
+
+
+function lagrange_basis_derivatives!(dNdx, type::Hexa4,xieta,coords)
+	xi     = xieta[1]
+	eta    = xieta[2]
+	zeta   = xieta[3]
+
+    dN1dxi   = -0.125*(1-eta)*(1-zeta)
+    dN1deta  = -0.125*(1-xi)*(1-zeta)
+    dN1dzeta = -0.125*(1-xi)*(1-eta)
+
+    dN2dxi   =  0.125*(1-eta)*(1-zeta)
+    dN2deta  = -0.125*(1+xi)*(1-zeta)
+    dN2dzeta = -0.125*(1+xi)*(1-eta)
+
+    dN3dxi   =  0.125*(1+eta)*(1-zeta)
+    dN3deta  =  0.125*(1+xi)*(1-zeta)
+    dN3dzeta = -0.125*(1+xi)*(1+eta)
+
+    dN4dxi   = -0.125*(1+eta)*(1-zeta)
+    dN4deta  =  0.125*(1-xi)*(1-zeta)
+    dN4dzeta = -0.125*(1-xi)*(1+eta)
+
+    dN5dxi   = -0.125*(1-eta)*(1+zeta)
+    dN5deta  = -0.125*(1-xi)*(1+zeta)
+    dN5dzeta = 0.125*(1-xi)*(1-eta)
+
+    dN6dxi   = 0.125*(1-eta)*(1+zeta)
+    dN6deta  = -0.125*(1+xi)*(1+zeta)
+    dN6dzeta = 0.125*(1+xi)*(1-eta)
+
+    dN7dxi   = 0.125*(1+eta)*(1+zeta)
+    dN7deta  = 0.125*(1+xi)*(1+zeta)
+    dN7dzeta = 0.125*(1+xi)*(1+eta)
+
+    dN8dxi   = -0.125*(1+eta)*(1+zeta)
+    dN8deta  =  0.125*(1-xi)*(1+zeta)
+    dN8dzeta =  0.125*(1-xi)*(1+eta)
+
+    J11 = dN1dxi * coords[1][1] + dN2dxi * coords[2][1] + dN3dxi  * coords[3][1] + dN4dxi * coords[4][1] +
+          dN5dxi * coords[5][1] + dN6dxi * coords[6][1] + dN7dxi  * coords[7][1] + dN8dxi * coords[8][1]
+
+    J12 = dN1dxi * coords[1][2] + dN2dxi * coords[2][2] + dN3dxi * coords[3][2] + dN4dxi * coords[4][2]+
+          dN5dxi * coords[5][2] + dN6dxi * coords[6][2] + dN7dxi * coords[7][2] + dN8dxi * coords[8][2]
+
+    J13 = dN1dxi * coords[1][3] + dN2dxi * coords[2][3] + dN3dxi * coords[3][3] + dN4dxi * coords[4][3]+
+          dN5dxi * coords[5][3] + dN6dxi * coords[6][3] + dN7dxi * coords[7][3] + dN8dxi * coords[8][3]              
+    J21 = dN1deta  * coords[1][1] + dN2deta  * coords[2][1] + dN3deta  * coords[3][1] + dN4deta * coords[4][1] +  dN5deta  * coords[5][1] + dN6deta  * coords[6][1] + dN7deta  * coords[7][1] + dN8deta * coords[8][1]
+
+    J22 = dN1deta  * coords[1][2] + dN2deta  * coords[2][2] + dN3deta  * coords[3][2] + dN4deta * coords[4][2]+
+          dN5deta  * coords[5][2] + dN6deta  * coords[6][2] + dN7deta  * coords[7][2] + dN8deta * coords[8][2]
+
+    J23 = dN1deta  * coords[1][3] + dN2deta  * coords[2][3] + dN3deta  * coords[3][3] + dN4deta * coords[4][3]+
+          dN5deta  * coords[5][3] + dN6deta  * coords[6][3] + dN7deta  * coords[7][3] + dN8deta * coords[8][3]    
+
+    J31 = dN1dzeta * coords[1][1] + dN2dzeta * coords[2][1] + dN3dzeta * coords[3][1] + dN4dzeta * coords[4][1] + dN5dzeta * coords[5][1] + dN6dzeta * coords[6][1] + dN7dzeta * coords[7][1] + dN8dzeta * coords[8][1]
+
+    J32 = dN1dzeta * coords[1][2] + dN2dzeta * coords[2][2] + dN3dzeta * coords[3][2] + dN4dzeta * coords[4][2]+
+          dN5dzeta * coords[5][2] + dN6dzeta * coords[6][2] + dN7dzeta * coords[7][2] + dN8dzeta * coords[8][2]
+
+    J33 = dN1dzeta * coords[1][3] + dN2dzeta * coords[2][3] + dN3dzeta * coords[3][3] + dN4dzeta * coords[4][3]+
+          dN5dzeta * coords[5][3] + dN6dzeta * coords[6][3] + dN7dzeta * coords[7][3] + dN8dzeta * coords[8][3]      
+    J  = SMatrix{3,3}(J11,J12,J13;J21,J22,J23;J31,J32,J33)      
+    
+    dNdx    .= inv(J)*SMatrix{3,8}(dN1dxi,dN1deta, dN1dzeta,
+    	                           dN2dxi,dN2deta, dN2dzeta,
+    	                           dN3dxi,dN3deta, dN3dzeta,
+    	                           dN4dxi,dN4deta, dN4dzeta,
+    	                           dN5dxi,dN5deta, dN5dzeta,
+    	                           dN6dxi,dN6deta, dN6dzeta,
+    	                           dN7dxi,dN7deta, dN7dzeta,
+    	                           dN8dxi,dN8deta, dN8dzeta,
+    	                           ) 
+
+    return det(J)
 
 end
 
@@ -195,6 +350,7 @@ function loadGMSH(sFile::String)
 		end
 
 		# reading element data
+		accepts = (3,5) # only 4 node quad and 8 node hexa elements
 		arrayElement_ID = Array{Int,1}()
 		inodes          = Array{Int,2}(undef,0,4) # for 4-node tetrahedron/quad only
 		for indexLine = 1:lengthCnt
@@ -203,10 +359,11 @@ function loadGMSH(sFile::String)
 				for indexElement = 1:nElements
 					# from gmsh document -> elm-number elm-type number-of-tags < tag > ... node-number-list
 					arrayTemp = readdlm(IOBuffer(arrayLine[indexLine + 1 + indexElement]),Int16) # convert multi number string into array of numbers
-					if(arrayTemp[2] != 3) # element type = 4-node quad
+					elemType  = arrayTemp[2]
+					if !(elemType in accepts) # element type = 4-node quad
 						continue
 					end
-					if(arrayTemp[2] == 3) # element type = 4-node quad
+					if(elemType == 3) # element type = 4-node quad
 						#println(arrayTemp)
 						push!(arrayElement_ID,arrayTemp[1])
 						nTags           = arrayTemp[3]
@@ -222,6 +379,7 @@ function loadGMSH(sFile::String)
         #println(inodes)
 
 		@printf("	nNodes: %d, nElements: %d\n", nNodes, nElements)
+
 		return (arrayNode_Coordinate,inodes)
 	end
 

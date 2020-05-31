@@ -157,9 +157,11 @@ module Solid
 			new{T}(m,vol,vol0,copy(x),x,velo,F,strain,stress,gradVel,
 			    Cmat,parCount,mat,nodesX,elems)
 		end
-        # particles from a mesh
+        # particles from a mesh: only Q4 for the moment
 		function Solid2D(fileName,mat::T) where {T <: MaterialType}
 			nodes,elems = loadGMSH(fileName)
+
+
 			parCount = size(elems,1)
 			Identity = SMatrix{2,2}(1, 0, 0, 1)
 			F        = fill(Identity,parCount)
@@ -175,18 +177,7 @@ module Solid
 			velo     = fill(zeros(2),parCount)
 			#println(size(nodes,2))
 			#println(parCount)
-			for e = 1:parCount
-			    coord = nodes[1:2,elems[e,:]] # from gmsh, nodes are 3D
-			    a     = 0.5*( coord[1,1]*coord[2,2]  - coord[1,2]*coord[2,1]
-				            + coord[1,2]*coord[2,3]  - coord[1,3]*coord[2,2]
-							+ coord[1,3]*coord[2,4]  - coord[1,4]*coord[2,3]
-							+ coord[1,4]*coord[2,1]  - coord[1,1]*coord[2,4])
-			    vol[e]  = a
-			    vol0[e] = a
-			    m[e]    = a*mat.density
-			    x[e]    = vec(mean(coord,dims=2)) # center of each element=particle
-			end
-
+			
 			for i=1:size(nodes,2)
 				nodesX[i] = @SVector [nodes[1,i], nodes[2,i]]
 			end
@@ -195,6 +186,34 @@ module Solid
 			if ( typeof(mat) <: RigidMaterial )
 				rigid = true
 			end
+
+
+			# check negative Jacobian issue
+			N         = zeros(4)#@SVector [0,0,0,0]
+			@inbounds for ip = 1:parCount
+				elemNodes  =  @view elems[ip,:]  
+				elemNodes0 =        elems[ip,:]  
+				coords     =  @view nodesX[elemNodes]
+		    
+		
+			    detJ  = lagrange_basis!(N, Quad4(), [0., 0.], coords)
+			    if detJ < 0.
+			  	  elemNodes[2] = elemNodes0[4]			  	
+			  	  elemNodes[4] = elemNodes0[2]
+			  	  println(elemNodes)
+			    end
+
+			    coord = nodes[1:2,elems[ip,:]] # from gmsh, nodes are 3D
+			    a     = 0.5*( coord[1,1]*coord[2,2]  - coord[1,2]*coord[2,1]
+				            + coord[1,2]*coord[2,3]  - coord[1,3]*coord[2,2]
+							+ coord[1,3]*coord[2,4]  - coord[1,4]*coord[2,3]
+							+ coord[1,4]*coord[2,1]  - coord[1,1]*coord[2,4])
+			    vol[ip]  = a
+			    vol0[ip] = a
+			    m[ip]    = a*mat.density
+			    x[ip]    = vec(mean(coord,dims=2)) # center of each element=particle
+			end
+
 
 			new{T}(m,vol,vol0,copy(x),x,velo,F,strain,stress,gradVel,Cmat,parCount,mat,
 			    nodesX,elems,rigid)

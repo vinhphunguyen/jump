@@ -197,9 +197,10 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 					m  = nodalMass[in]
 					if ( m > 0.)
 						vI         = nodalMomentum2[in] /m
-					    xxp       += (Ni * nodalMomentum[in]/m) * dtime
-				        vel_grad  += SMatrix{2,2}(dNi[1]*vI[1], dNi[2]*vI[1],
-				                                  dNi[1]*vI[2], dNi[2]*vI[2])
+					    #xxp       += (Ni * nodalMomentum[in]/m) * dtime	
+					    xxp       += (Ni * vI) * dtime	
+				        vel_grad  += SMatrix{2,2}(dNi[1]*vI[1], dNi[1]*vI[2],
+   										          dNi[2]*vI[1], dNi[2]*vI[2])
 				    end
 				end
 				xx[ip]      = xxp
@@ -232,7 +233,8 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 					  Ni = funcsLin[i]
 					  mI = nodalMass[in]
 					  if mI > 0.
-				        corner_coords[c] += (Ni * nodalMomentum[in] / mI) * dtime
+				        #corner_coords[c] += (Ni * nodalMomentum[in] / mI) * dtime
+				        corner_coords[c] += (Ni * nodalMomentum2[in] / mI) * dtime
 					  end
 				  end
 				  # println(xc)
@@ -422,8 +424,8 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 					vI         = nodalMomentum[in] * invM
 					vvp       += Ni * (nodalMomentum[in] - nodalMomentum0[in]) * invM
 					xxp       += Ni * vI * dtime
-					vel_grad  += SMatrix{2,2}(dNi[1]*vI[1], dNi[2]*vI[1],
-	   										  dNi[1]*vI[2], dNi[2]*vI[2])
+			        vel_grad  += SMatrix{2,2}(dNi[1]*vI[1], dNi[1]*vI[2],
+   										      dNi[2]*vI[1], dNi[2]*vI[2])
 		   		end
 		   	 end
 			 vv[ip]      = vvp

@@ -38,8 +38,10 @@ using Util
     # create the grid of a 1 x 1 square, with 20 x 20 cells
 	# and a basis: linear and CPDI-Q4 supported
     grid      =  Grid2D(0,1.1, 0,1.1, 21, 21)
+    basis     = LinearBasis()
 
-    material = ElasticMaterial(youngModulus,poissonRatio,density,0,0)
+    #material = ElasticMaterial(youngModulus,poissonRatio,density,0,0)
+    material = NeoHookeanMaterial(youngModulus,poissonRatio,density)
 
     solid1   = FEM2D("disk.msh",material)
     solid2   = FEM2D("disk.msh",material)
@@ -73,7 +75,7 @@ using Util
     #plotParticles_2D(output2,solids,0)
 
 	#reset_timer!
-    solve_explicit_dynamics_femp_2D(grid,solids,algo1,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_femp_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
     #print_timer()
 	# plotting energies
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))

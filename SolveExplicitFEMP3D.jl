@@ -19,7 +19,7 @@
 ######################################################################
 # Update Stress Last
 ######################################################################
-function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::USL,output,fixes,Tf,dtime)
+function solve_explicit_dynamics_femp_3D(grid,solids,basis,alg::USL,output,fixes,Tf,dtime)
     t       = 0.
     counter = 0
 
@@ -30,7 +30,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::USL,output,fixes
 	nodalMomentum  = grid.momentum
 	nodalForce     = grid.force
 
-    D              = SMatrix{2,2}(0., 0., 0., 0.) #zeros(Float64,2,2)
+    D              = SMatrix{3,3}(0,0,0,0,0,0,0,0,0) #zeros(Float64,2,2)
 	linBasis       = LinearBasis()
 	nearPointsLin  = [0,0,0,0]
 
@@ -38,20 +38,24 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::USL,output,fixes
 
 	nearPoints,funcs, ders = initialise(grid,basis)
 
-    dNdx      = zeros(2,4)
-    vel_grad  = SMatrix{2,2}(0., 0., 0., 0.)
-    N         = zeros(4)#@SVector [0,0,0,0]
+    dNdx      = zeros(3,8)
+    vel_grad  = SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
+    N         = zeros(8)#@SVector [0,0,0,0]
 
     # compute nodal mass (only once)
 
-     gpCoords  = zeros(2,4)
-     weights   = ones(4)
-     gpCoords[1,1] = -0.5773502691896257; gpCoords[2,1] = -0.5773502691896257;
-     gpCoords[1,2] =  0.5773502691896257; gpCoords[2,2] = -0.5773502691896257;
-     gpCoords[1,3] =  0.5773502691896257; gpCoords[2,3] =  0.5773502691896257;
-     gpCoords[1,4] = -0.5773502691896257; gpCoords[2,4] =  0.5773502691896257;
+    gpCoords  = zeros(3,8)
+    weights   = ones(8)
+    gpCoords[1,1] = -0.5773502691896257;gpCoords[2,1] = -0.5773502691896257;gpCoords[3,1] = -0.5773502691896257
+    gpCoords[1,2] =  0.5773502691896257;gpCoords[2,2] = -0.5773502691896257;gpCoords[3,2] = -0.5773502691896257
+    gpCoords[1,3] =  0.5773502691896257;gpCoords[2,3] =  0.5773502691896257;gpCoords[3,3] = -0.5773502691896257
+    gpCoords[1,4] = -0.5773502691896257;gpCoords[2,4] =  0.5773502691896257;gpCoords[3,4] = -0.5773502691896257
+    gpCoords[1,5] = -0.5773502691896257;gpCoords[2,5] =  0.5773502691896257;gpCoords[3,5] =  0.5773502691896257
+    gpCoords[1,6] = -0.5773502691896257;gpCoords[2,6] =  0.5773502691896257;gpCoords[3,6] =  0.5773502691896257
+    gpCoords[1,7] = -0.5773502691896257;gpCoords[2,7] =  0.5773502691896257;gpCoords[3,7] =  0.5773502691896257
+    gpCoords[1,8] = -0.5773502691896257;gpCoords[2,8] =  0.5773502691896257;gpCoords[3,8] =  0.5773502691896257
 
-     noGP = 4
+    noGP = 8
 
     @inbounds for s = 1:solidCount
 		solid  = solids[s]
@@ -68,7 +72,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::USL,output,fixes
 	    
 			@inbounds for gp = 1:noGP
 			  xieta = @view gpCoords[:,gp]
-			  detJ  = lagrange_basis!(N, Quad4(), xieta, coords)
+			  detJ  = lagrange_basis!(N, Hexa4(), xieta, coords)
 			  if detJ < 0.
 			  	elemNodes[2] = elemNodes0[4]			  	
 			  	elemNodes[4] = elemNodes0[2]
@@ -92,8 +96,8 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::USL,output,fixes
 
     @inbounds for i = 1:grid.nodeCount
 	  nodalMass[i]      = 0.
-	  nodalMomentum0[i] =  @SVector [0., 0.]
-	  nodalForce[i]     =  @SVector [0., 0.]
+	  nodalMomentum0[i] =  @SVector [0., 0., 0.]
+	  nodalForce[i]     =  @SVector [0., 0., 0.]
     end
 
     # ===========================================
@@ -128,7 +132,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::USL,output,fixes
 				nodalForce[in]     -= Ni  * fp
 				#nodalForce[in]     +=      fMass   * body  *  Ni
 			end
-			du[ip] = @SVector [0., 0.]
+			du[ip] = @SVector [0., 0., 0.]
 	  	end
 	end
 
@@ -206,24 +210,25 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::USL,output,fixes
 	  	fint   = solid.fint
 	  	vol    = solid.volume
 	  	for ip=1:solid.nodeCount 
-	  		fint[ip] = @SVector [0., 0.]
+	  		fint[ip] = @SVector [0., 0., 0.]
 	  	end
         # loop over solid elements, not solid nodes
 	  	@inbounds for ip = 1:solid.parCount
 			elemNodes =  @view elems[ip,:]  
 			coords    =  @view xx[elemNodes]
-	        vel_grad  =  SMatrix{2,2}(0., 0., 0., 0.)
+	        vel_grad  =  SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
 			
-			detJ      = lagrange_basis_derivatives!(dNdx, Quad4(), [0. 0.], coords)
-			vol[ip]   = detJ * 4 # weight of GP = 4
+			detJ      = lagrange_basis_derivatives!(dNdx, Hexa4(), [0. 0. 0.], coords)
+			vol[ip]   = detJ * 8 # weight of GP = 8
 			#println(dNdx)
 			#println(sum(dNdx, dims=2))
 			for i = 1:length(elemNodes)
 				in         = elemNodes[i]; # index of node 'i'
 			    dNi        = @view dNdx[:,i]			
 				vI         = du[in]
-				vel_grad  += SMatrix{2,2}(dNi[1]*vI[1], dNi[2]*vI[1],
-   										  dNi[1]*vI[2], dNi[2]*vI[2])
+				vel_grad  += SMatrix{3,3}(dNi[1]*vI[1], dNi[1]*vI[2], dNi[1]*vI[3],
+   										  dNi[2]*vI[1], dNi[2]*vI[2], dNi[2]*vI[3],
+   										  dNi[3]*vI[1], dNi[3]*vI[2], dNi[3]*vI[3] )
 		   	end
 	
 		   	D           = 0.5 * (vel_grad + vel_grad')
@@ -239,14 +244,15 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::USL,output,fixes
 		    for i = 1:length(elemNodes)
 				in  = elemNodes[i]; # index of node 'i'
 			    dNi = @view dNdx[:,i]			
-	   	        fint[in]     += detJ * 4 * @SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],
-											        sigma[2,1] * dNi[1] + sigma[2,2] * dNi[2]]
+	   	        fint[in]+=detJ*8*@SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2] + sigma[1,3] * dNi[3],
+										  sigma[1,2] * dNi[1] + sigma[2,2] * dNi[2] + sigma[2,3] * dNi[3],
+										  sigma[1,3] * dNi[1] + sigma[2,3] * dNi[2] + sigma[3,3] * dNi[3] ]
             end
 	   end
 	end
 
 	if (counter%output.interval == 0)
-		plotParticles_2D(output,solids,counter)
+		plotParticles_3D(output,solids,counter)
 		compute_femp(fixes,t)
 	end
 
@@ -272,7 +278,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
 	nodalMomentum  = grid.momentum
 	nodalForce     = grid.force
 
-    D              = SMatrix{2,2}(0., 0., 0., 0.) #zeros(Float64,2,2)
+    D              = SMatrix{3,3}(0,0,0,0,0,0,0,0,0) #zeros(Float64,2,2)
 	linBasis       = LinearBasis()
 	nearPointsLin  = [0,0,0,0]
 
@@ -280,9 +286,9 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
    
 	nearPoints,funcs, ders = initialise(grid,basis)
 
-    dNdx      = zeros(2,4)
-    vel_grad  = SMatrix{2,2}(0., 0., 0., 0.)
-    N         = zeros(4)#@SVector [0,0,0,0]
+    dNdx      = zeros(3,8)
+    vel_grad  = SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
+    N         = zeros(8)#@SVector [0,0,0,0]
 
     # compute nodal mass (only once)
 
@@ -293,7 +299,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
      gpCoords[1,3] =  0.5773502691896257; gpCoords[2,3] =  0.5773502691896257;
      gpCoords[1,4] = -0.5773502691896257; gpCoords[2,4] =  0.5773502691896257;
 
-     noGP = 4
+     noGP = 8
 
     @inbounds for s = 1:solidCount
 		solid  = solids[s]
@@ -310,7 +316,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
 	    
 			@inbounds for gp = 1:noGP
 			  xieta = @view gpCoords[:,gp]
-			  detJ  = lagrange_basis!(N, Quad4(), xieta, coords)
+			  detJ  = lagrange_basis!(N, Hexa4(), xieta, coords)
 			  if detJ < 0.
 			  	elemNodes[2] = elemNodes0[4]			  	
 			  	elemNodes[4] = elemNodes0[2]
@@ -336,8 +342,8 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
 
     @inbounds for i = 1:grid.nodeCount
 	  nodalMass[i]      = 0.
-	  nodalMomentum0[i] =  @SVector [0., 0.]
-	  nodalForce[i]     =  @SVector [0., 0.]
+	  nodalMomentum0[i] =  @SVector [0., 0., 0.]
+	  nodalForce[i]     =  @SVector [0., 0., 0.]
     end
 
     # ===========================================
@@ -450,15 +456,15 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
 	  	fint   = solid.fint
 	  	vol    = solid.volume
 	  	for ip=1:solid.nodeCount 
-	  		fint[ip] = @SVector [0., 0.]
+	  		fint[ip] = @SVector [0., 0., 0.]
 	  	end
         # loop over solid elements, not solid nodes
 	  	@inbounds for ip = 1:solid.parCount
 			elemNodes =  @view elems[ip,:]  
 			coords    =  @view XX[elemNodes]
-	        vel_grad  =  SMatrix{2,2}(0., 0., 0., 0.)
+	        vel_grad  =  SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
 			
-			detJ      = lagrange_basis_derivatives!(dNdx, Quad4(), [0. 0.], coords)
+			detJ      = lagrange_basis_derivatives!(dNdx, Hexa4(), [0. 0. 0.], coords)
 			vol[ip]   = detJ * 4 # weight of GP = 4
 			#println(dNdx)
 			#println(sum(dNdx, dims=2))
@@ -466,8 +472,9 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
 				in         = elemNodes[i]; # index of node 'i'
 			    dNi        = @view dNdx[:,i]			
 				vI         = du[in]
-				vel_grad  += SMatrix{2,2}(dNi[1]*vI[1], dNi[1]*vI[2],
-   										  dNi[2]*vI[1], dNi[2]*vI[2])
+				vel_grad  += SMatrix{3,3}(dNi[1]*vI[1], dNi[1]*vI[2], dNi[1]*vI[3],
+   										  dNi[2]*vI[1], dNi[2]*vI[2], dNi[2]*vI[3],
+   										  dNi[3]*vI[1], dNi[3]*vI[2], dNi[3]*vI[3] )
 		   	end
 	
 		   	D            = 0.5 * (vel_grad + vel_grad')
@@ -484,7 +491,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
 		    for i = 1:length(elemNodes)
 				in  = elemNodes[i]; # index of node 'i'
 			    dNi = @view dNdx[:,i]			
-	   	        fint[in]     += detJ * 4 * @SVector[P[1,1] * dNi[1] + P[2,1] * dNi[2],
+	   	        fint[in]     += detJ * 8 * @SVector[P[1,1] * dNi[1] + P[2,1] * dNi[2],
 											        P[1,2] * dNi[1] + P[2,2] * dNi[2]]
             end
 	   end

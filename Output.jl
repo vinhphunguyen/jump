@@ -14,7 +14,7 @@ module Output
 import Glob
 import PyPlot
 using  WriteVTK
-using StaticArrays
+using  StaticArrays
 
 using Solid
 using Material
@@ -339,7 +339,7 @@ function plotParticles_2D(plot::VTKOutput,solids,counter::Int64)
 	outfiles    = vtk_save(vtkfile)
 end
 
-function plotGrid_2D(plot::VTKOutput,grid)
+function plotGrid(plot::VTKOutput,grid::Grid2D)
 	my_vtk_file = string(plot.dir,"grid")
 
 	points      = zeros(2,grid.nodeCount)
@@ -368,7 +368,46 @@ function plotGrid_2D(plot::VTKOutput,grid)
 	outfiles    = vtk_save(vtkfile)
 end
 
+function plotGrid(plot::VTKOutput,grid::Grid3D)
+	my_vtk_file = string(plot.dir,"grid")
+
+	points      = zeros(3,grid.nodeCount)
+
+	xx=grid.pos
+	
+	@inbounds for i = 1:grid.nodeCount
+		points[1,i] = xx[i][1] 
+		points[2,i] = xx[i][2]
+		points[3,i] = xx[i][3]
+	end
+
+	
+	cells = MeshCell[]
+	noXY  = nodeCountX * nodeCountY
+	for k = 1:grid.nodeCountZ-1
+		for j = 1:grid.nodeCountY-1
+			for i = 1:grid.nodeCountX-1
+				node1   = i + (j-1)*grid.nodeCountX + (k-1)*noXY
+				node2   = node1 + 1
+				node3   = node1 + grid.nodeCountX
+				node4   = node3 + 1
+
+				node5   = node1 + noXY
+				node6   = node2 + noXY
+				node7   = node3 + noXY
+				node8   = node4 + noXY
+
+	            inds    = @SVector[node1,node2,node4,node3,node5,node6,node8,node7]
+			    c       = MeshCell(VTKCellTypes.VTK_HEX, inds)
+	            push!(cells, c)
+	        end
+		end
+    end
+	vtkfile     = vtk_grid(my_vtk_file, points, cells)
+	outfiles    = vtk_save(vtkfile)
+end
+
 export OutputType, PyPlotOutput, OvitoOutput, VTKOutput
-export plotGrid,plotParticles_2D, plotParticles_3D, writeParticles, plotGrid_2D
+export plotGrid,plotParticles_2D, plotParticles_3D, writeParticles, plotGrid
 
 end
