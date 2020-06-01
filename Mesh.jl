@@ -23,7 +23,7 @@ export Line2, Tri3, Quad4, Tet4, Hexa8
 struct Line2 end
 struct Tri3  end
 struct Quad4 end
-struct Hexa4 end
+struct Hexa8 end
 struct Tet4  end
 
 function lagrange_basis!(N, dNdxi, type::Line2,coord)
@@ -81,7 +81,7 @@ function lagrange_basis!(N, type::Quad4,xieta,coords)
 
 end
 
-function lagrange_basis!(N, type::Hexa4,xieta,coords)
+function lagrange_basis!(N, type::Hexa8,xieta,coords)
 	xi     = xieta[1]
 	eta    = xieta[2]
 	zeta   = xieta[3]
@@ -153,7 +153,7 @@ function lagrange_basis!(N, type::Hexa4,xieta,coords)
     J33 = dN1dzeta * coords[1][3] + dN2dzeta * coords[2][3] + dN3dzeta * coords[3][3] + dN4dzeta * coords[4][3]+
           dN5dzeta * coords[5][3] + dN6dzeta * coords[6][3] + dN7dzeta * coords[7][3] + dN8dzeta * coords[8][3]      
 
-    return det(SMatrix{3,3}(J11,J12,J13;J21,J22,J23;J31,J32,J33))
+    return det(SMatrix{3,3}(J11,J21,J31,J12,J22,J32,J13,J23,J33))
 
 end
 
@@ -184,7 +184,7 @@ function lagrange_basis_derivatives!(dNdx, type::Quad4,xieta,coords)
 end
 
 
-function lagrange_basis_derivatives!(dNdx, type::Hexa4,xieta,coords)
+function lagrange_basis_derivatives!(dNdx, type::Hexa8,xieta,coords)
 	xi     = xieta[1]
 	eta    = xieta[2]
 	zeta   = xieta[3]
@@ -244,7 +244,7 @@ function lagrange_basis_derivatives!(dNdx, type::Hexa4,xieta,coords)
 
     J33 = dN1dzeta * coords[1][3] + dN2dzeta * coords[2][3] + dN3dzeta * coords[3][3] + dN4dzeta * coords[4][3]+
           dN5dzeta * coords[5][3] + dN6dzeta * coords[6][3] + dN7dzeta * coords[7][3] + dN8dzeta * coords[8][3]      
-    J  = SMatrix{3,3}(J11,J12,J13;J21,J22,J23;J31,J32,J33)      
+    J  = SMatrix{3,3}(J11,J21,J31,J12,J22,J32,J13,J23,J33)      
     
     dNdx    .= inv(J)*SMatrix{3,8}(dN1dxi,dN1deta, dN1dzeta,
     	                           dN2dxi,dN2deta, dN2dzeta,
@@ -350,37 +350,50 @@ function loadGMSH(sFile::String)
 		end
 
 		# reading element data
-		accepts = (3,5) # only 4 node quad and 8 node hexa elements
+		accepts         = (3,5)                              # only 4 node quad and 8 node hexa elements
 		arrayElement_ID = Array{Int,1}()
-		inodes          = Array{Int,2}(undef,0,4) # for 4-node tetrahedron/quad only
-		for indexLine = 1:lengthCnt
-			if(occursin(arrayLine[indexLine], "\$Elements"))
+		inodes          = Array{Array{Int64,1},1}(undef,0)   # element nodes
+		for indexLine = 1:lengthCnt                          # loop over lines
+			if(occursin(arrayLine[indexLine], "\$Elements")) # get Elements tag
 				@printf("	Reading %d elements\n", nElements)
 				for indexElement = 1:nElements
 					# from gmsh document -> elm-number elm-type number-of-tags < tag > ... node-number-list
-					arrayTemp = readdlm(IOBuffer(arrayLine[indexLine + 1 + indexElement]),Int16) # convert multi number string into array of numbers
+					# convert multi number string into array of numbers
+					arrayTemp = readdlm(IOBuffer(arrayLine[indexLine + 1 + indexElement]),Int16) 
 					elemType  = arrayTemp[2]
-					if !(elemType in accepts) # element type = 4-node quad
+					if !(elemType in accepts) # ignore element not in accepted
 						continue
 					end
-					if(elemType == 3) # element type = 4-node quad
+					nTags           = arrayTemp[3]
+					# element type = 4-node quad
+					if(elemType == 3) 
 						#println(arrayTemp)
-						push!(arrayElement_ID,arrayTemp[1])
-						nTags           = arrayTemp[3]
-						newCorners      = [arrayTemp[3+nTags+1] arrayTemp[3+nTags+2] arrayTemp[3+nTags+3] arrayTemp[3+nTags+4]]
-                        #println(newCorners)
-						inodes = [inodes;newCorners]
+						push!(arrayElement_ID,arrayTemp[1])						
+						newCorners      = [arrayTemp[6], arrayTemp[7], arrayTemp[8], arrayTemp[9]]
+                        #println(newCorners)						
 						#println(inodes)
 					end
+					# element type = 8-node hexa
+					if(elemType == 5) 
+						#println(arrayTemp)
+						push!(arrayElement_ID,arrayTemp[1])						
+						newCorners = [arrayTemp[6], arrayTemp[7], arrayTemp[8], arrayTemp[9], arrayTemp[10],
+						              arrayTemp[11], arrayTemp[12], arrayTemp[13]
+						             ]
+                        #println(newCorners)						
+						#println(inodes)
+					end
+					push!(inodes,newCorners)
 				end
 			end
 		end
 		#println(arrayElement_ID)
         #println(inodes)
 
+
 		@printf("	nNodes: %d, nElements: %d\n", nNodes, nElements)
 
-		return (arrayNode_Coordinate,inodes)
+		return (arrayNode_Coordinate,vcat(map(x->x', inodes)...))
 	end
 
 export createMeshForRectangle, loadGMSH

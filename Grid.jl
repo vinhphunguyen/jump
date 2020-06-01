@@ -120,6 +120,9 @@ module Grid
   # ----------------------------------------------------------------------
 
   struct Grid3D
+     xmin      :: Float64
+     ymin      :: Float64
+     zmin      :: Float64
      lx        :: Float64              # length in x dir
      ly        :: Float64              # length in y dir
      lz        :: Float64              # length in z dir
@@ -148,17 +151,17 @@ module Grid
 
      # constructor, GL_x is length of the grid in x dir
      # iN_x: number of nodes in x dir
-     function Grid3D(fGL_x, fGL_y, fGL_z, iN_x, iN_y, iN_z)
-        dx  = fGL_x / Float64(iN_x - 1.0)
-        dy  = fGL_y / Float64(iN_y - 1.0)
-        dz  = fGL_y / Float64(iN_z - 1.0)
+     function Grid3D(xmin,xmax,ymin,ymax,zmin,zmax, iN_x, iN_y, iN_z)
+        dx  = (xmax-xmin) / Float64(iN_x - 1.0)
+        dy  = (ymax-ymin) / Float64(iN_y - 1.0)
+        dz  = (zmax-zmin) / Float64(iN_z - 1.0)
         dxI = 1.0 / dx
         dyI = 1.0 / dy
         dzI = 1.0 / dz
 
-        nodeCount = iN_x*iN_y*iN_z
+        nodeCount    = iN_x*iN_y*iN_z
 
-        mass         = fill(0,iN_x*iN_y)
+        mass         = fill(0,nodeCount)
         momentum0    = fill(zeros(3),nodeCount)
         momentum     = fill(zeros(3),nodeCount)
         momentum2    = fill(zeros(3),nodeCount)
@@ -177,11 +180,11 @@ module Grid
                  z     = (k-1) * dz
                  index = index3DTo1D(i, j, k, iN_x, iN_y, iN_z)
 
-                 pos[index] = [x, y, z];
+                 pos[index] = @SVector [xmin+x, ymin+y, zmin+z]
               end
            end
       end
-      new(fGL_x, fGL_y, fGL_z, dx, dy, dz, dxI, dyI, dzI, nodeCount, iN_x,
+      new(xmin, ymin, zmin, xmax-xmin, ymax-ymin, zmax-zmin, dx, dy, dz, dxI, dyI, dzI, nodeCount, iN_x,
           iN_y,iN_z, iN_x*iN_y, mass, pos, momentum0,momentum, momentum2, force,idx,idy,idz)
      end
   end
@@ -221,16 +224,6 @@ module Grid
     end
   end
 
-  function fixForBottom(grid::Grid3D)
-    xnodes = grid.fixedXNodes
-    ynodes = grid.fixedYNodes
-    znodes = grid.fixedZNodes
-    @inbounds for i=1:grid.nodeCountX
-      xnodes[i] = 1
-      ynodes[i] = 1
-      znodes[i] = 1
-    end
-  end
 
   function fixXForTop(grid::Grid2D;ghostcell=false)
     xnodes = grid.fixedXNodes
@@ -304,6 +297,43 @@ module Grid
     xnodes[grid.nodeCount] = 1
   end
 
+  function fixForTop(grid::Grid3D;ghostcell=false)
+    xnodes = grid.fixedXNodes
+    ynodes = grid.fixedYNodes
+    znodes = grid.fixedZNodes
+    for k=1:grid.nodeCountZ
+      for i=1:grid.nodeCountX
+        c = i + grid.nodeCountX*(grid.nodeCountY-1) + (k-1)*grid.nodeCountXY
+        xnodes[c] = 1
+        ynodes[c] = 1
+        znodes[c] = 1
+      end
+    end
+  end
+
+  function fixYForTop(grid::Grid3D;ghostcell=false)
+    
+    ynodes = grid.fixedYNodes
+    
+    for k=1:grid.nodeCountZ
+      for i=1:grid.nodeCountX
+        c = i + grid.nodeCountX*(grid.nodeCountY-1) + (k-1)*grid.nodeCountXY        
+        ynodes[c] = 1        
+      end
+    end
+  end
+
+
+  function fixYForBottom(grid::Grid3D)
+    ynodes = grid.fixedYNodes
+    for k=1:grid.nodeCountZ
+      @inbounds for i=1:grid.nodeCountX
+        ii         = i + (k-1)*grid.nodeCountXY        
+        ynodes[ii] = 1        
+      end
+    end
+  end
+
   # find the neighbors of a given element "elemId"
   # in a structured grid of numx x numy elements
   function getNeighbors(elemId, grid::Grid2D)
@@ -344,10 +374,8 @@ module Grid
       return neighbors
   end
 
-
-
   export Grid1D, Grid2D, Grid3D
   export index2DTo1D, index3DTo1D, getNeighbors,
-         fixXForBottom, fixYForBottom, fixForBottom, fixXForTop, fixYForTop, fixXForLeft, fixYForLeft, fixXForRight, fixYForRight
+         fixXForBottom, fixYForBottom, fixForBottom, fixXForTop, fixYForTop, fixXForLeft, fixYForLeft, fixXForRight, fixYForRight, fixForTop
 
 end

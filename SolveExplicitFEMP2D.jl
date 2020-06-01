@@ -479,13 +479,13 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
 	   	    update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
 
             sigma = stress[ip]
-            P     = J*sigma*inv(F[ip])'  # convert to Piola Kirchoof stress
+            P     = J*sigma*inv(F[ip])'  # convert to 1st Piola Kirchoof stress
             # compute nodal internal force fint
 		    for i = 1:length(elemNodes)
 				in  = elemNodes[i]; # index of node 'i'
 			    dNi = @view dNdx[:,i]			
-	   	        fint[in]     += detJ * 4 * @SVector[P[1,1] * dNi[1] + P[2,1] * dNi[2],
-											        P[1,2] * dNi[1] + P[2,2] * dNi[2]]
+	   	        fint[in]     += detJ * 4 * @SVector[P[1,1] * dNi[1] + P[1,2] * dNi[2],
+											        P[2,1] * dNi[1] + P[2,2] * dNi[2]]
             end
 	   end
 	end

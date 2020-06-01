@@ -75,6 +75,7 @@ struct FEM3D{T <: MaterialType}
 	velocity            :: Vector{SVector{3,Float64}}  # velocity
 	dU                  :: Vector{SVector{3,Float64}}  # incremental displacements
 	fint                :: Vector{SVector{3,Float64}}  # internal forces at FE nodes
+	fbody               :: Vector{SVector{3,Float64}}  # external forces  due to gravity at FE nodes
 
 	deformationGradient :: Vector{SMatrix{3,3,Float64,9}}  # F, 2x2 matrix
 	strain              :: Vector{SMatrix{3,3,Float64,9}}  # stress, 2x2 matrix
@@ -95,7 +96,7 @@ struct FEM3D{T <: MaterialType}
 		nodes,elems = loadGMSH(fileName)
 		nodeCount = size(nodes,2)                   # node count
 		parCount = size(elems,1)                 # element count
-		Identity = SMatrix{3,3}(1, 0, 0;0 1 0;0 0 1)
+		Identity = SMatrix{3,3}(1, 0, 0,0, 1, 0,0, 0, 1)
 		F        = fill(Identity,parCount)
 		strain   = fill(zeros(3,3),parCount)
 		stress   = fill(zeros(3,3),parCount)
@@ -112,15 +113,17 @@ struct FEM3D{T <: MaterialType}
 		end
 
 
-		new{T}(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),F,
+		new{T}(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),F,
 			   strain,stress,parCount,nodeCount,mat,elems)
 	end
 end
 
-function move(solid::FEM2D,dx)
-   x1 = solid.pos
+function move(solid,dx)
+   x  = solid.pos
+   x0 = solid.pos0
    @inbounds for p = 1 : solid.nodeCount
-	  x1[p] += dx
+	  x[p]  += dx
+	  x0[p] += dx
    end
 end
 

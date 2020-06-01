@@ -72,6 +72,24 @@ struct StressFix <: FixBase
     end
 end
 
+struct DisplacementFemFix <: FixBase
+    solid
+    file
+    nodeID
+
+    function DisplacementFemFix(solid,dir,nodeID)
+        filename = string(dir,"recorded-position.txt")
+
+        if (isfile(filename))
+            rm(filename)
+        end
+
+        file = open(filename, "a")
+
+        new(solid,file,nodeID)
+    end
+end
+
 function compute(fix::EmptyFix,time)
 end
 
@@ -82,6 +100,14 @@ function compute(fix::DisplacementFix,time)
     #println(fix.index)
     x = fix.solids[fix.index[1]].pos[fix.index[2]]
     write(fix.file, "$(time) $(x[1]) $(x[2])\n")
+end
+
+function compute_femp(fix::DisplacementFemFix,time)
+    #println(fix.index)
+    x = fix.solid.pos[fix.nodeID][1] - fix.solid.pos0[fix.nodeID][1]
+    y = fix.solid.pos[fix.nodeID][2] - fix.solid.pos0[fix.nodeID][2]
+    z = fix.solid.pos[fix.nodeID][3] - fix.solid.pos0[fix.nodeID][3]
+    write(fix.file, "$(time) $(x) $(y) $(z)\n")
 end
 
 function compute(fix::EnergiesFix,time)
@@ -155,6 +181,6 @@ struct MaximumPlasticStrainFix <: FixBase
 
 end
 
-export FixBase, EmptyFix, EnergiesFix, DisplacementFix, StressFix, MaximumPlasticStrainFix
+export FixBase, EmptyFix, EnergiesFix, DisplacementFix, StressFix, MaximumPlasticStrainFix, DisplacementFemFix
 export compute, closeFile, compute_femp
 end

@@ -339,6 +339,48 @@ function plotParticles_2D(plot::VTKOutput,solids,counter::Int64)
 	outfiles    = vtk_save(vtkfile)
 end
 
+function plotParticles_3D(plot::VTKOutput,solids,counter::Int64)
+	my_vtk_file = string(plot.dir,"particle_","$(Int(counter))")
+	nodeCount = 0
+	for s=1:length(solids)
+		nodeCount += solids[s].nodeCount
+	end
+	points      = zeros(3,nodeCount)
+	cc = 1
+	cells = MeshCell[]
+	p     = Vector{Float64}(undef,0)
+	velo  = zeros(3,nodeCount)
+	for s=1:length(solids)
+		solid = solids[s]
+		xx    = solid.pos
+		elems = solid.elems
+		stress= solid.stress
+		ve    = solid.velocity
+		shift = (s-1)*solid.nodeCount
+		for ip=1:solid.nodeCount
+			points[1,cc] = xx[ip][1]
+			points[2,cc] = xx[ip][2]
+			points[3,cc] = xx[ip][3]
+			velo[1,cc]   = ve[ip][1]
+			velo[2,cc]   = ve[ip][2]
+			velo[3,cc]   = ve[ip][3]
+			cc += 1
+		end
+		for e=1:solid.parCount
+			inds =elems[e,:] .+ shift
+		    c    = MeshCell(VTKCellTypes.VTK_HEXAHEDRON, inds)
+            push!(cells, c)
+            sigma = stress[e]
+            push!(p, sigma[1,1]+sigma[2,2]+sigma[3,3])
+        end
+	end
+	vtkfile     = vtk_grid(my_vtk_file, points, cells)
+	# write data 
+	vtkfile["Pressure", VTKCellData()]  = p
+	vtkfile["Velocity", VTKPointData()] = velo
+	outfiles    = vtk_save(vtkfile)
+end
+
 function plotGrid(plot::VTKOutput,grid::Grid2D)
 	my_vtk_file = string(plot.dir,"grid")
 
@@ -368,22 +410,28 @@ function plotGrid(plot::VTKOutput,grid::Grid2D)
 	outfiles    = vtk_save(vtkfile)
 end
 
-function plotGrid(plot::VTKOutput,grid::Grid3D)
-	my_vtk_file = string(plot.dir,"grid")
+function plotGrid(plot::VTKOutput,grid::Grid3D,counter)
+	my_vtk_file = string(plot.dir,"grid","$(Int(counter))")
 
 	points      = zeros(3,grid.nodeCount)
+	ve          = zeros(3,grid.nodeCount)
 
-	xx=grid.pos
+	xx          = grid.pos
+	vel         = grid.momentum
 	
 	@inbounds for i = 1:grid.nodeCount
 		points[1,i] = xx[i][1] 
 		points[2,i] = xx[i][2]
 		points[3,i] = xx[i][3]
+
+		ve[1,i] = vel[i][1] 
+		ve[2,i] = vel[i][2]
+		ve[3,i] = vel[i][3]
 	end
 
 	
 	cells = MeshCell[]
-	noXY  = nodeCountX * nodeCountY
+	noXY  = grid.nodeCountXY
 	for k = 1:grid.nodeCountZ-1
 		for j = 1:grid.nodeCountY-1
 			for i = 1:grid.nodeCountX-1
@@ -398,12 +446,13 @@ function plotGrid(plot::VTKOutput,grid::Grid3D)
 				node8   = node4 + noXY
 
 	            inds    = @SVector[node1,node2,node4,node3,node5,node6,node8,node7]
-			    c       = MeshCell(VTKCellTypes.VTK_HEX, inds)
+			    c       = MeshCell(VTKCellTypes.VTK_HEXAHEDRON, inds)
 	            push!(cells, c)
 	        end
 		end
     end
 	vtkfile     = vtk_grid(my_vtk_file, points, cells)
+	vtkfile["Velocity", VTKPointData()] = ve
 	outfiles    = vtk_save(vtkfile)
 end
 

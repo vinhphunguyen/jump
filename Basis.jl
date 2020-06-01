@@ -55,10 +55,11 @@ end
 function getAdjacentGridPoints(nearPts,xp,grid::Grid2D,basis::LinearBasis)
 	fLength_Cell_x = grid.dxI
 	fLength_Cell_y = grid.dyI
-
+#println(xp)
 	iBottomLeft_i  = floor(Int64,(xp[1]-grid.xmin) * fLength_Cell_x + 1.)
 	iBottomLeft_j  = floor(Int64,(xp[2]-grid.ymin) * fLength_Cell_y + 1.)
 
+    
 	if(iBottomLeft_j < 1 || iBottomLeft_j > grid.nodeCountY)
 		@printf("Index out of bounds: j: %d \n", iBottomLeft_j)
 		@printf("xp[2]: %e \n", xp[2])
@@ -98,9 +99,9 @@ function getAdjacentGridPoints(nearPts,xp,grid::Grid3D, basis::LinearBasis)
 	fLength_Cell_y = grid.dyI
 	fLength_Cell_z = grid.dzI
 
-	iBottomLeft_i  = floor(Int64,xp[1] * fLength_Cell_x + 1.)
-	iBottomLeft_j  = floor(Int64,xp[2] * fLength_Cell_y + 1.)
-	iBottomLeft_k  = floor(Int64,xp[3] * fLength_Cell_z + 1.)
+	iBottomLeft_i  = floor(Int64,(xp[1]-grid.xmin) * fLength_Cell_x + 1.)
+	iBottomLeft_j  = floor(Int64,(xp[2]-grid.ymin) * fLength_Cell_y + 1.)
+	iBottomLeft_k  = floor(Int64,(xp[3]-grid.zmin) * fLength_Cell_z + 1.)
 
 	if(iBottomLeft_j < 1 || iBottomLeft_j > grid.nodeCountY)
 		@printf("Index out of bounds: j: %d \n", iBottomLeft_j)
@@ -113,6 +114,8 @@ function getAdjacentGridPoints(nearPts,xp,grid::Grid3D, basis::LinearBasis)
 
 	nearPts .= @SVector [iIndex, iIndex+1, iIndex+grid.nodeCountX, iIndex+grid.nodeCountX+1,
 	                     iIndex+grid.nodeCountXY, iIndex+1+grid.nodeCountXY, iIndex+grid.nodeCountX+grid.nodeCountXY, iIndex+grid.nodeCountX+1+grid.nodeCountXY]
+    # println(nearPoints)	                     
+    # println(xp)
 end
 #################################################################
 # getAdjacentGridPoints: 1D, quadratic bsplines
@@ -550,7 +553,8 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
                           p::Int64, grid::Grid3D, solid,basis::LinearBasis)
 	xp = solid.pos[p]
 	getAdjacentGridPoints(nearPoints,xp,grid,basis)
-
+    #println(nearPoints)
+	
 	dxI = grid.dxI
 	dyI = grid.dyI
 	dzI = grid.dzI

@@ -18,6 +18,7 @@ module FemMPM
 using StaticArrays
 using TimerOutputs
 using LinearAlgebra
+using Printf
 
 using Fix
 using Algorithm
@@ -27,7 +28,9 @@ using Material
 using Output
 
 include("SolveExplicitFEMP2D.jl")
+include("SolveExplicitFEMP3D.jl")
 
 export solve_explicit_dynamics_femp_2D
+export solve_explicit_dynamics_femp_3D
 
 end

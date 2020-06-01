@@ -37,11 +37,11 @@ using Util
 
     # create the grid of a 1 x 1 square, with 20 x 20 cells
 	# and a basis: linear and CPDI-Q4 supported
-    grid      =  Grid2D(0,1.1, 0,1.1, 21, 21)
+    grid      =  Grid2D(0,1.05, 0,1.05, 21, 21)
     basis     =  LinearBasis()
 
     material = ElasticMaterial(youngModulus,poissonRatio,density,0,0)
-    material = NeoHookeanMaterial(youngModulus,poissonRatio,density)
+    #material = NeoHookeanMaterial(youngModulus,poissonRatio,density)
 
     solid1   = FEM2D("disk.msh",material)
     solid2   = FEM2D("disk.msh",material)
@@ -54,8 +54,8 @@ using Util
     # as the mesh was created with the center of the disk at (0,0)
 	#move(solid1,SVector{2,Float64}([ 0.2+grid.dx  0.2+grid.dx]))
 	#move(solid2,SVector{2,Float64}([ 0.8-grid.dx  0.8-grid.dx]))
-	Fem.move(solid1,SVector{2,Float64}([ 0.2,  0.2]))
-	Fem.move(solid2,SVector{2,Float64}([ 0.2+.6,  .2+.6]))
+	Fem.move(solid1,SVector{2,Float64}([ 0.2+0.05,   0.2+0.05]))
+	Fem.move(solid2,SVector{2,Float64}([ 0.2+.6,0.2+.6]))
 
     solids = [solid1 solid2]
 
@@ -71,7 +71,7 @@ using Util
 
 	report(grid,solids,dtime)
 
-    plotGrid_2D(output2,grid)
+    plotGrid(output2,grid)
     #plotParticles_2D(output2,solids,0)
 
 	#reset_timer!

@@ -107,9 +107,9 @@ end
  	end
  end
  # do not update solid.stress!!!
- function update_stress!(sigma::MMatrix{2,2,Float64},mat::NeoHookeanMaterial,
-	                     epsilon::SMatrix{2,2,Float64}, F, J, ip)
-   sigma    .= (1.0/J)*( mat.mu*(F*F'-Identity) + mat.lambda*log(J)*Identity )
+ function update_stress!(sigma,mat::NeoHookeanMaterial,
+	                     epsilon, F, J, ip)
+   sigma    .= (1.0/J)*( mat.mu*(F*F'-UniformScaling(1.)) + mat.lambda*log(J)*UniformScaling(1.) )
  end
 
 
