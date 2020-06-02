@@ -43,7 +43,7 @@ using Util
 
     material = NeoHookeanMaterial(youngModulus,poissonRatio,density)
 
-    solid1   = FEM3D("bar.msh",material)
+    solid1   = FEM3D("bar-tet4.msh",material)
     
     # as the mesh was created with the center of the disk at (0,0)
 	#move(solid1,SVector{2,Float64}([ 0.2+grid.dx  0.2+grid.dx]))
@@ -55,10 +55,6 @@ using Util
 	fixYForTop(grid)
 	fixYForBottom(grid)
 
-	# boundary condition on the FE mesh!!!
-	fixYNodes(solid1, "TopSurface")
-	
-
     solids = [solid1]
 
     Tf       = 0.25 #3.5e-0
@@ -66,8 +62,8 @@ using Util
 	dtime    = 0.1*grid.dx/sqrt(youngModulus/density)
 
 	#output1  = PyPlotOutput(interval,"twodisks-results/","Two Disks Collision",(4., 4.))
-	output2  = VTKOutput(interval,"vertical-bar-femp/",["pressure"])
-	fix      = DisplacementFemFix(solid1,"vertical-bar-femp/",2)
+	output2  = VTKOutput(interval,"vertical-bar-femp-tet4/",["pressure"])
+	fix      = DisplacementFemFix(solid1,"vertical-bar-femp-tet4/",2)
 
     algo1    = USL(0.)
     algo1    = TLFEM(0.)

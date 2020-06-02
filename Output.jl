@@ -350,6 +350,11 @@ function plotParticles_3D(plot::VTKOutput,solids,counter::Int64)
 	cells = MeshCell[]
 	p     = Vector{Float64}(undef,0)
 	velo  = zeros(3,nodeCount)
+
+	if size(solids[1].elems,2) == 4 cell_type = VTKCellTypes.VTK_TETRA end
+	if size(solids[1].elems,2) == 8 cell_type = VTKCellTypes.VTK_HEXAHEDRON end
+	
+	
 	for s=1:length(solids)
 		solid = solids[s]
 		xx    = solid.pos
@@ -368,7 +373,7 @@ function plotParticles_3D(plot::VTKOutput,solids,counter::Int64)
 		end
 		for e=1:solid.parCount
 			inds =elems[e,:] .+ shift
-		    c    = MeshCell(VTKCellTypes.VTK_HEXAHEDRON, inds)
+		    c    = MeshCell(cell_type, inds)
             push!(cells, c)
             sigma = stress[e]
             push!(p, sigma[1,1]+sigma[2,2]+sigma[3,3])
