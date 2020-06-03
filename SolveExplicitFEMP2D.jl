@@ -44,14 +44,37 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::USL,output,fixes
 
     # compute nodal mass (only once)
 
-     gpCoords  = zeros(2,4)
-     weights   = ones(4)
-     gpCoords[1,1] = -0.5773502691896257; gpCoords[2,1] = -0.5773502691896257;
-     gpCoords[1,2] =  0.5773502691896257; gpCoords[2,2] = -0.5773502691896257;
-     gpCoords[1,3] =  0.5773502691896257; gpCoords[2,3] =  0.5773502691896257;
-     gpCoords[1,4] = -0.5773502691896257; gpCoords[2,4] =  0.5773502691896257;
+     gpCoords  = zeros(2,1)
+    weights   = [4.] #ones(1)
+    # gpCoords[1,1] = -0.5773502691896257; gpCoords[2,1] = -0.5773502691896257;
+    # gpCoords[1,2] =  0.5773502691896257; gpCoords[2,2] = -0.5773502691896257;
+    # gpCoords[1,3] =  0.5773502691896257; gpCoords[2,3] =  0.5773502691896257;
+    # gpCoords[1,4] = -0.5773502691896257; gpCoords[2,4] =  0.5773502691896257;
 
-     noGP = 4
+    noGP = 1
+    gpCoords=[0.,0.]
+
+    @inbounds for s = 1:solidCount
+		solid  = solids[s]
+		xx     = solid.pos
+		elems  = solid.elems
+
+	  	@inbounds for ip = 1:solid.parCount
+			elemNodes  =  @view elems[ip,:]  
+			elemNodes0 =        elems[ip,:]  
+			coords     =  @view xx[elemNodes]
+	    
+			@inbounds for gp = 1:noGP
+			  xieta = @view gpCoords[:,gp]
+			  detJ  = lagrange_basis!(N, Quad4(), xieta, coords)
+			  if detJ < 0.
+			  	elemNodes[2] = elemNodes0[4]			  	
+			  	elemNodes[4] = elemNodes0[2]
+			  	#println(N)
+			  end
+			end
+	  	end
+    end
 
     @inbounds for s = 1:solidCount
 		solid  = solids[s]
@@ -62,9 +85,9 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::USL,output,fixes
 		vol    = solid.volume
 
 	  	@inbounds for ip = 1:solid.parCount
-			elemNodes =  @view elems[ip,:]  
-			elemNodes0 =   elems[ip,:]  
-			coords    =  @view xx[elemNodes]
+			elemNodes  =  @view elems[ip,:]  
+			elemNodes0 =        elems[ip,:]  
+			coords     =  @view xx[elemNodes]
 	    
 			@inbounds for gp = 1:noGP
 			  xieta = @view gpCoords[:,gp]
@@ -72,7 +95,10 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::USL,output,fixes
 			  if detJ < 0.
 			  	elemNodes[2] = elemNodes0[4]			  	
 			  	elemNodes[4] = elemNodes0[2]
+			  	println(N)
 			  end
+			  	
+			  #println(elemNodes)	
 			  for i=1:length(elemNodes)
 			  	id      = elemNodes[i]
 			  	mm[id]  += mat.density*N[i]*detJ*weights[gp]
@@ -128,7 +154,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::USL,output,fixes
 				nodalForce[in]     -= Ni  * fp
 				#nodalForce[in]     +=      fMass   * body  *  Ni
 			end
-			du[ip] = @SVector [0., 0.]
+			#du[ip] = @SVector [0., 0.]
 	  	end
 	end
 
@@ -227,7 +253,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::USL,output,fixes
 		   	end
 	
 		   	D           = 0.5 * (vel_grad + vel_grad')
-		   	strain[ip]  += D
+		   	strain[ip]  = D
 		   	F[ip]        = inv(Identity - vel_grad)
 		   	J            = det(F[ip])
 		   	#println(strain[ip])
@@ -261,7 +287,7 @@ end # end solve()
 ######################################################################
 # Update Stress Last, TLFEM for internal force
 ######################################################################
-function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fixes,Tf,dtime)
+function solve_explicit_dynamics_femp_2D(grid,solids,basis,bodyforce,alg::TLFEM,output,fixes,Tf,dtime)
     t       = 0.
     counter = 0
 
@@ -272,9 +298,6 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
 	nodalMomentum  = grid.momentum
 	nodalForce     = grid.force
 
-    D              = SMatrix{2,2}(0., 0., 0., 0.) #zeros(Float64,2,2)
-	linBasis       = LinearBasis()
-	nearPointsLin  = [0,0,0,0]
 
     # pre_allocating arrays for temporary variable
    
@@ -282,18 +305,43 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
 
     dNdx      = zeros(2,4)
     vel_grad  = SMatrix{2,2}(0., 0., 0., 0.)
+    D         = SMatrix{2,2}(0., 0., 0., 0.) #zeros(Float64,2,2)
+    g         = [0.,0.]
     N         = zeros(4)#@SVector [0,0,0,0]
 
     # compute nodal mass (only once)
 
-     gpCoords  = zeros(2,4)
-     weights   = ones(4)
-     gpCoords[1,1] = -0.5773502691896257; gpCoords[2,1] = -0.5773502691896257;
-     gpCoords[1,2] =  0.5773502691896257; gpCoords[2,2] = -0.5773502691896257;
-     gpCoords[1,3] =  0.5773502691896257; gpCoords[2,3] =  0.5773502691896257;
-     gpCoords[1,4] = -0.5773502691896257; gpCoords[2,4] =  0.5773502691896257;
+    gpCoords  = zeros(2,1)
+    weights   = [4.] #ones(1)
+    # gpCoords[1,1] = -0.5773502691896257; gpCoords[2,1] = -0.5773502691896257;
+    # gpCoords[1,2] =  0.5773502691896257; gpCoords[2,2] = -0.5773502691896257;
+    # gpCoords[1,3] =  0.5773502691896257; gpCoords[2,3] =  0.5773502691896257;
+    # gpCoords[1,4] = -0.5773502691896257; gpCoords[2,4] =  0.5773502691896257;
 
-     noGP = 4
+    noGP = 1
+    gpCoords=[0.,0.]
+
+    @inbounds for s = 1:solidCount
+		solid  = solids[s]
+		xx     = solid.pos
+		elems  = solid.elems
+
+	  	@inbounds for ip = 1:solid.parCount
+			elemNodes  =  @view elems[ip,:]  
+			elemNodes0 =        elems[ip,:]  
+			coords     =  @view xx[elemNodes]
+	    
+			@inbounds for gp = 1:noGP
+			  xieta = @view gpCoords[:,gp]
+			  detJ  = lagrange_basis!(N, Quad4(), xieta, coords)
+			  if detJ < 0.
+			  	elemNodes[2] = elemNodes0[4]			  	
+			  	elemNodes[4] = elemNodes0[2]
+			  	#println(N)
+			  end
+			end
+	  	end
+    end
 
     @inbounds for s = 1:solidCount
 		solid  = solids[s]
@@ -314,8 +362,9 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
 			  if detJ < 0.
 			  	elemNodes[2] = elemNodes0[4]			  	
 			  	elemNodes[4] = elemNodes0[2]
+			  	println(N)
 			  end
-			  #println(N)	
+			  	
 			  #println(elemNodes)	
 			  for i=1:length(elemNodes)
 			  	id      = elemNodes[i]
@@ -448,9 +497,11 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
 	  	strain = solid.strain
 	  	elems  = solid.elems
 	  	fint   = solid.fint
+	  	fbody  = solid.fbody
 	  	vol    = solid.volume
 	  	for ip=1:solid.nodeCount 
-	  		fint[ip] = @SVector [0., 0.]
+	  		fint[ip]  = @SVector [0., 0.]
+	  		fbody[ip] = @SVector [0., 0.]
 	  	end
         # loop over solid elements, not solid nodes
 	  	@inbounds for ip = 1:solid.parCount
@@ -478,6 +529,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
 	   	     #@timeit "3" update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
 	   	    update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
 
+            body(g,XX[ip],t)  
             sigma = stress[ip]
             P     = J*sigma*inv(F[ip])'  # convert to 1st Piola Kirchoof stress
             # compute nodal internal force fint
@@ -486,6 +538,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,alg::TLFEM,output,fix
 			    dNi = @view dNdx[:,i]			
 	   	        fint[in]     += detJ * 4 * @SVector[P[1,1] * dNi[1] + P[1,2] * dNi[2],
 											        P[2,1] * dNi[1] + P[2,2] * dNi[2]]
+                fbody[in]    += w*mat.density*N[i]*g															        
             end
 	   end
 	end

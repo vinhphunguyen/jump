@@ -591,7 +591,7 @@ function read_GMSH(sFile::String)
         end
 	end
 
-
+    gmsh.finalize()
 	
 	return mesh
 end

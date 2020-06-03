@@ -47,7 +47,7 @@ function main()
 	w             = 100.
 	l             = 200.
 
-	vel           = 30e3 # mm/s
+	vel           = 25e3 # mm/s
 
 
     # create the grid of a 1 x 1 square, with 20 x 20 cells
@@ -66,7 +66,7 @@ function main()
 
 	c_dil     = sqrt((material.lambda + 2*material.mu)/material.density)
 	dt        = grid.dx/c_dil
-	dtime     = 0.2 * dt
+	dtime     = 0.1 * dt
 
 
     solid1   = Solid2D(coords1,material)
@@ -94,7 +94,7 @@ function main()
     @printf("Vol  : %+.6e \n", sum(solid1.volume)+sum(solid2.volume))
     @printf("Vol0 : %+.6e \n", sum(solid1.volumeInitial)+sum(solid2.volumeInitial))
     @printf("Sound vel : %+.6e \n", c_dil)
-    @printf("dt        : %+.6e \n", dt)
+    @printf("dt        : %+.6e \n", dtime)
     println(typeof(basis))
 
     Tf      = 0.0047#5e-3 #3.5e-0

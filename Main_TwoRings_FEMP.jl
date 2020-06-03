@@ -50,8 +50,8 @@ using Basis
 
     # create the grid of a 1 x 1 square, with 20 x 20 cells
     grid  =  Grid2D(0, l, 0, w, 81, 41)
-    basis = QuadBsplineBasis()
-    #basis = LinearBasis()
+    #basis = QuadBsplineBasis()
+    basis = LinearBasis()
 
 
     material  = NeoHookeanMaterial(E,nu,density)
@@ -59,7 +59,7 @@ using Basis
 
 	c_dil     = sqrt((material.lambda + 2*material.mu)/material.density)
 	dt        = grid.dx/c_dil
-	dtime     = 0.02 * dt
+	dtime     = 0.05 * dt
 
 
     solid1   = FEM2D("ring.msh",material)
@@ -76,22 +76,25 @@ using Basis
 
     solids = [solid1, solid2]
 
+    fixXForLeft(grid)
+    fixXForRight(grid)
+
     @printf("Total number of material points: %d \n", solid1.parCount+solid2.parCount)
     @printf("Total number of grid points:     %d\n", grid.nodeCount)
     @printf("Sound vel : %+.6e \n", c_dil)
     @printf("dt        : %+.6e \n", dtime)
     println(typeof(basis))
 
-    Tf      = 0.0047#5e-3 #3.5e-0
+    Tf      = 0.0035#5e-3 #3.5e-0
     interval= 20
 
 	output2  = VTKOutput(interval,"rings-femp-results/",["vx","sigmaxx"])
 	fix      = EnergiesFix(solids,"rings-femp-results/energies.txt")
     algo1    = USL(0.)
-    algo2    = TLFEM(1e-15)
+    algo2    = TLFEM(0.)
     
-	plotGrid_2D(output2,grid)
-    solve_explicit_dynamics_femp_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
+	plotGrid(output2,grid)
+    solve_explicit_dynamics_femp_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
 
 
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))

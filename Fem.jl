@@ -19,6 +19,7 @@ struct FEM2D{T <: MaterialType}
 	velocity            :: Vector{SVector{2,Float64}}  # velocity
 	dU                  :: Vector{SVector{2,Float64}}  # incremental displacements
 	fint                :: Vector{SVector{2,Float64}}  # internal forces at FE nodes
+	fbody               :: Vector{SVector{3,Float64}}  # external forces  due to gravity at FE nodes
 
 	deformationGradient :: Vector{SMatrix{2,2,Float64,4}}  # F, 2x2 matrix
 	strain              :: Vector{SMatrix{2,2,Float64,4}}  # stress, 2x2 matrix
@@ -30,15 +31,18 @@ struct FEM2D{T <: MaterialType}
 
 	mat                 :: T
 
-	elems               
-	# cells               :: Array{MeshCell,1}
-	# index               :: Int64
+	elems               :: Array{Int64,2}
+	mesh                :: FEMesh
+	
+
+    fixedNodesX         :: Vector{Int64}
+	fixedNodesY         :: Vector{Int64}
 
 	# particles from a mesh
 	function FEM2D(fileName,mat::T) where {T <: MaterialType}
 		mesh      = read_GMSH(fileName)
-		nodeCount = size(nodes,2)                   # node count
-		parCount = size(elems,1)                 # element count
+	    nodeCount = length(mesh.nodes)                       # node count
+		parCount  = length(mesh.element_sets["All"])         # element count
 		Identity = SMatrix{2,2}(1, 0, 0, 1)
 		F        = fill(Identity,parCount)
 		strain   = fill(zeros(2,2),parCount)
@@ -47,17 +51,29 @@ struct FEM2D{T <: MaterialType}
 		m        = fill(0.,nodeCount)
 		x        = fill(zeros(2),nodeCount)
 		nodesX   = fill(zeros(2),nodeCount)
+		elems    = Array{Array{Int64,1},1}(undef,0)   # element nodes
 		velo     = fill(zeros(2),nodeCount)
+	
 		#println(size(nodes,2))
 		#println(parCount)
 
-		for i=1:nodeCount
-			nodesX[i] = @SVector [nodes[1,i], nodes[2,i]]
+        # convert from mesh.nodes to our traditional data structure
+		for i=1:nodeCount			
+			nodesX[i] = @view mesh.nodes[i][1:2]
 		end
 
+        # convert from mesh.elements to our traditional data structure
+        volumetricElems = collect(mesh.element_sets["All"])
+		for i=1:parCount			
+			push!(elems,mesh.elements[volumetricElems[i]])
+		end
 
-		new{T}(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),F,
-			   strain,stress,parCount,nodeCount,mat,elems)
+	    fixX       = fill(0,nodeCount)
+		fixY       = fill(0,nodeCount)
+		
+
+		new{T}(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),F,
+			   strain,stress,parCount,nodeCount,mat,vcat(map(x->x', elems)...),mesh, fixX, fixY)
 	end
 end
 
@@ -153,7 +169,14 @@ function fixYNodes(solid, tag)
   solid.fixedNodesY[ids] .= 1
 end
 
-export FEM2D, FEM3D, move, assign_velocity, fixYNodes
+function fixNodes(solid, tag)
+  Mesh.create_node_set_from_element_set!(solid.mesh, tag)
+  ids  = collect(solid.mesh.node_sets[tag])
+  solid.fixedNodesX[ids] .= 1
+  solid.fixedNodesY[ids] .= 1
+end
+
+export FEM2D, FEM3D, move, assign_velocity, fixYNodes, fixNodes
 
 
 end

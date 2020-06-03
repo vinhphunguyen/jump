@@ -1,6 +1,12 @@
 module BodyForce
 
+using StaticArrays
+
 abstract type BodyForceType end
+
+struct XDirection end
+struct YDirection end
+struct ZDirection end
 
 struct ConstantBodyForce1D <: BodyForceType
     g::Float64
@@ -23,12 +29,34 @@ struct AxisAlignBodyForce1D  <: BodyForceType
     end
 end
 
+struct VortexBodyForce2D  <: BodyForceType
+    G::Float64
+    T::Float64
+    Ri::Float64
+    Ro::Float64
+    rho0::Float64
+    mu    ::Float64
+    R    ::Float64
+    Rio2 ::Float64
+    Rio4 ::Float64
+    RimRo ::Float64
+    function VortexBodyForce2D(G,T,Ri,Ro,rho0,mu)
+        R      = (Ri+Ro)/2
+        Rio2   = (Ri-Ro)^2
+        Rio4   = (Ri-Ro)^4
+        RimRo   = (Ri-Ro)
+        new(G,T,Ri,Ro,rho0,mu,R,Rio2,Rio4,RimRo)
+    end
+end
+
+
+
 struct ConstantBodyForce2D <: BodyForceType
-    g::Float64
+    g::SVector{2}
 end
 
 struct ConstantBodyForce3D <: BodyForceType
-    g::Float64
+    g::SVector{3}
 end
 
 function (b::ConstantBodyForce1D)(x,t)
@@ -53,14 +81,42 @@ function evaluate_stress(b::AxisAlignBodyForce1D,x,t)
 end
 
 function (b::ConstantBodyForce2D)(body,x,t)
-    body[2] = -b.g
+     body .= b.g
 end
 
 function (b::ConstantBodyForce3D)(body,x,t)
-    body[3] = -b.g
+    body  .= b.g
 end
 
-export BodyForceType, ConstantBodyForce1D, ConstantBodyForce3D, AxisAlignBodyForce1D,
+
+function (b::VortexBodyForce2D)(body,xp,time)
+    G     = b.G
+    T     = b.T
+    R     = b.R
+    RimRo = b.RimRo
+
+    x     = xp[1]
+    y     = xp[2]
+    r     = sqrt(x*x+y*y)
+    theta = atan2(y,x)
+
+    s     = (r - R)/RimRo
+    h     = 1 - 8*((r - R)/(Ri-Ro))^2 +16*((r - R)/RimRo)^4
+    hp    = - 16*(r - R)/Rio2 + 16*4*(r - R)^3/Rio4
+    hpp   = - 16/RimRo^2 + 16*4*3*(r - R)^2/Rio4
+    g     = G * sin(Pi*time/T)
+    gp    = G*PI/T*cos(Pi*time/T)
+    gpp   = -PI*PI/(T*T)*g
+    alpha = g*h
+    mdr   = b.mu/b.rho0
+
+    br    = ( mdr*(3*g*hp+r*g*hpp) - r*gpp*h)*sin(alpha) + (mdr*r*(g*hp)^2 - r*(gp*h)^2)*cos(alpha)
+    bt    = (-mdr*(3*g*hp+r*g*hpp) + r*gpp*h)*cos(alpha) + (mdr*r*(g*hp)^2 + r*(gp*h)^2)*sin(alpha)
+
+    body .= @SVector[br*cos(theta) - bt*sin(theta), br*sin(theta) + bt*cos(theta)]
+end    
+
+export BodyForceType, ConstantBodyForce1D, ConstantBodyForce3D, AxisAlignBodyForce1D, VortexBodyForce2D,
        ConstantBodyForce2D, evaluate_stress
 
 end

@@ -30,14 +30,14 @@ using Util
 #function main()
 
     # problem parameters
-	fGravity      = 1e6
+	g             = 1e6
 	density       = 1050e-12
 	youngModulus  = 1.0
 	poissonRatio  = 0.3
 
     # create the grid of a 1 x 1 square, with 20 x 20 cells
 	# and a basis: linear and CPDI-Q4 supported
-    grid      =  Grid3D(0,2000,0,3500,0,2000,5,8,5)
+    grid      =  Grid3D(0,2000,0,3500,0,2000,15,25,15)
     basis     =  LinearBasis()
 
 
@@ -53,10 +53,10 @@ using Util
     #Fem.assign_velocity(solid1, SVector{3,Float64}([0. -1000. 0.0 ]))
 
 	fixYForTop(grid)
-	fixYForBottom(grid)
+	#fixYForBottom(grid)
 
 	# boundary condition on the FE mesh!!!
-	fixYNodes(solid1, "TopSurface")
+	#fixYNodes(solid1, "TopSurface")
 	
 
     solids = [solid1]
@@ -70,15 +70,17 @@ using Util
 	fix      = DisplacementFemFix(solid1,"vertical-bar-femp/",2)
 
     algo1    = USL(0.)
-    algo1    = TLFEM(0.)
+    algo2    = TLFEM(0.)
+
+    body     = ConstantBodyForce3D(@SVector[0.,-g,0.])
 
 	report(grid,solids,dtime)
 
-    #plotGrid(output2,grid)
+    plotGrid(output2,grid,0)
     #plotParticles_3D(output2,solids,0)
 
 	#reset_timer!
-    solve_explicit_dynamics_femp_3D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_femp_3D(grid,solids,basis,body,algo2,output2,fix,Tf,dtime)
     #print_timer()
 
 	# #PyPlot.savefig("plot_2Disk_Julia.pdf")
