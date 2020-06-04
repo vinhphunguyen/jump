@@ -19,7 +19,8 @@ struct FEM2D{T <: MaterialType}
 	velocity            :: Vector{SVector{2,Float64}}  # velocity
 	dU                  :: Vector{SVector{2,Float64}}  # incremental displacements
 	fint                :: Vector{SVector{2,Float64}}  # internal forces at FE nodes
-	fbody               :: Vector{SVector{3,Float64}}  # external forces  due to gravity at FE nodes
+	fbody               :: Vector{SVector{2,Float64}}  # external forces  due to gravity at FE nodes
+	ftrac               :: Vector{SVector{2,Float64}}  # external forces  due to traction/pressure at FE nodes
 
 	deformationGradient :: Vector{SMatrix{2,2,Float64,4}}  # F, 2x2 matrix
 	strain              :: Vector{SMatrix{2,2,Float64,4}}  # stress, 2x2 matrix
@@ -72,7 +73,7 @@ struct FEM2D{T <: MaterialType}
 		fixY       = fill(0,nodeCount)
 		
 
-		new{T}(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),F,
+		new{T}(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
 			   strain,stress,parCount,nodeCount,mat,vcat(map(x->x', elems)...),mesh, fixX, fixY)
 	end
 end
@@ -92,6 +93,7 @@ struct FEM3D{T <: MaterialType}
 	dU                  :: Vector{SVector{3,Float64}}  # incremental displacements
 	fint                :: Vector{SVector{3,Float64}}  # internal forces at FE nodes
 	fbody               :: Vector{SVector{3,Float64}}  # external forces  due to gravity at FE nodes
+	ftrac               :: Vector{SVector{3,Float64}}  # external forces  due to traction/pressure at FE nodes
 
 	deformationGradient :: Vector{SMatrix{3,3,Float64,9}}  # F, 2x2 matrix
 	strain              :: Vector{SMatrix{3,3,Float64,9}}  # stress, 2x2 matrix
@@ -142,7 +144,7 @@ struct FEM3D{T <: MaterialType}
 		fixY       = fill(0,nodeCount)
 		fixZ       = fill(0,nodeCount)
 
-		new{T}(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),F,
+		new{T}(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
 			   strain,stress,parCount,nodeCount,mat,vcat(map(x->x', elems)...), mesh, fixX,fixY,fixZ)
 	end
 end

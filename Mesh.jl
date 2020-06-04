@@ -158,9 +158,14 @@ function lagrange_basis!(N, type::Hexa8,xieta,coords)
 
 end
 
-function lagrange_basis_derivatives!(dNdx, type::Quad4,xieta,coords)
+function lagrange_basis_derivatives!(N, dNdx, type::Quad4,xieta,coords)
 	xi     = xieta[1];
 	eta    = xieta[2];
+
+    N     .= 0.25*@SVector[ (1-xi)*(1-eta),
+                            (1+xi)*(1-eta),
+                            (1+xi)*(1+eta),
+                            (1-xi)*(1+eta)]
 
     dN1dxi  = -0.25 * (1-eta)
     dN1deta = -0.25 * (1-xi)
@@ -181,7 +186,53 @@ function lagrange_basis_derivatives!(dNdx, type::Quad4,xieta,coords)
     	                                                       dN3dxi,dN3deta,
     	                                                       dN4dxi,dN4deta) 
     return J11*J22 - J12*J21
+end
 
+function getNormals!(funcs_surface, normals_surface, weights_surface, coords, gpCoords_surface, eltype::Quad4 )
+    for ip=1:4
+        xi  = gpCoords_surface[1,ip]
+        eta = gpCoords_surface[2,ip]
+
+        funcs_surface[:,ip]     .= 0.25*@SVector[ (1-xi)*(1-eta),(1+xi)*(1-eta),(1+xi)*(1+eta),(1-xi)*(1+eta)]
+
+        s = zeros(3)
+        t = zeros(3)
+
+        dN1dxi  = -0.25 * (1-eta)
+        dN1deta = -0.25 * (1-xi)
+        dN2dxi  =  0.25 * (1-eta)
+        dN2deta = -0.25 * (1+xi)
+        dN3dxi  =  0.25 * (1+eta)
+        dN3deta =  0.25 * (1+xi)
+        dN4dxi  = -0.25 * (1+eta)
+        dN4deta =  0.25 * (1-xi)
+
+        # two tangents of the surface
+        s[1] += dN1dxi * coords[1][1] + dN2dxi * coords[2][1] + dN3dxi * coords[3][1] + dN4dxi * coords[4][1]
+        s[2] += dN1dxi * coords[1][2] + dN2dxi * coords[2][2] + dN3dxi * coords[3][2] + dN4dxi * coords[4][2]
+        s[3] += dN1dxi * coords[1][3] + dN2dxi * coords[2][3] + dN3dxi * coords[3][3] + dN4dxi * coords[4][3]
+
+
+        t[1] += dN1deta * coords[1][1] + dN2deta * coords[2][1] + dN3deta * coords[3][1] + dN4deta * coords[4][1]
+        t[2] += dN1deta * coords[1][2] + dN2deta * coords[2][2] + dN3deta * coords[3][2] + dN4deta * coords[4][2]
+        t[3] += dN1deta * coords[1][3] + dN2deta * coords[2][3] + dN3deta * coords[3][3] + dN4deta * coords[4][3]
+        
+        # find the normal n
+
+        n = cross(s,t)
+        normalize!(n)
+
+        normals_surface[1,ip] = n[1]
+        normals_surface[2,ip] = n[2]
+        normals_surface[3,ip] = n[3]
+
+        J11     = dN1dxi  * coords[1][1] + dN2dxi  * coords[2][1] + dN3dxi  * coords[3][1] + dN4dxi  * coords[4][1]
+        J12     = dN1dxi  * coords[1][2] + dN2dxi  * coords[2][2] + dN3dxi  * coords[3][2] + dN4dxi  * coords[4][2]
+        J21     = dN1deta * coords[1][1] + dN2deta * coords[2][1] + dN3deta * coords[3][1] + dN4deta * coords[4][1]
+        J22     = dN1deta * coords[1][2] + dN2deta * coords[2][2] + dN3deta * coords[3][2] + dN4deta * coords[4][2]
+
+        weights_surface[ip]   = J11 * J22 - J12 * J21
+    end
 end
 
 
@@ -582,12 +633,14 @@ function read_GMSH(sFile::String)
 	    entities      = gmsh.model.getEntitiesForPhysicalGroup(dim, tag)
 	    physical_name = gmsh.model.getPhysicalName(dim, tag)	    
 	    println("($dim, $tag) => $physical_name, entities: ", join(entities, ", "))
-	    element_types, element_ids, element_connectivity = gmsh.model.mesh.getElements(dim, Int(entities[1]))
-	    nelements = length(element_ids[1])
-        nnodes    = length(element_connectivity[1]) ÷ nelements
-        for i=1:nelements
-        	mesh.elements[element_ids[1][i]] = element_connectivity[1][nnodes*(i-1)+1:nnodes*i] 
-        	add_element_to_element_set!(mesh, physical_name, element_ids[1][i])
+        for entity in entities
+    	    element_types, element_ids, element_connectivity = gmsh.model.mesh.getElements(dim, Int(entity))
+    	    nelements = length(element_ids[1])
+            nnodes    = length(element_connectivity[1]) ÷ nelements
+            for i=1:nelements
+            	mesh.elements[element_ids[1][i]] = element_connectivity[1][nnodes*(i-1)+1:nnodes*i] 
+            	add_element_to_element_set!(mesh, physical_name, element_ids[1][i])
+            end
         end
 	end
 
@@ -596,6 +649,6 @@ function read_GMSH(sFile::String)
 	return mesh
 end
 
-export createMeshForRectangle, elements_to_dict, loadGMSH, read_GMSH, FEMesh, create_node_set_from_element_set!
+export createMeshForRectangle, elements_to_dict, loadGMSH, read_GMSH, FEMesh, create_node_set_from_element_set!, getNormals!
 
 end

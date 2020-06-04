@@ -33,7 +33,7 @@ Line Loop(2) = {10, 20, 30, 40};
 
 Plane Surface(60) = {1,2};
 
-Physical Line("inner") = {1};
-Physical Line("outer") = {2};
+Physical Line("inner") = {1,2,3,4};
+Physical Line("outer") = {10,20,30,40};
 Physical Surface("All") = {60};
 

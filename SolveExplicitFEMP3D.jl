@@ -335,6 +335,15 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::TLFEM,outpu
 		wgt       = 8.0
         weights   = [8.]
         gpCoords  = [0.,0.,0.]
+
+        # for pressure load
+        weights_surface   = ones(4)
+        normals_surface   = zeros(3, 4)
+        funcs_surface     = zeros(4,4)
+        gpCoords_surface[1,1] = -0.5773502691896257; gpCoords_surface[2,1] = -0.5773502691896257;
+        gpCoords_surface[1,2] =  0.5773502691896257; gpCoords_surface[2,2] = -0.5773502691896257;
+        gpCoords_surface[1,3] =  0.5773502691896257; gpCoords_surface[2,3] =  0.5773502691896257;
+        gpCoords_surface[1,4] = -0.5773502691896257; gpCoords_surface[2,4] =  0.5773502691896257;
 	end
 
     noGP      = 1
@@ -416,6 +425,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::TLFEM,outpu
 		vv     = solid.velocity		
 		fint   = solid.fint
 		fbody  = solid.fbody
+		ftrac  = solid.ftrac
 		du     = solid.dU
 
 	  	@inbounds for ip = 1:solid.nodeCount	        
@@ -425,6 +435,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::TLFEM,outpu
 	        vp        = vv[ip]
 	        fp        = fint[ip]
 	        fb        = fbody[ip]
+	        ft        = ftrac[ip]
 			#body      = problem.bodyforce(xx[ip],t)
 			
 			@inbounds for i = 1:support
@@ -436,6 +447,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::TLFEM,outpu
 				nodalMomentum0[in] += Nim * vp 
 				nodalForce[in]     -= Ni  * fp
 				nodalForce[in]     += Ni  * fb
+				nodalForce[in]     += Ni  * ft
 			end
 			#du[ip] = @SVector [0., 0.]
 	  	end
@@ -573,6 +585,37 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::TLFEM,outpu
 										   P[3,1] * dNi[1] + P[3,2] * dNi[2] + P[3,3] * dNi[3] ]
                 fbody[in] += w*mat.density*N[i]*g								        
             end
+	   end
+	end
+
+	# ====================================================================
+    #  update particle external forces due to traction
+    # ====================================================================
+
+    @inbounds for s = 1:solidCount
+		# only deformable solids here
+	  	solid = solids[s]
+
+	  	XX     = solid.pos0	  	  	  
+	  	elems  = solid.elems
+	  	ftrac  = solid.ftrac
+	  	for ip=1:solid.nodeCount 
+	  		ftrac[ip]  = @SVector [0., 0., 0.]	  		
+	  	end
+
+	  	elems = collect(solid1.mesh.element_sets["force"])
+        # loop over  elements of the surface tag 'force'
+	  	@inbounds for ip = 1:length(elems)
+			elemNodes =  @view elems[ip,:]  
+			coords    =  @view XX[elemNodes]
+			getNormals!(funcs_surface, normals_surface, weights_surface , coords, gpCoords_surface, Quad4() )
+			for ip=1:4
+				for i = 1:length(elemNodes)
+		           ftrac[in][1] += normals_surface[1,ip]*N[i,ip]*weights_surface[ip]
+		           ftrac[in][2] += normals_surface[2,ip]*N[i,ip]*weights_surface[ip]
+		           ftrac[in][3] += normals_surface[3,ip]*N[i,ip]*weights_surface[ip]
+		        end
+	        end
 	   end
 	end
 

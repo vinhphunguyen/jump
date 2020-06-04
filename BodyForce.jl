@@ -44,7 +44,7 @@ struct VortexBodyForce2D  <: BodyForceType
         R      = (Ri+Ro)/2
         Rio2   = (Ri-Ro)^2
         Rio4   = (Ri-Ro)^4
-        RimRo   = (Ri-Ro)
+        RimRo  = (Ri-Ro)
         new(G,T,Ri,Ro,rho0,mu,R,Rio2,Rio4,RimRo)
     end
 end
@@ -93,20 +93,22 @@ function (b::VortexBodyForce2D)(body,xp,time)
     G     = b.G
     T     = b.T
     R     = b.R
-    RimRo = b.RimRo
+    Ri    = b.Ri
+    Ro    = b.Ro
 
     x     = xp[1]
     y     = xp[2]
     r     = sqrt(x*x+y*y)
-    theta = atan2(y,x)
+    theta = atan(y,x)
 
-    s     = (r - R)/RimRo
-    h     = 1 - 8*((r - R)/(Ri-Ro))^2 +16*((r - R)/RimRo)^4
-    hp    = - 16*(r - R)/Rio2 + 16*4*(r - R)^3/Rio4
-    hpp   = - 16/RimRo^2 + 16*4*3*(r - R)^2/Rio4
-    g     = G * sin(Pi*time/T)
-    gp    = G*PI/T*cos(Pi*time/T)
-    gpp   = -PI*PI/(T*T)*g
+    R     = (Ri+Ro)/2
+    s     = (r - R)/(Ri-Ro)
+    h     = 1 - 8*((r - R)/(Ri-Ro))^2 +16*((r - R)/(Ri-Ro))^4
+    hp    = - 16*(r - R)/(Ri-Ro)^2 + 16*4*(r - R)^3/(Ri-Ro)^4
+    hpp   = - 16/(Ri-Ro)^2 + 16*4*3*(r - R)^2/(Ri-Ro)^4
+    g     = G * sin(π*time/T)
+    gp    = G*π/T*cos(π *time/T)
+    gpp   = -π*π/(T*T)*g
     alpha = g*h
     mdr   = b.mu/b.rho0
 

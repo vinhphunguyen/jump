@@ -67,7 +67,9 @@ using Util
 	output2  = VTKOutput(interval,"twodisks-femp/",["pressure"])
 	fix      = EnergiesFix(solids,"twodisks-femp/energies.txt")
 
-    algo1    = USL(1e-9)
+    algo2    = USL(1e-9)
+    algo1    = TLFEM(1e-9)
+    body     = ConstantBodyForce2D([0.,0.])
 
 	report(grid,solids,dtime)
 
@@ -75,7 +77,7 @@ using Util
     #plotParticles_2D(output2,solids,0)
 
 	#reset_timer!
-    solve_explicit_dynamics_femp_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_femp_2D(grid,solids,basis,body,algo1,output2,fix,Tf,dtime)
     #print_timer()
 	# plotting energies
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))

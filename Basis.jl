@@ -591,11 +591,11 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	dyI = grid.dyI
 
 
-	numx            = (xp - grid.xmin) * grid.dxI
+	numx            = (xp - grid.xmin) * dxI
 	wholex          = floor(numx)
 	remx            = numx - wholex
 
-	numy            = (yp - grid.ymin) * grid.dyI
+	numy            = (yp - grid.ymin) * dyI
 	wholey          = floor(numy)
 	remy            = numy - wholey
 
@@ -658,7 +658,7 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 			index += 1
 		end
     end
-	# println(sum(funcs))
+	#println(sum(funcs))
 	# println(sum(ders))
 	return 9
 end

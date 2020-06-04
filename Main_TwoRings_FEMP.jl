@@ -31,6 +31,7 @@ using FemMPM
 using Material
 using Fix
 using Basis
+using BodyForce
 
 #function main()
 
@@ -92,9 +93,10 @@ using Basis
 	fix      = EnergiesFix(solids,"rings-femp-results/energies.txt")
     algo1    = USL(0.)
     algo2    = TLFEM(0.)
-    
+    bodyforce = ConstantBodyForce2D([0.,0.])
+
 	plotGrid(output2,grid)
-    solve_explicit_dynamics_femp_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_femp_2D(grid,solids,basis,bodyforce,algo2,output2,fix,Tf,dtime)
 
 
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
