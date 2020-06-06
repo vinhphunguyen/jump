@@ -30,7 +30,7 @@ using Util
 #function main()
 
     # problem parameters
-	g             = 1e6
+	g             = 0#1e6
 	density       = 1050e-12
 	youngModulus  = 1.0
 	poissonRatio  = 0.3
@@ -50,10 +50,22 @@ using Util
 	#move(solid2,SVector{2,Float64}([ 0.8-grid.dx  0.8-grid.dx]))
 	Fem.move(solid1,SVector{3,Float64}([2000/4,2490,2000/4]))
 
-    #Fem.assign_velocity(solid1, SVector{3,Float64}([0. -1000. 0.0 ]))
+    Fem.assign_velocity(solid1, SVector{3,Float64}([0. -50000. 0.0 ]))
 
-	fixYForTop(grid)
-	#fixYForBottom(grid)
+	#fixYForTop(grid)
+	fixYForBottom(grid)
+	fixXForLeft(grid)
+	fixYForLeft(grid)
+	fixZForLeft(grid)
+	fixXForRight(grid)
+	fixYForRight(grid)
+	fixZForRight(grid)
+	fixXForFront(grid)
+	fixYForFront(grid)
+	fixZForFront(grid)
+	fixXForBack(grid)
+	fixYForBack(grid)
+	fixZForBack(grid)
 
 	# boundary condition on the FE mesh!!!
 	#fixYNodes(solid1, "TopSurface")

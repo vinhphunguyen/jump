@@ -324,6 +324,16 @@ module Grid
   end
 
 
+  function fixXForBottom(grid::Grid3D)
+    xnodes = grid.fixedXNodes
+    for k=1:grid.nodeCountZ
+      @inbounds for i=1:grid.nodeCountX
+        ii         = i + (k-1)*grid.nodeCountXY        
+        xnodes[ii] = 1        
+      end
+    end
+  end
+
   function fixYForBottom(grid::Grid3D)
     ynodes = grid.fixedYNodes
     for k=1:grid.nodeCountZ
@@ -331,6 +341,112 @@ module Grid
         ii         = i + (k-1)*grid.nodeCountXY        
         ynodes[ii] = 1        
       end
+    end
+  end
+
+  function fixZForBottom(grid::Grid3D)
+    znodes = grid.fixedZNodes
+    for k=1:grid.nodeCountZ
+      @inbounds for i=1:grid.nodeCountX
+        ii         = i + (k-1)*grid.nodeCountXY        
+        znodes[ii] = 1        
+      end
+    end
+  end
+
+  function fixXForRight(grid::Grid3D)
+    xnodes = grid.fixedXNodes
+    for k=1:grid.nodeCountZ
+      for i=1:grid.nodeCountY
+        xnodes[grid.nodeCountX*i+ (k-1)*grid.nodeCountXY ] = 1
+      end
+    end
+  end
+
+  function fixYForRight(grid::Grid3D)
+    ynodes = grid.fixedYNodes
+    for k=1:grid.nodeCountZ
+      @inbounds for i=1:grid.nodeCountY
+        ynodes[grid.nodeCountX*i+ (k-1)*grid.nodeCountXY ] = 1
+      end
+    end
+  end
+
+  function fixZForRight(grid::Grid3D)
+    znodes = grid.fixedZNodes
+    for k=1:grid.nodeCountZ
+      @inbounds for i=1:grid.nodeCountY
+        znodes[grid.nodeCountX*i+ (k-1)*grid.nodeCountXY ] = 1
+      end
+    end
+  end
+
+  function fixXForLeft(grid::Grid3D)
+    xnodes = grid.fixedXNodes
+    for k=1:grid.nodeCountZ
+      @inbounds for i=1:grid.nodeCountY
+        xnodes[grid.nodeCountX*(i-1)+1 + (k-1)*grid.nodeCountXY] = 1
+      end
+    end
+  end
+
+  function fixYForLeft(grid::Grid3D)
+    ynodes = grid.fixedYNodes
+    for k=1:grid.nodeCountZ
+      @inbounds for i=1:grid.nodeCountY
+        ynodes[grid.nodeCountX*(i-1)+1 + (k-1)*grid.nodeCountXY] = 1
+      end
+    end
+  end
+
+  function fixZForLeft(grid::Grid3D)
+    znodes = grid.fixedZNodes
+    for k=1:grid.nodeCountZ
+      @inbounds for i=1:grid.nodeCountY
+        znodes[grid.nodeCountX*(i-1)+1 + (k-1)*grid.nodeCountXY] = 1
+      end
+    end
+  end
+
+  function fixXForFront(grid::Grid3D)
+    znodes = grid.fixedXNodes    
+    @inbounds for i=1:grid.nodeCountXY
+        znodes[i] = 1
+      end
+  end
+
+  function fixYForFront(grid::Grid3D)
+    znodes = grid.fixedYNodes    
+    @inbounds for i=1:grid.nodeCountXY
+        znodes[i] = 1
+      end
+  end
+
+  function fixZForFront(grid::Grid3D)
+    znodes = grid.fixedZNodes    
+    @inbounds for i=1:grid.nodeCountXY
+        znodes[i] = 1
+      end
+  end
+
+  function fixXForBack(grid::Grid3D)
+    znodes = grid.fixedXNodes    
+    @inbounds for i=1:grid.nodeCountXY
+        znodes[i+(grid.nodeCountZ-1)*grid.nodeCountXY] = 1
+      end
+  end
+
+    function fixYForBack(grid::Grid3D)
+    znodes = grid.fixedYNodes    
+    @inbounds for i=1:grid.nodeCountXY
+        znodes[i+(grid.nodeCountZ-1)*grid.nodeCountXY] = 1      
+    end
+  end
+
+  function fixZForBack(grid::Grid3D)
+    znodes = grid.fixedZNodes    
+    @inbounds for i=1:grid.nodeCountXY
+        znodes[i+(grid.nodeCountZ-1)*grid.nodeCountXY] = 1      
     end
   end
 
@@ -376,6 +492,6 @@ module Grid
 
   export Grid1D, Grid2D, Grid3D
   export index2DTo1D, index3DTo1D, getNeighbors,
-         fixXForBottom, fixYForBottom, fixForBottom, fixXForTop, fixYForTop, fixXForLeft, fixYForLeft, fixXForRight, fixYForRight, fixForTop
+         fixXForBottom, fixYForBottom, fixZForBottom, fixForBottom, fixXForTop, fixYForTop, fixXForLeft, fixYForLeft, fixZForLeft, fixXForRight, fixYForRight, fixZForRight, fixForTop, fixXForFront, fixYForFront, fixZForFront, fixXForBack, fixYForBack, fixZForBack
 
 end

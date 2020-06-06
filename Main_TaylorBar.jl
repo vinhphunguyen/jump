@@ -2,7 +2,7 @@
 # Phu Nguyen, Monash University
 # 20 March, 2020 (Coronavirus outbreak)
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/jMPM/src")
+push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
 # import Gadfly
 import PyPlot
 using Printf
@@ -23,40 +23,44 @@ using Algorithm
 using Material
 using BodyForce
 using Basis
+using Fix
 
-function main()
+#function main()
 
     # problem parameters
-	fGravity      = 0.0
-	density       = 8940e-12
-	youngModulus  = 115e3
-	poissonRatio  = 0.31
-	yieldStres    = 65.
-    alumK         = 10.    # hardening modulus
+    density       = 8940e-12
+    E             = 115e3
+    nu            = 0.31
+    A             = 65.
+    B             = 356.
+    C             = 0.013
+    n             = 0.37
+    eps0dot       = 1.0
 
-	length_cyl    = 25.4 #mm
-	radius_cyl    = 3.8 #mm
+	l0    = 25.4 #mm
+	r0    = 3.8 #mm
 
 
     # create the grid of a 1 x 1 x 1 square, with 10 x 10 x 1 cells
-    grid  = Grid3D(14.0, 14.0, 28.0, 20, 20, 40)
+    grid  = Grid3D(0,14.0,0, 28.0,0,14, 20, 60, 20)
     basis = LinearBasis()
 
 
-    ppc = 4
+    ppc = 2
     fOffset = grid.dx/ppc
 
-    coords1 = buildParticleForCylinder([7.0; 7.0; 0.5*length_cyl], radius_cyl,
-	                                   legnth_cyl, fOffset, fOffset, ZAxis)
+    coords1 = buildParticleForCylinder([7.0;  15; 7.0], r0,
+	                                   l0/2, fOffset, fOffset)
 
-    material = ElastoPlasticMaterial(youngModulus,poissonRatio,density,yieldStres,alumK,length(coords1))
+    
+    material  = JohnsonCookMaterial(E,nu,density,A,B,C,n,eps0dot,grid.dy,length(coords1))
     solid1   = Solid3D(coords1,material)
 
-    solid1.mass          .*= dx * dx * dx
-    solid1.volume        .=  dx * dx * dx
-    solid1.volumeInitial .=  dx * dx *dx
+    solid1.mass          .*= fOffset * fOffset * fOffset
+    solid1.volume        .=  fOffset * fOffset * fOffset
+    solid1.volumeInitial .=  fOffset * fOffset *fOffset
 
-    v0 = SVector{3,Float64}([0.0  0. -190000])
+    v0 = SVector{3,Float64}([0.0 -190000 0])
 
     # assign initial velocity for the particles
     assign_velocity(solid1, v0)
@@ -67,24 +71,32 @@ function main()
     @printf("Total number of grid points:     %d\n", grid.nodeCount)
     @printf("Vol  : %+.6e \n", sum(solid1.volume))
 
-    Tf      = 3.5 #3.5e-0
-    interval= 120
 
-	fixXForBottom(grid)
+	#fixXForBottom(grid)
 	fixYForBottom(grid)
-	fixZForBottom(grid)
+	#fixZForBottom(grid)
 
-    bodyforce = ConstantBodyForce3D(fGravity)
 
-	output2  = OvitoOutput(interval,"TaylorBar3D/",["pressure", "vx", "vz"])
-	#fix     =
+    Tf      = 63e-3
+    interval= 500
 
-    problem = ExplicitSolidMechanics3D(grid,solids,basis,Tf,bodyforce,output2,[])
-    algo1    = USL(1e-9)
-    algo2    = MUSL()
-    #solve(problem,algo1,dtime=0.001)
-    solve(problem,algo1,0.001)
+    c_dil     = sqrt(E/density)
+    dt        = grid.dy/c_dil
+    dtime     = 0.1 * dt
 
-end
 
-@time main()
+    output2  = OvitoOutput(interval,"TaylorBar3D/",["pressure", "vy", "pstrain"])
+    fix      = EmptyFix()
+    algo1    = USL(0.)
+    algo2    = MUSL(0.99)
+
+    plotGrid(output2,grid,0)
+
+    plotParticles_3D(output2,solids,[grid.lx, grid.ly, grid.lz],
+                        [grid.nodeCountX, grid.nodeCountY, grid.nodeCount],0)
+
+    solve_explicit_dynamics_3D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
+
+# end
+
+# @time main()

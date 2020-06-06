@@ -48,7 +48,7 @@ using Util
     # as the mesh was created with the center of the disk at (0,0)
 	#move(solid1,SVector{2,Float64}([ 0.2+grid.dx  0.2+grid.dx]))
 	#move(solid2,SVector{2,Float64}([ 0.8-grid.dx  0.8-grid.dx]))
-	Fem.move(solid1,SVector{3,Float64}([0.,6.,0.5]))
+	Fem.move(solid1,SVector{3,Float64}([0.1,6.,0.5]))
 
     #Fem.assign_velocity(solid1, SVector{3,Float64}([0. -1000. 0.0 ]))
 
@@ -61,8 +61,8 @@ using Util
 
     solids = [solid1]
 
-    Tf       = 0.25 #3.5e-0
-    interval = 2
+    Tf       = 10.0 #3.5e-0
+    interval = 100
 	dtime    = 0.1*grid.dx/sqrt(youngModulus/density)
 
 	#output1  = PyPlotOutput(interval,"twodisks-results/","Two Disks Collision",(4., 4.))

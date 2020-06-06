@@ -441,18 +441,18 @@ module Solid
 	 end
 
    ###############################################################
-   # buildParticleForCylinder, z-axis
+   # buildParticleForCylinder, y-axis
    ###############################################################
    function buildParticleForCylinder(fCenter::Array{Float64}, fRadius, fLength,
-	                                 fOffsetX, fOffsetZ, z)
+	                                 fOffsetX, fOffsetZ)
 	 thisMaterialDomain = Vector{SVector{3,Float64}}(undef,0)
 	 coord              = SVector{3,Float64}
 
-	 fRadius = floor(fRadius/fOffsetX) * fOffset	#just in case radius is not a multiple of offset
-	 for fz in -fLength+0.5*fOffsetZ:fOffsetZ:+fLength-0.5*fOffsetZ
-		 for fy in -fRadius+0.5*fOffsetX:fOffsetX:+fRadius-0.5*fOffsetX
+	 fRadius = floor(fRadius/fOffsetX) * fOffsetX	#just in case radius is not a multiple of offset
+	 for fy in -fLength+0.5*fOffsetZ:fOffsetZ:+fLength-0.5*fOffsetZ
+		 for fz in -fRadius+0.5*fOffsetX:fOffsetX:+fRadius-0.5*fOffsetX
 			 for fx in -fRadius+0.5*fOffsetX:fOffsetX:+fRadius-0.5*fOffsetX
-				 if(fx^2 + fy^2 < fRadius^2)
+				 if(fx^2 + fz^2 < fRadius^2)
 					 coord = [fCenter[1] + fx; fCenter[2] + fy; fCenter[3] + fz]
 					 push!(thisMaterialDomain, coord)
 				 end

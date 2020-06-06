@@ -220,6 +220,7 @@ function getNormals!(funcs_surface, normals_surface, weights_surface, coords, gp
         # find the normal n
 
         n = cross(s,t)
+        weights_surface[ip]   = sqrt(n[1]^2+n[2]^2+n[3]^2)
         normalize!(n)
 
         normals_surface[1,ip] = n[1]
@@ -229,9 +230,7 @@ function getNormals!(funcs_surface, normals_surface, weights_surface, coords, gp
         J11     = dN1dxi  * coords[1][1] + dN2dxi  * coords[2][1] + dN3dxi  * coords[3][1] + dN4dxi  * coords[4][1]
         J12     = dN1dxi  * coords[1][2] + dN2dxi  * coords[2][2] + dN3dxi  * coords[3][2] + dN4dxi  * coords[4][2]
         J21     = dN1deta * coords[1][1] + dN2deta * coords[2][1] + dN3deta * coords[3][1] + dN4deta * coords[4][1]
-        J22     = dN1deta * coords[1][2] + dN2deta * coords[2][2] + dN3deta * coords[3][2] + dN4deta * coords[4][2]
-
-        weights_surface[ip]   = J11 * J22 - J12 * J21
+        J22     = dN1deta * coords[1][2] + dN2deta * coords[2][2] + dN3deta * coords[3][2] + dN4deta * coords[4][2]        
     end
 end
 

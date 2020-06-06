@@ -93,7 +93,7 @@ struct FEM3D{T <: MaterialType}
 	dU                  :: Vector{SVector{3,Float64}}  # incremental displacements
 	fint                :: Vector{SVector{3,Float64}}  # internal forces at FE nodes
 	fbody               :: Vector{SVector{3,Float64}}  # external forces  due to gravity at FE nodes
-	ftrac               :: Vector{SVector{3,Float64}}  # external forces  due to traction/pressure at FE nodes
+	ftrac               :: Vector{MVector{3,Float64}}  # external forces  due to traction/pressure at FE nodes
 
 	deformationGradient :: Vector{SMatrix{3,3,Float64,9}}  # F, 2x2 matrix
 	strain              :: Vector{SMatrix{3,3,Float64,9}}  # stress, 2x2 matrix

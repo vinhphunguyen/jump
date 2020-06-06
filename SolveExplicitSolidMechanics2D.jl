@@ -215,7 +215,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 				end
 				vol[ip]     = J * vol0[ip]
 				#@timeit "3"  update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
-				update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
+				update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
 		  	end
 		end
 
@@ -441,7 +441,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 		   	 end
 	   	 vol[ip]     = J * vol0[ip]
 	   	 #@timeit "3" update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
-	   	 update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
+	   	 update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
 	 end
 	end
 

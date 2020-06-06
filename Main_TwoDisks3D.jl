@@ -35,8 +35,9 @@ function main()
 
 
     # create the grid of a 1 x 1 x 1 square, with 10 x 10 x 1 cells
-    grid  =  Grid3D(1.0, 1.0, 1.0, 11, 11, 2)
+    grid  =  Grid3D(0,1.0, 0,1.0, 0,1.0, 11, 11, 6)
     basis = LinearBasis()
+    basis = QuadBsplineBasis()
 
     fOffset = 0.2/8 # there are 8 material points over the radius (16 MPs)
     # how to calculate fOffset:
@@ -64,8 +65,8 @@ function main()
     v0 = SVector{3,Float64}([0.1  0.1 0.0])
 
     # assign initial velocity for the particles
-    assign_velocity(solid1, v0)
-    assign_velocity(solid2,-v0)
+    Solid.assign_velocity(solid1, v0)
+    Solid.assign_velocity(solid2,-v0)
 
     solids = [solid1, solid2]
 

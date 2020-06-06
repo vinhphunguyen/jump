@@ -103,10 +103,21 @@ function getAdjacentGridPoints(nearPts,xp,grid::Grid3D, basis::LinearBasis)
 	iBottomLeft_j  = floor(Int64,(xp[2]-grid.ymin) * fLength_Cell_y + 1.)
 	iBottomLeft_k  = floor(Int64,(xp[3]-grid.zmin) * fLength_Cell_z + 1.)
 
+	if(iBottomLeft_i < 1 || iBottomLeft_i > grid.nodeCountX)
+		@printf("Index out of bounds: j: %d \n", iBottomLeft_i)
+		@printf("xp[1]: %e \n", xp[2])
+	end
+
 	if(iBottomLeft_j < 1 || iBottomLeft_j > grid.nodeCountY)
 		@printf("Index out of bounds: j: %d \n", iBottomLeft_j)
 		@printf("xp[2]: %e \n", xp[2])
 	end
+
+	if(iBottomLeft_k < 1 || iBottomLeft_k > grid.nodeCountZ)
+		@printf("Index out of bounds: j: %d \n", iBottomLeft_k)
+		@printf("xp[2]: %e \n", xp[3])
+	end
+
 
 	iIndex = index3DTo1D(iBottomLeft_i, iBottomLeft_j, iBottomLeft_k,
 	                     grid.nodeCountX, grid.nodeCountY, grid.nodeCountZ)
@@ -263,7 +274,7 @@ end
 # getShapeAndGradient: 1D, modified quadratic bspline basis
 # outputs: nearPoints, funcs and and ders
 function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
-						 ders::Vector{Float64},p::Int64, grid::Grid1D, solid, basis::QuadBsplineBasis						 )
+						 ders::Vector{Float64},p::Int64, grid::Grid1D, solid, basis::QuadBsplineBasis)
 	xp          = solid.pos[p]
 	getAdjacentGridPoints(nearPoints,xp,grid,basis)
 
@@ -436,7 +447,7 @@ function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 
 	if     iBottomLeft_k == 1
 	  nearPointsZ = @SVector[iBottomLeft_k, iBottomLeft_k + 1, iBottomLeft_k + 2]
-    elseif iBottomLeft_j == grid.nodeCountY-1
+    elseif iBottomLeft_k == grid.nodeCountZ-1
 	  nearPointsZ = @SVector[iBottomLeft_k - 1, iBottomLeft_k, iBottomLeft_k + 1]
 	else
 	  if remz < 0.5
@@ -472,7 +483,7 @@ function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 				Ny,dNy = quad_bspline_type3(r)
 			end
 			for k = 1:3
-				kd     = nearPointsZ[j]
+				kd     = nearPointsZ[k]
 				r      = (zp - (kd-1)*grid.dz) * dzI
 				if     kd == 1 | kd == grid.nodeCountZ
 					Nz,dNz = quad_bspline_type1(r)
@@ -483,17 +494,17 @@ function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 				else
 					Nz,dNz = quad_bspline_type3(r)
 				end
+				nearPoints[index] = index3DTo1D(id,jd,kd,grid.nodeCountX, grid.nodeCountY,grid.nodeCountZ)
+			    funcs[index]      = Nx  * Ny * Nz
+				ders[1,index]     = dNx * dxI * Ny * Nz
+				ders[2,index]     = dNy * dyI * Nx * Nz
+				ders[3,index]     = dNz * dzI * Nx * Ny
+				index += 1
 			end
-			nearPoints[index] = index3DTo1D(id,jd,kd,grid.nodeCountX, grid.nodeCountY,grid.nodeCountZ)
-		    funcs[index]      = Nx  * Ny * Nz
-			ders[1,index]     = dNx * dxI * Ny * Nz
-			ders[2,index]     = dNy * dyI * Nx * Nz
-			ders[3,index]     = dNz * dzI * Nx * Ny
-			index += 1
 		end
     end
-	# println(sum(funcs))
-	# println(sum(ders))
+	#println(sum(funcs))
+	#println(sum(ders))
 	return 27
 end
 
@@ -661,6 +672,124 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	#println(sum(funcs))
 	# println(sum(ders))
 	return 9
+end
+
+
+#################################################################
+# getShapeFunctions: 3D, modified quadratic bspline basis
+# outputs: nearPoints, funcs and and ders
+function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
+						   p::Int64, grid::Grid3D, solid,basis::QuadBsplineBasis)
+	xp          = solid.pos[p][1]
+	yp          = solid.pos[p][2]
+	zp          = solid.pos[p][3]
+
+    # inverse of grid spacing
+	dxI = grid.dxI
+	dyI = grid.dyI
+	dzI = grid.dzI
+
+
+	numx            = xp * grid.dxI
+	wholex          = floor(numx)
+	remx            = numx - wholex
+
+	numy            = yp * grid.dyI
+	wholey          = floor(numy)
+	remy            = numy - wholey
+
+	numz            = zp * grid.dzI
+	wholez          = floor(numz)
+	remz            = numz - wholez
+
+	iBottomLeft_i  = floor(Int64,numx + 1.)
+	iBottomLeft_j  = floor(Int64,numy + 1.)
+	iBottomLeft_k  = floor(Int64,numz + 1.)
+
+	#println(iBottomLeft_i)
+	if     iBottomLeft_i == 1
+	  nearPointsX = @SVector[iBottomLeft_i, iBottomLeft_i + 1, iBottomLeft_i + 2]
+    elseif iBottomLeft_i == grid.nodeCountX-1
+	  nearPointsX = @SVector[iBottomLeft_i - 1, iBottomLeft_i, iBottomLeft_i + 1]
+	else
+	  if remx < 0.5
+	     nearPointsX = @SVector[iBottomLeft_i-1, iBottomLeft_i, iBottomLeft_i+1]
+      else
+	     nearPointsX = @SVector[iBottomLeft_i, iBottomLeft_i+1, iBottomLeft_i+2]
+      end
+    end
+
+	if     iBottomLeft_j == 1
+	  nearPointsY = @SVector[iBottomLeft_j, iBottomLeft_j + 1, iBottomLeft_j + 2]
+    elseif iBottomLeft_j == grid.nodeCountY-1
+	  nearPointsY = @SVector[iBottomLeft_j - 1, iBottomLeft_j, iBottomLeft_j + 1]
+	else
+	  if remy < 0.5
+		 nearPointsY = @SVector[iBottomLeft_j-1, iBottomLeft_j, iBottomLeft_j+1]
+	  else
+		 nearPointsY = @SVector[iBottomLeft_j, iBottomLeft_j+1, iBottomLeft_j+2]
+	  end
+	end
+
+	if     iBottomLeft_k == 1
+	  nearPointsZ = @SVector[iBottomLeft_k, iBottomLeft_k + 1, iBottomLeft_k + 2]
+    elseif iBottomLeft_k == grid.nodeCountZ-1
+	  nearPointsZ = @SVector[iBottomLeft_k - 1, iBottomLeft_k, iBottomLeft_k + 1]
+	else
+	  if remz < 0.5
+		 nearPointsZ = @SVector[iBottomLeft_k-1, iBottomLeft_k, iBottomLeft_k+1]
+	  else
+		 nearPointsZ = @SVector[iBottomLeft_k, iBottomLeft_k+1, iBottomLeft_k+2]
+	  end
+	end
+
+    index = 1
+	for i = 1:3
+		id     = nearPointsX[i]
+		r      = (xp - grid.pos[id][1]) * dxI
+        if     id == 1 | id == grid.nodeCountX
+			Nx,dNx = quad_bspline_type1(r)
+		elseif id == 2
+			Nx,dNx = quad_bspline_type2(r)
+		elseif id == grid.nodeCountX - 1
+			Nx,dNx = quad_bspline_type4(r)
+		else
+			Nx,dNx = quad_bspline_type3(r)
+		end
+		for j = 1:3
+			jd     = nearPointsY[j]
+			r      = (yp - (jd-1)*grid.dy) * dyI
+			if     jd == 1 | jd == grid.nodeCountY
+				Ny,dNy = quad_bspline_type1(r)
+			elseif jd == 2
+				Ny,dNy = quad_bspline_type2(r)
+			elseif jd == grid.nodeCountY - 1
+				Ny,dNy = quad_bspline_type4(r)
+			else
+				Ny,dNy = quad_bspline_type3(r)
+			end
+			for k = 1:3
+				kd     = nearPointsZ[k]
+				r      = (zp - (kd-1)*grid.dz) * dzI
+				if     kd == 1 | kd == grid.nodeCountZ
+					Nz,dNz = quad_bspline_type1(r)
+				elseif kd == 2
+					Nz,dNz = quad_bspline_type2(r)
+				elseif kd == grid.nodeCountZ - 1
+					Nz,dNz = quad_bspline_type4(r)
+				else
+					Nz,dNz = quad_bspline_type3(r)
+				end
+			
+				nearPoints[index] = index3DTo1D(id,jd,kd,grid.nodeCountX, grid.nodeCountY,grid.nodeCountZ)
+			    funcs[index]      = Nx  * Ny * Nz		
+				index += 1
+			end
+		end
+    end
+	#println(sum(funcs))
+	# println(sum(ders))
+	return 27
 end
 
 # compute linear basis and grads for all nodes I at particle 'p'

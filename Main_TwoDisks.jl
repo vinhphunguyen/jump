@@ -43,7 +43,7 @@ function main()
     # create the grid of a 1 x 1 square, with 20 x 20 cells
     grid  =  Grid2D(0.0,1.0,0.0,1.0,11, 11)
     basis = LinearBasis()
-    #basis = QuadBsplineBasis()
+    basis = QuadBsplineBasis()
 
     rad     = 0.2
 	ppc     = 8

@@ -13,6 +13,10 @@ module Algorithm
 		tolerance::Float64
     end
 
+    struct TLFEM_MUSL  <: AlgorithmType  
+		tolerance::Float64
+    end
+
     struct TLFEMFull  <: AlgorithmType  
 		tolerance::Float64
     end
@@ -23,5 +27,5 @@ module Algorithm
 	struct APIC <: AlgorithmType end
 
 
-    export AlgorithmType, USL, MUSL, APIC, FEM, TLFEM, TLFEMFull
+    export AlgorithmType, USL, MUSL, APIC, FEM, TLFEM, TLFEMFull, TLFEM_MUSL
 end

@@ -46,6 +46,7 @@ function solve_explicit_dynamics_3D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 		        fMass     = mm[ip]
 		        vp        = vv[ip]
 		        sigma     = stress[ip]
+		        #println(nearPoints)
 				@inbounds for i = 1:support
 					id    = nearPoints[i]; # index of node ‘i’
 					Ni    = funcs[i]
@@ -172,12 +173,12 @@ function solve_explicit_dynamics_3D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 				F[ip]       *= (Identity + vel_grad*dtime)
 				J            = det(F[ip])
 				vol[ip]      = J * vol0[ip]
-				update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
+				update_stress!(stress[ip],mat,strain[ip],dtime*D,F[ip],J,ip,dtime)
 		  	end
 		end
 
 		if (counter%output.interval == 0)
-            plotParticles(output,solids,[grid.lx, grid.ly, grid.lz],
+            plotParticles_3D(output,solids,[grid.lx, grid.ly, grid.lz],
 			            [grid.nodeCountX, grid.nodeCountY, grid.nodeCount],counter)
 			compute(fixes,t)
 	    end
@@ -192,7 +193,8 @@ end
 #  Update Stress Last:: UNFINISHED!!!
 ######################################################################
 
-function solve_explicit_dynamics_3D(grid,solids,basis,alg::USL,output,dtime)
+
+function solve_explicit_dynamics_3D(grid,solids,basis,alg::USL,output,fixes,Tf,dtime)
     t       = 0.
     counter = 0
 
@@ -210,10 +212,7 @@ function solve_explicit_dynamics_3D(grid,solids,basis,alg::USL,output,dtime)
 	vel_grad      = zeros(Float64,3,3)
 	D             = zeros(Float64,3,3)
 
-	nearPoints,funcs, ders = initialise(basis,grid)
-
-	pyFig_RealTime = PyPlot.figure("MPM 2Disk Real-time",
-                               figsize=(8/2.54, 8/2.54), edgecolor="white", facecolor="white")
+	nearPoints,funcs, ders = initialise(grid,basis)
 
   while t < Tf
 
@@ -322,11 +321,17 @@ function solve_explicit_dynamics_3D(grid,solids,basis,alg::USL,output,dtime)
 			F[ip]      *= (Identity + vel_grad*dtime)
             J           =  det(F[ip])
 			vol[ip]     = J * vol0[ip]
-			update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
+			
+			update_stress!(stress[ip],mat,strain[ip],dtime*D,F[ip],J,ip,dtime)
 			#stress[ip] .= update_stress(mat,strain[ip]) #mat.lambda * (strain[ip][1,1]+strain[ip][2,2]) * Identity + 2.0 * mat.mu * strain[ip]
 	  	end
 	end
 
+	if (counter%output.interval == 0)
+        plotParticles_3D(output,solids,[grid.lx, grid.ly, grid.lz],
+		            [grid.nodeCountX, grid.nodeCountY, grid.nodeCount],counter)
+		compute(fixes,t)
+    end
 
     t       += dtime
     counter += 1
