@@ -35,9 +35,9 @@ function main()
 
     # problem parameters
 	fGravity      = 0.0
-	density       = 1010e-12
-	K             = 121.7         # bulk modulus
-	mu            = 26.1          # shear modulus
+	density       = 1010e-9
+	K             = 121.7e-3         # bulk modulus
+	mu            = 26.1e-3          # shear modulus
 
 	E             = 9*K*mu/(3*K+mu)
 	nu            = E/2/mu-1.0
@@ -47,7 +47,7 @@ function main()
 	w             = 100.
 	l             = 200.
 
-	vel           = 25e3 # mm/s
+	vel           = 30 # mm/s
 
 
     # create the grid of a 1 x 1 square, with 20 x 20 cells
@@ -97,10 +97,10 @@ function main()
     @printf("dt        : %+.6e \n", dtime)
     println(typeof(basis))
 
-    Tf      = 0.0047#5e-3 #3.5e-0
+    Tf      = 3.5
     interval= 20
 
-    bodyforce = ConstantBodyForce2D(fGravity)
+    bodyforce = ConstantBodyForce2D([0,0])
 
 	output2  = OvitoOutput(interval,"rings-ulmpm-results/",["vx","sigmaxx"])
 	fix      = EnergiesFix(solids,"rings-ulmpm-results/energies.txt")

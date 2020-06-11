@@ -29,4 +29,5 @@ Extrude {0, 0, 1000} {
   Surface{1}; 
 }
 
-Physical Volume(1) = {1}; // force
+Physical Surface("TopSurface") = {128}; // force
+Physical Volume("All") = {1}; // force

@@ -52,13 +52,17 @@ using Util
 
     #Fem.assign_velocity(solid1, SVector{3,Float64}([0. -1000. 0.0 ]))
 
-	fixYForTop(grid)
-	fixYForBottom(grid)
+	# fixYForTop(grid)
+	# fixYForBottom(grid)
+
+	
+	# boundary condition on the FE mesh!!!
+	fixYNodes(solid1, "TopSurface")
 
     solids = [solid1]
 
     Tf       = 0.25 #3.5e-0
-    interval = 2
+    interval = 1
 	dtime    = 0.1*grid.dx/sqrt(youngModulus/density)
 
 	#output1  = PyPlotOutput(interval,"twodisks-results/","Two Disks Collision",(4., 4.))
@@ -66,7 +70,8 @@ using Util
 	fix      = DisplacementFemFix(solid1,"vertical-bar-femp-tet4/",2)
 
     algo1    = USL(0.)
-    algo1    = TLFEM(0.)
+    algo2    = TLFEM(0.)
+    bodyforce = ConstantBodyForce3D([0., -fGravity,0.])
 
 	report(grid,solids,dtime)
 
@@ -74,7 +79,7 @@ using Util
     #plotParticles_3D(output2,solids,0)
 
 	#reset_timer!
-    solve_explicit_dynamics_femp_3D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_femp_3D(grid,solids,basis,bodyforce,algo2,output2,fix,Tf,dtime)
     #print_timer()
 
 	# #PyPlot.savefig("plot_2Disk_Julia.pdf")

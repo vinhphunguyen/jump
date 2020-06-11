@@ -84,7 +84,7 @@ function main()
 	fix      = EnergiesFix(solids,"results3D/energies.txt")
 
 
-    algo2    = MUSL(.99)
+    algo2    = MUSL(1.)
 
     solve_explicit_dynamics_3D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
 

@@ -173,6 +173,14 @@ function solve_explicit_dynamics_3D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 				F[ip]       *= (Identity + vel_grad*dtime)
 				J            = det(F[ip])
 				vol[ip]      = J * vol0[ip]
+
+				if ( J < 0. )
+					@printf("Troubled particle: %f %f \n", xx[ip][1], xx[ip][2])
+					println(F[ip])
+					closeFile(fixes)
+					@error("J is negative\n")
+			    end
+
 				update_stress!(stress[ip],mat,strain[ip],dtime*D,F[ip],J,ip,dtime)
 		  	end
 		end

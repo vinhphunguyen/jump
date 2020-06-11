@@ -10,7 +10,7 @@ struct EmptyFix <: FixBase
 end
 
 struct DisplacementFix <: FixBase
-    solids::Vector{Solid2D}
+    solids::Vector{Solid3D}
     file
     index
 
@@ -23,7 +23,7 @@ struct DisplacementFix <: FixBase
             for p = 1:solid.parCount
                 x = pos[p][1]
                 y = pos[p][2]
-                if sqrt((x - point[1])^2 + (y - point[2])^2) < 0.9
+                if sqrt((x - point[1])^2 + (y - point[2])^2) < 1e-10
                     index = [s p]
                     #println(index)
                     break
@@ -78,8 +78,7 @@ struct DisplacementFemFix <: FixBase
     nodeID
 
     function DisplacementFemFix(solid,dir,nodeID)
-        filename = string(dir,"recorded-position.txt")
-
+filename = string(dir,"recorded-position.txt")
         if (isfile(filename))
             rm(filename)
         end

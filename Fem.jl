@@ -1,6 +1,9 @@
 module Fem
 
 using StaticArrays
+using  WriteVTK
+using Printf
+
 using Material
 using Mesh
 using Grid
@@ -10,9 +13,10 @@ using Grid
 # Createa solid by: solid = Solid2D(coords,mat)
 # Createa solid by: solid = Solid2D(coords,mat)
 ###########################################################
-struct FEM2D{T <: MaterialType}
+struct FEM2D
 	mass                :: Vector{Float64}
 	volume              :: Vector{Float64}
+	centerX             :: Vector{Float64}             # centroids of all elements in original configuration
 
 	pos0                :: Vector{SVector{2,Float64}}  # node coords initial
 	pos                 :: Vector{SVector{2,Float64}}  # position
@@ -30,8 +34,6 @@ struct FEM2D{T <: MaterialType}
 	parCount            :: Int64              # same as element count in the mesh
 	nodeCount           :: Int64              # number of nodes in the mesh
 
-	mat                 :: T
-
 	elems               :: Array{Int64,2}
 	mesh                :: FEMesh
 	
@@ -39,8 +41,11 @@ struct FEM2D{T <: MaterialType}
     fixedNodesX         :: Vector{Int64}
 	fixedNodesY         :: Vector{Int64}
 
+	basis               :: FiniteElement     # finite element basis function
+	vtk_cell            :: VTKCellType
+
 	# particles from a mesh
-	function FEM2D(fileName,mat::T) where {T <: MaterialType}
+	function FEM2D(fileName)
 		mesh      = read_GMSH(fileName)
 	    nodeCount = length(mesh.nodes)                       # node count
 		parCount  = length(mesh.element_sets["All"])         # element count
@@ -52,11 +57,12 @@ struct FEM2D{T <: MaterialType}
 		m        = fill(0.,nodeCount)
 		x        = fill(zeros(2),nodeCount)
 		nodesX   = fill(zeros(2),nodeCount)
+		centerX  = fill(0.,parCount)
 		elems    = Array{Array{Int64,1},1}(undef,0)   # element nodes
 		velo     = fill(zeros(2),nodeCount)
 	
 		#println(size(nodes,2))
-		#println(parCount)
+		println(parCount)
 
         # convert from mesh.nodes to our traditional data structure
 		for i=1:nodeCount			
@@ -69,12 +75,34 @@ struct FEM2D{T <: MaterialType}
 			push!(elems,mesh.elements[volumetricElems[i]])
 		end
 
+   
+		nnodePerElem = length(elems[1])
+
+
+		if      nnodePerElem == 3 
+			basis = Tri3()  
+			vtk_cell = VTKCellTypes.VTK_TRIANGLE
+		elseif  nnodePerElem == 4 
+			basis = Quad4() 
+			vtk_cell = VTKCellTypes.VTK_QUAD
+		else
+			@printf("Number of nodes per element: %d \n", nnodePerElem)
+			error("Unsupported element types: only Tri3 and Quad4 now!\n")
+		end
+
+		# if nodePerElem == 4 
+		# 	meshBasis = Tet4()  
+		# 	wgt       = .166666667
+		# 	weights   = [0.166666667]   # this is so dangerous!!! all books ay weight =1
+		# 	gpCoords  = [0.25,0.25,0.25]
+	 #    end
+
 	    fixX       = fill(0,nodeCount)
 		fixY       = fill(0,nodeCount)
 		
 
-		new{T}(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
-			   strain,stress,parCount,nodeCount,mat,vcat(map(x->x', elems)...),mesh, fixX, fixY)
+		new(m,vol,centerX,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
+			   strain,stress,parCount,nodeCount,vcat(map(x->x', elems)...),mesh, fixX, fixY, basis, vtk_cell)
 	end
 end
 
@@ -83,7 +111,7 @@ end
 # Createa solid by: solid = Solid2D(coords,mat)
 # Createa solid by: solid = Solid2D(coords,mat)
 ###########################################################
-struct FEM3D{T <: MaterialType}
+struct FEM3D
 	mass                :: Vector{Float64}
 	volume              :: Vector{Float64}
 
@@ -101,9 +129,7 @@ struct FEM3D{T <: MaterialType}
 	
 
 	parCount            :: Int64              # same as element count in the mesh
-	nodeCount           :: Int64              # number of nodes in the mesh
-
-	mat                 :: T
+	nodeCount           :: Int64              # number of nodes in the mesh	
 
 	elems               :: Array{Int64,2}
 	mesh                :: FEMesh
@@ -111,8 +137,10 @@ struct FEM3D{T <: MaterialType}
 	fixedNodesY         :: Vector{Int64}
 	fixedNodesZ         :: Vector{Int64}
 
+	basis               :: FiniteElement
+
 	# particles from a mesh
-	function FEM3D(fileName,mat::T) where {T <: MaterialType}
+	function FEM3D(fileName)
 		mesh      = read_GMSH(fileName)
 		nodeCount = length(mesh.nodes)                       # node count
 		parCount  = length(mesh.element_sets["All"])         # element count
@@ -144,8 +172,14 @@ struct FEM3D{T <: MaterialType}
 		fixY       = fill(0,nodeCount)
 		fixZ       = fill(0,nodeCount)
 
-		new{T}(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
-			   strain,stress,parCount,nodeCount,mat,vcat(map(x->x', elems)...), mesh, fixX,fixY,fixZ)
+
+		nnodePerElem = size(elems,2)
+
+		if nnodePerElem == 4 basis = Tet4()  end
+		if nnodePerElem == 8 basis = Hexa8() end
+
+		new(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
+			   strain,stress,parCount,nodeCount,vcat(map(x->x', elems)...), mesh, fixX,fixY,fixZ,basis)
 	end
 end
 
@@ -155,6 +189,22 @@ function move(solid,dx)
    @inbounds for p = 1 : solid.nodeCount
 	  x[p]  += dx
 	  x0[p] += dx
+   end
+end
+
+function rotate(solid,alpha)
+   xx = solid.pos
+   x0 = solid.pos0
+   beta = deg2rad(alpha)
+   @inbounds for p = 1 : solid.nodeCount
+	  xp = xx[p][1]
+	  yp = xx[p][2]
+	  xq = xp*cos(beta)-yp*sin(beta)
+	  yq = yp*cos(beta)+xp*sin(beta)
+	  xx[p] = setindex(xx[p],xq,1)
+	  xx[p] = setindex(xx[p],yq,2)
+	  x0[p] = setindex(x0[p],xq,1)
+	  x0[p] = setindex(x0[p],yq,2)
    end
 end
 
@@ -178,7 +228,7 @@ function fixNodes(solid, tag)
   solid.fixedNodesY[ids] .= 1
 end
 
-export FEM2D, FEM3D, move, assign_velocity, fixYNodes, fixNodes
+export FEM2D, FEM3D, move, assign_velocity, fixYNodes, fixNodes, rotate
 
 
 end

@@ -484,6 +484,29 @@ module Solid
 		return(thisMaterialDomain)
 	end
 
+		"""
+        buildParticleForBlock(fCenter, fRadius, fOffset)
+    generate particles for simple geometries
+    """
+	function buildParticleForBlock(fCenter::Vector{Float64}, fWidth, fHeight, fThickness, fOffset)
+		thisMaterialDomain = Vector{SVector{3,Float64}}(undef,0)
+		coord              = SVector{3,Float64}
+
+        fWidth	= floor(fWidth/fOffset) * fOffset	#just in case width is not a multiple of offset
+		fHeight	= floor(fHeight/fOffset) * fOffset	#just in case height is not a multiple of offset
+
+		for fz = -0.5*fThickness+0.5*fOffset:fOffset:+0.5*fThickness-0.5*fOffset
+			for fy = -0.5*fHeight+0.5*fOffset:fOffset:+0.5*fHeight-0.5*fOffset
+				for fx = -0.5*fWidth+0.5*fOffset:fOffset:+0.5*fWidth-0.5*fOffset
+					coord = [fCenter[1] + fx; fCenter[2] + fy; fCenter[3] + fz]
+					push!(thisMaterialDomain, coord)
+				end
+			end
+		end
+
+		return(thisMaterialDomain)
+	end
+
 	function buildParticleForRectangleWithANotch(fCenter::Vector{Float64},
 		fWidth::Float64, fHeight::Float64, fOffset::Float64, x1, x2, ymax)
 		thisMaterialDomain = Vector{SVector{2,Float64}}(undef,0)
@@ -596,7 +619,7 @@ module Solid
 	#  end
    # end
 
-	export buildParticleForCircle, buildParticleForRing, buildParticleForRectangle, buildParticleForRectangleWithANotch, buildParticleForSegment, rotate,
+	export buildParticleForCircle, buildParticleForRing, buildParticleForRectangle, buildParticleForRectangleWithANotch, buildParticleForSegment, rotate, buildParticleForBlock,
 	buildParticleForSphere, buildParticleForRingWithBraze, buildParticleForCylinder, toXArray,toYArray,assign_velocity, move, move_cpdi, make_rectangular_pattern
 	export Solid1D, Solid2D, Solid3D
 end

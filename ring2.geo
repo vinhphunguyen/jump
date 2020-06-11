@@ -1,6 +1,9 @@
 //bar
-r1  = 0.75;
-r2  = 1.25;
+ri = 80;
+ro = 150;
+rm = 0.5*(ri+ro);
+r1  = rm;
+r2  = ro;
 
 h = 1.0;//for ref
 n1 = 20; n2 =8;
@@ -33,6 +36,12 @@ Recombine Surface{1,2};//T3->T4
 //Mesh.ElementOrder = 2;//T4->Q9 //Mesh.SecondOrderLinear = 0;
 //Mesh.SecondOrderIncomplete=1;//Q9->Q8
 
-Physical Line("inner")  = {1,2};
-Physical Line("outer")  = {3,4};
-Physical Surface("All") = {1,2};
+
+//+
+Extrude {0, 0, 10} {
+  Surface{1}; Surface{2}; Layers{1}; Recombine;
+}
+
+
+Physical Surface("fix")={19,27};
+Physical Volume("All")={1};

@@ -30,58 +30,51 @@ using Util
 #function main()
 
     # problem parameters
-	g             = 1e6
-	density       = 1050e-12
-	youngModulus  = 1.0
-	poissonRatio  = 0.3
+	g              = 0
+	density        = 7850e-12
+	youngModulus1  = 210e3
+	youngModulus2  = 210e4
+	poissonRatio   = 0.3
 
     # create the grid of a 1 x 1 square, with 20 x 20 cells
 	# and a basis: linear and CPDI-Q4 supported
-    grid      =  Grid3D(0,2000,0,3500,0,2000,30,30,30)
+    grid      =  Grid3D(0,310,0,310,0,20,65,65,3)
     basis     =  LinearBasis()
 
 
-    material = NeoHookeanMaterial(youngModulus,poissonRatio,density)
+    material1 = ElasticMaterial(youngModulus1,poissonRatio,density)
+    material2 = ElasticMaterial(youngModulus2,poissonRatio,density)
 
-    #solid1   = FEM3D("bar1000.msh",material)
-    solid1   = FEM3D("bar640.msh",material)
-    #solid1   = FEM3D("bar8000.msh",material)
+    solid1   = FEM3D("ring1.msh",material1)
+    solid2   = FEM3D("ring2.msh",material2)
     
     # as the mesh was created with the center of the disk at (0,0)
 	#move(solid1,SVector{2,Float64}([ 0.2+grid.dx  0.2+grid.dx]))
 	#move(solid2,SVector{2,Float64}([ 0.8-grid.dx  0.8-grid.dx]))
-	Fem.move(solid1,SVector{3,Float64}([2000/4,2490,2000/4]))
 
-    #Fem.assign_velocity(solid1, SVector{3,Float64}([0. -50000. 0.0 ]))
 
-	#fixYForTop(grid)
-	fixYForBottom(grid)
-	fixXForLeft(grid)
-	fixYForLeft(grid)
-	fixZForLeft(grid)
-	fixXForRight(grid)
-	fixYForRight(grid)
-	fixZForRight(grid)
-	fixXForFront(grid)
-	fixYForFront(grid)
-	fixZForFront(grid)
-	fixXForBack(grid)
-	fixYForBack(grid)
-	fixZForBack(grid)
+    alpha = 0.
+	Fem.rotate(solid1,alpha)
+	Fem.rotate(solid2,alpha)
 
-	# boundary condition on the FE mesh!!!
-	fixYNodes(solid1, "TopSurface")
-	
+	Fem.move(solid1,SVector{3,Float64}([155,155,5]))
+	Fem.move(solid2,SVector{3,Float64}([155,155,5]))
 
-    solids = [solid1]
+  
+    # Symmetric BCs
+	fixYNodes(solid1, "fix")
+	fixYNodes(solid2, "fix")
 
-    Tf       = 0.25 #3.5e-0
-    interval = 20
-	dtime    = 0.1*grid.dx/sqrt(youngModulus/density)
+    solids = [solid1 solid2]
+
+    Tf       = 200e-6 #3.5e-0
+    interval = 10
+	dtime    = 0.4*grid.dx/sqrt(youngModulus2/density)
 
 	#output1  = PyPlotOutput(interval,"twodisks-results/","Two Disks Collision",(4., 4.))
-	output2  = VTKOutput(interval,"vertical-bar-femp/",["pressure"])
-	fix      = DisplacementFemFix(solid1,"vertical-bar-femp/",2)
+	output2  = VTKOutput(interval,"cylinder-pressure-femp/",["pressure"])
+	fix      = DisplacementFemFix(solid1,"cylinder-pressure-femp/",2)
+	fix      = EnergiesFix(solids,"cylinder-pressure-femp/energies.txt")
 
     algo1    = USL(0.)
     algo2    = TLFEM(0.)
@@ -91,7 +84,7 @@ using Util
 	report(grid,solids,dtime)
 
     plotGrid(output2,grid,0)
-    #plotParticles_3D(output2,solids,0)
+    plotParticles_3D(output2,solids,0)
 
 	#reset_timer!
     solve_explicit_dynamics_femp_3D(grid,solids,basis,body,algo2,output2,fix,Tf,dtime)

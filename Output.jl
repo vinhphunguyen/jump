@@ -367,7 +367,7 @@ end
 # end
 				        
 
-function plotParticles_2D(plot::VTKOutput,solids,counter::Int64)
+function plotParticles_2D(plot::VTKOutput,solids,mats,counter::Int64)
 	my_vtk_file = string(plot.dir,"particle_","$(Int(counter))")
 	vtmfile     = vtk_multiblock(my_vtk_file)
 
@@ -375,20 +375,23 @@ function plotParticles_2D(plot::VTKOutput,solids,counter::Int64)
 	for s=1:length(solids)		
 		solid = solids[s]
 		xx    = solid.pos
+		XX    = solid.pos0
 		elems = solid.elems
 		stress= solid.stress
 		ve    = solid.velocity
 
 
         elastic = false
-		mat     = solid.mat
-		if ( typeof(mat) <: ElasticMaterial ) elastic = true end
+		mat     = mats[s]
+		if ( typeof(mat) <: Union{ElasticMaterial,NeoHookeanMaterial,RigidMaterial} ) elastic = true end
 		
 		points = zeros(2,solid.nodeCount)
 	    velo   = zeros(2,solid.nodeCount)
+	    disp   = zeros(2,solid.nodeCount)
 	    vm     = zeros(solid.parCount)
 	    p      = zeros(solid.parCount)
 	    pStrain= zeros(solid.parCount)
+	    sigmaxx= zeros(solid.parCount)
         
 
 	    cc = 1
@@ -400,11 +403,13 @@ function plotParticles_2D(plot::VTKOutput,solids,counter::Int64)
 			points[2,ip] = xx[ip][2]
 			velo[1,ip]   = ve[ip][1]
 			velo[2,ip]   = ve[ip][2]
+			disp[1,ip] = xx[ip][1] - XX[ip][1]
+			disp[2,ip] = xx[ip][2] - XX[ip][2]
 			#cc += 1
 		end
 		for e=1:solid.parCount
 			inds =elems[e,:] 
-		    c    = MeshCell(VTKCellTypes.VTK_QUAD, inds)
+		    c    = MeshCell(solid.vtk_cell, inds)
             push!(cells, c)
             sigma = stress[e]
             vmsigma = elastic ? 0. : mat.vmStr[e]
@@ -412,6 +417,7 @@ function plotParticles_2D(plot::VTKOutput,solids,counter::Int64)
             p[e]  = sigma[1,1]+sigma[2,2]
             vm[e] = vmsigma
             pStrain[e] = epsilon
+            sigmaxx[e] = stress[e][1,2]
         end
 
         vtkfile     = vtk_grid(vtmfile, points, cells)
@@ -419,7 +425,9 @@ function plotParticles_2D(plot::VTKOutput,solids,counter::Int64)
 	    vtkfile["Pressure", VTKCellData()]  = p
 	    vtkfile["PlasticStrain", VTKCellData()]  = pStrain
 	    vtkfile["Velocity", VTKPointData()] = velo
+	    vtkfile["Displacement", VTKPointData()] = disp
 	    vtkfile["vonMises", VTKCellData()] = vm
+	    vtkfile["sigmaxx", VTKCellData()] = sigmaxx
 	end
 	outfiles    = vtk_save(vtmfile)
 end
@@ -433,6 +441,7 @@ function plotParticles_3D(plot::VTKOutput,solids,counter::Int64)
 	for s=1:length(solids)		
 		solid = solids[s]
 		xx    = solid.pos
+		XX    = solid.pos0
 		elems = solid.elems
 		stress= solid.stress
 		ve    = solid.velocity
@@ -444,9 +453,11 @@ function plotParticles_3D(plot::VTKOutput,solids,counter::Int64)
 		
 		points = zeros(3,solid.nodeCount)
 	    velo   = zeros(3,solid.nodeCount)
+	    disp   = zeros(3,solid.nodeCount)
 	    vm     = zeros(solid.parCount)
 	    p      = zeros(solid.parCount)
 	    ps     = zeros(solid.parCount)
+	    sigyy  = zeros(solid.parCount)
         
 
 	    cc = 1
@@ -460,6 +471,9 @@ function plotParticles_3D(plot::VTKOutput,solids,counter::Int64)
 			velo[1,ip]   = ve[ip][1]
 			velo[2,ip]   = ve[ip][2]
 			velo[3,ip]   = ve[ip][3]
+			disp[1,ip] = xx[ip][1] - XX[ip][1]
+			disp[2,ip] = xx[ip][2] - XX[ip][2]
+			disp[3,ip] = xx[ip][3] - XX[ip][3]
 			#cc += 1
 		end
 
@@ -476,13 +490,16 @@ function plotParticles_3D(plot::VTKOutput,solids,counter::Int64)
             p[e]  = sigma[1,1]+sigma[2,2]
             vm[e] = vmsigma
             ps[e] = pStrain
+            sigyy[e] = solid.stress[e][2,2]
         end
 
         vtkfile     = vtk_grid(vtmfile, points, cells)
         # write data 
 	    vtkfile["Pressure", VTKCellData()]  = p
 	    vtkfile["Plastic_Strain", VTKCellData()]  = ps
+	    vtkfile["sigma_yy", VTKCellData()]  = sigyy
 	    vtkfile["Velocity", VTKPointData()] = velo
+	    vtkfile["Displacement", VTKPointData()] = disp
 	    vtkfile["vonMises", VTKCellData()] = vm
 	end
 	outfiles    = vtk_save(vtmfile)

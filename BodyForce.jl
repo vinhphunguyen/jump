@@ -40,12 +40,14 @@ struct VortexBodyForce2D  <: BodyForceType
     Rio2 ::Float64
     Rio4 ::Float64
     RimRo ::Float64
-    function VortexBodyForce2D(G,T,Ri,Ro,rho0,mu)
+    xcenter ::Float64
+    ycenter ::Float64
+    function VortexBodyForce2D(G,T,Ri,Ro,rho0,mu,xcenter,ycenter)
         R      = (Ri+Ro)/2
         Rio2   = (Ri-Ro)^2
         Rio4   = (Ri-Ro)^4
         RimRo  = (Ri-Ro)
-        new(G,T,Ri,Ro,rho0,mu,R,Rio2,Rio4,RimRo)
+        new(G,T,Ri,Ro,rho0,mu,R,Rio2,Rio4,RimRo,xcenter,ycenter)
     end
 end
 
@@ -89,15 +91,15 @@ function (b::ConstantBodyForce3D)(body,x,t)
 end
 
 
-function (b::VortexBodyForce2D)(body,xp,time)
+function (b::VortexBodyForce2D)(body,xp,t)
     G     = b.G
     T     = b.T
     R     = b.R
     Ri    = b.Ri
     Ro    = b.Ro
 
-    x     = xp[1]
-    y     = xp[2]
+    x     = xp[1]-b.xcenter
+    y     = xp[2]-b.ycenter
     r     = sqrt(x*x+y*y)
     theta = atan(y,x)
 
@@ -106,9 +108,9 @@ function (b::VortexBodyForce2D)(body,xp,time)
     h     = 1 - 8*((r - R)/(Ri-Ro))^2 +16*((r - R)/(Ri-Ro))^4
     hp    = - 16*(r - R)/(Ri-Ro)^2 + 16*4*(r - R)^3/(Ri-Ro)^4
     hpp   = - 16/(Ri-Ro)^2 + 16*4*3*(r - R)^2/(Ri-Ro)^4
-    g     = G * sin(π*time/T)
-    gp    = G*π/T*cos(π *time/T)
-    gpp   = -π*π/(T*T)*g
+    g     = G * sin(π*t/T)
+    gp    = G*π/T*cos(π *t/T)
+    gpp   = -π^2/T^2*g
     alpha = g*h
     mdr   = b.mu/b.rho0
 

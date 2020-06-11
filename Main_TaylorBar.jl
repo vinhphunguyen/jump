@@ -28,28 +28,43 @@ using Fix
 #function main()
 
     # problem parameters
-    density       = 8940e-12
-    E             = 115e3
-    nu            = 0.31
-    A             = 65.
-    B             = 356.
-    C             = 0.013
-    n             = 0.37
-    eps0dot       = 1.0
+    E   = 115
+    nu  = 0.31
+    density = 8.94e-06
+
+    A  = 0.065
+    B       = 0.356
+    C       = 0#0.013
+    n       = 0.37
+    eps0dot = 1e-3
+    Tm      = 1600
+
+    vel           = 190 # mm/s
+
 
 	l0    = 25.4 #mm
 	r0    = 3.8 #mm
 
 
-    # create the grid of a 1 x 1 x 1 square, with 10 x 10 x 1 cells
-    grid  = Grid3D(0,14.0,0, 28.0,0,14, 20, 60, 20)
+    vel     = 190# mm/s
+    vel     = 750# mm/s
+
+    if vel == 190 
+        # create the grid of a 1 x 1 square, with 20 x 20 cells
+        L     = 16 
+        grid  =  Grid3D(0, L, 0, 28, 0, L, 20, 60, 20) # for 190 m/s
+    else
+        L     = 40
+        grid  =  Grid3D(0, L, 0, 28, 0, L, 50, 60, 50) # for 750 m/s
+    end
+
     basis = LinearBasis()
+    #basis = QuadBsplineBasis()
 
-
-    ppc = 2
+    ppc = 3
     fOffset = grid.dx/ppc
 
-    coords1 = buildParticleForCylinder([7.0;  15; 7.0], r0,
+    coords1 = buildParticleForCylinder([L/2;  15; L/2], r0,
 	                                   l0/2, fOffset, fOffset)
 
     
@@ -60,14 +75,15 @@ using Fix
     solid1.volume        .=  fOffset * fOffset * fOffset
     solid1.volumeInitial .=  fOffset * fOffset *fOffset
 
-    v0 = SVector{3,Float64}([0.0 -190000 0])
+    v0 = SVector{3,Float64}([0.0 -vel 0])
 
     # assign initial velocity for the particles
-    assign_velocity(solid1, v0)
+    Solid.assign_velocity(solid1, v0)
 
     solids = [solid1]
 
     @printf("Total number of material points: %d \n", solid1.parCount)
+    @printf("Total mass: %f \n", sum(solid1.mass))
     @printf("Total number of grid points:     %d\n", grid.nodeCount)
     @printf("Vol  : %+.6e \n", sum(solid1.volume))
 
@@ -78,24 +94,24 @@ using Fix
 
 
     Tf      = 63e-3
-    interval= 500
+    interval= 50
 
     c_dil     = sqrt(E/density)
     dt        = grid.dy/c_dil
     dtime     = 0.1 * dt
 
 
-    output2  = OvitoOutput(interval,"TaylorBar3D/",["pressure", "vy", "pstrain"])
+    output2  = OvitoOutput(interval,"TaylorBar3D/",["pressure", "vonMises", "pstrain"])
     fix      = EmptyFix()
     algo1    = USL(0.)
-    algo2    = MUSL(0.99)
+    algo2    = MUSL(1.)
 
     plotGrid(output2,grid,0)
 
     plotParticles_3D(output2,solids,[grid.lx, grid.ly, grid.lz],
                         [grid.nodeCountX, grid.nodeCountY, grid.nodeCount],0)
 
-    solve_explicit_dynamics_3D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_3D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
 
 # end
 

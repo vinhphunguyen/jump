@@ -19,13 +19,15 @@ using DelimitedFiles
 import Gmsh: gmsh
 
 export lagrange_basis!, lagrange_basis_derivatives!
-export Line2, Tri3, Quad4, Tet4, Hexa8
+export FiniteElement, Line2, Tri3, Quad4, Tet4, Hexa8
 
-struct Line2 end
-struct Tri3  end
-struct Quad4 end
-struct Hexa8 end
-struct Tet4  end
+abstract type FiniteElement end
+
+struct Line2 <: FiniteElement end
+struct Tri3  <: FiniteElement end
+struct Quad4 <: FiniteElement end
+struct Hexa8 <: FiniteElement end
+struct Tet4  <: FiniteElement end
 
 function lagrange_basis!(N, dNdxi, type::Line2,coord)
 	xi   = coord[1];
@@ -52,6 +54,29 @@ function lagrange_basis!(N, dNdxi, type::Quad4,coord)
                    1-eta    -(1+xi);
                    1+eta      1+xi;
                  -(1+eta)     1-xi];
+end
+
+function lagrange_basis!(N, type::Tri3,xieta,coords)
+    xi     = xieta[1];
+    eta    = xieta[2];
+
+    N      .= SVector{3}(1-xi-eta,xi,eta)
+
+    dN1dxi  = -1.0
+    dN1deta = -1.0
+    dN2dxi  =  1.0
+    dN2deta =  0.
+    dN3dxi  =  0.
+    dN3deta =  1.
+ 
+
+    J11     = dN1dxi  * coords[1][1] + dN2dxi  * coords[2][1] + dN3dxi  * coords[3][1] 
+    J12     = dN1dxi  * coords[1][2] + dN2dxi  * coords[2][2] + dN3dxi  * coords[3][2] 
+    J21     = dN1deta * coords[1][1] + dN2deta * coords[2][1] + dN3deta * coords[3][1] 
+    J22     = dN1deta * coords[1][2] + dN2deta * coords[2][2] + dN3deta * coords[3][2] 
+
+    return J11*J22 - J12*J21
+
 end
 
 function lagrange_basis!(N, type::Quad4,xieta,coords)
@@ -156,6 +181,32 @@ function lagrange_basis!(N, type::Hexa8,xieta,coords)
 
     return det(SMatrix{3,3}(J11,J21,J31,J12,J22,J32,J13,J23,J33))
 
+end
+
+function lagrange_basis_derivatives!(N, dNdx, type::Tri3,xieta,coords)
+    xi     = xieta[1];
+    eta    = xieta[2];
+
+    N      .= SVector{3}(1-xi-eta,xi,eta)
+
+    dN1dxi  = -1.0
+    dN1deta = -1.0
+    dN2dxi  =  1.0
+    dN2deta =  0.
+    dN3dxi  =  0.
+    dN3deta =  1.
+ 
+
+    J11     = dN1dxi  * coords[1][1] + dN2dxi  * coords[2][1] + dN3dxi  * coords[3][1] 
+    J12     = dN1dxi  * coords[1][2] + dN2dxi  * coords[2][2] + dN3dxi  * coords[3][2] 
+    J21     = dN1deta * coords[1][1] + dN2deta * coords[2][1] + dN3deta * coords[3][1] 
+    J22     = dN1deta * coords[1][2] + dN2deta * coords[2][2] + dN3deta * coords[3][2] 
+
+
+    dNdx    .= inv(SMatrix{2,2}(J11,J21,J12,J22))*SMatrix{2,3}(dN1dxi,dN1deta,
+                                                               dN2dxi,dN2deta,
+                                                               dN3dxi,dN3deta ) 
+    return J11*J22 - J12*J21
 end
 
 function lagrange_basis_derivatives!(N, dNdx, type::Quad4,xieta,coords)
@@ -344,13 +395,13 @@ function lagrange_basis!(N, type::Tet4,xieta,coords)
     dN4dzeta = 1.
 
 
-    J11 = dN1dxi * coords[1][1] + dN2dxi * coords[2][1] + dN3dxi * coords[3][1] + dN4dxi * coords[4][1]
-    J12 = dN1dxi * coords[1][2] + dN2dxi * coords[2][2] + dN3dxi * coords[3][2] + dN4dxi * coords[4][2]
-    J13 = dN1dxi * coords[1][3] + dN2dxi * coords[2][3] + dN3dxi * coords[3][3] + dN4dxi * coords[4][3]  
+    J11 = dN1dxi   * coords[1][1] + dN2dxi   * coords[2][1] + dN3dxi   * coords[3][1] + dN4dxi   * coords[4][1]
+    J12 = dN1dxi   * coords[1][2] + dN2dxi   * coords[2][2] + dN3dxi   * coords[3][2] + dN4dxi   * coords[4][2]
+    J13 = dN1dxi   * coords[1][3] + dN2dxi   * coords[2][3] + dN3dxi   * coords[3][3] + dN4dxi   * coords[4][3]  
 
-    J21 = dN1deta  * coords[1][1] + dN2deta  * coords[2][1] + dN3deta  * coords[3][1] + dN4deta * coords[4][1] 
-    J22 = dN1deta  * coords[1][2] + dN2deta  * coords[2][2] + dN3deta  * coords[3][2] + dN4deta * coords[4][2]
-    J23 = dN1deta  * coords[1][3] + dN2deta  * coords[2][3] + dN3deta  * coords[3][3] + dN4deta * coords[4][3]    
+    J21 = dN1deta  * coords[1][1] + dN2deta  * coords[2][1] + dN3deta  * coords[3][1] + dN4deta  * coords[4][1] 
+    J22 = dN1deta  * coords[1][2] + dN2deta  * coords[2][2] + dN3deta  * coords[3][2] + dN4deta  * coords[4][2]
+    J23 = dN1deta  * coords[1][3] + dN2deta  * coords[2][3] + dN3deta  * coords[3][3] + dN4deta  * coords[4][3]    
 
     J31 = dN1dzeta * coords[1][1] + dN2dzeta * coords[2][1] + dN3dzeta * coords[3][1] + dN4dzeta * coords[4][1] 
     J32 = dN1dzeta * coords[1][2] + dN2dzeta * coords[2][2] + dN3dzeta * coords[3][2] + dN4dzeta * coords[4][2]
