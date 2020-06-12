@@ -433,7 +433,7 @@ function plotParticles_2D(plot::VTKOutput,solids,mats,counter::Int64)
 end
 
 
-function plotParticles_3D(plot::VTKOutput,solids,counter::Int64)
+function plotParticles_3D(plot::VTKOutput,solids,mats,counter::Int64)
 	my_vtk_file = string(plot.dir,"particle_","$(Int(counter))")
 	vtmfile     = vtk_multiblock(my_vtk_file)
 
@@ -448,7 +448,7 @@ function plotParticles_3D(plot::VTKOutput,solids,counter::Int64)
 
 
         elastic = false
-		mat     = solid.mat
+		mat     = mats[s]
 		if ( typeof(mat) <: Union{ElasticMaterial,NeoHookeanMaterial} ) elastic = true end
 		
 		points = zeros(3,solid.nodeCount)

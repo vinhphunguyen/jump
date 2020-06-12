@@ -40,7 +40,7 @@ using  WriteVTK
 	density       = 1050.
 	E             = 1e6
 	nu            = 0.3
-	G             = 0.1
+	G             = 1.
 	T             = 1.
 
 	mu     = E/(2*(1+nu))
@@ -50,7 +50,7 @@ using  WriteVTK
     Ri = 0.75
     l  = 2.8/2
 
-    bspline = true
+    bspline = false
 
     xcenter   = 0.
     ycenter   = 0.
@@ -75,8 +75,8 @@ using  WriteVTK
 	dtime     = 0.02 * dt
 
 
-    solid1   = FEM2D("vortex.msh")
-    #solid1   = FEM2D("vortex-regular.msh")
+    #solid1   = FEM2D("vortex.msh")
+    solid1   = FEM2D("vortex-regular.msh")
     
 
     # v0 = SVector{2,Float64}([vel  0.0])
@@ -104,7 +104,7 @@ using  WriteVTK
     println(solid1.vtk_cell)
 
     Tf      = 1.#5e-3 #3.5e-0
-    interval= 500
+    interval= 50
 
 	output2  = VTKOutput(interval,"vortex-femp-results/",["vx","sigmaxx"])
 	fix      = EnergiesFix(solids,"vortex-femp-results/energies.txt")
@@ -115,7 +115,7 @@ using  WriteVTK
     
 	plotGrid(output2,grid)
 	plotParticles_2D(output2,solids,mats,0)
-    solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,bodyforce,algo1,output2,fix,Tf,dtime)
+    #solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,bodyforce,algo1,output2,fix,Tf,dtime)
 
  
     function dodo(solids)
@@ -158,7 +158,7 @@ using  WriteVTK
         end
         for e=1:solid.parCount
             inds =elems[e,:] 
-            c    = MeshCell(VTKCellTypes.VTK_TRIANGLE, inds)
+            c    = MeshCell(VTKCellTypes.VTK_QUAD, inds)
             push!(cells, c)
         end
 

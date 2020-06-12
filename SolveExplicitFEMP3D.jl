@@ -345,7 +345,6 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
         gpCoords_surface[1,4] = -0.5773502691896257; gpCoords_surface[2,4] =  0.5773502691896257;
 	end
 
-	println(meshBasis)
 
     noGP      = 1
     dNdx      = zeros(3,nodePerElem)
@@ -668,7 +667,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 
 	if (counter%output.interval == 0)
 		#println("haha\n")
-		plotParticles_3D(output,solids,counter)
+		plotParticles_3D(output,solids,mats,counter)
 		plotGrid(output,grid,counter)
 		compute_femp(fixes,t)
 	end

@@ -7,6 +7,8 @@ using Printf
 using Material
 using Mesh
 using Grid
+using Util
+using AbaqusReader
 
 ###########################################################
 # Struct for 2D solid: a set of data for 2D particles
@@ -141,9 +143,47 @@ struct FEM3D
 
 	# particles from a mesh
 	function FEM3D(fileName)
-		mesh      = read_GMSH(fileName)
-		nodeCount = length(mesh.nodes)                       # node count
-		parCount  = length(mesh.element_sets["All"])         # element count
+
+		ext       = fileName[findlast(isequal('.'),fileName) : end]
+
+		if     ext == ".msh" 
+			mesh      = read_GMSH(fileName) 
+			nodeCount = length(mesh.nodes)                       # node count
+		    parCount  = length(mesh.element_sets["All"])         # element count
+		    nodesX    = fill(zeros(3),nodeCount)
+		    elems     = Array{Array{Int64,1},1}(undef,0)   # element nodes
+	        # convert from mesh.nodes to our traditional data structure
+			for i=1:nodeCount			
+				nodesX[i] = mesh.nodes[i]
+			end
+
+	        # convert from mesh.elements to our traditional data structure
+	        volumetricElems = collect(mesh.element_sets["All"])
+			for i=1:parCount			
+				push!(elems,mesh.elements[volumetricElems[i]])
+			end
+		elseif ext == ".inp"
+			mesh_abaqus     = abaqus_read_mesh(fileName)
+			nodeCount       = length(mesh_abaqus["nodes"])
+			elem_sets       = mesh_abaqus["element_sets"]
+			volumetricElems = elem_sets["ALL"]
+			parCount        = length(volumetricElems)
+			elements        = mesh_abaqus["elements"]
+            nodesX          = fill(zeros(3),nodeCount)
+			elems           = Array{Array{Int64,1},1}(undef,0)   # element nodes
+			nodes           = mesh_abaqus["nodes"]
+			for i=1:nodeCount			
+				nodesX[i] = nodes[i]
+			end
+
+			for i=1:parCount			
+				push!(elems,elements[volumetricElems[i]])
+			end
+
+			mesh = FEMesh()
+		end
+
+
 		Identity  = SMatrix{3,3}(1, 0, 0,0, 1, 0,0, 0, 1)
 		F         = fill(Identity,parCount)
 		strain    = fill(zeros(3,3),parCount)
@@ -151,29 +191,19 @@ struct FEM3D
 		vol       = fill(0.,parCount)
 		m         = fill(0.,nodeCount)
 		x         = fill(zeros(3),nodeCount)
-		nodesX    = fill(zeros(3),nodeCount)
-		elems     = Array{Array{Int64,1},1}(undef,0)   # element nodes
+		
+		
 		velo      = fill(zeros(3),nodeCount)
 		#println(size(nodes,2))
 		#println(parCount)
 
-        # convert from mesh.nodes to our traditional data structure
-		for i=1:nodeCount			
-			nodesX[i] = mesh.nodes[i]
-		end
-
-        # convert from mesh.elements to our traditional data structure
-        volumetricElems = collect(mesh.element_sets["All"])
-		for i=1:parCount			
-			push!(elems,mesh.elements[volumetricElems[i]])
-		end
 
 		fixX       = fill(0,nodeCount)
 		fixY       = fill(0,nodeCount)
 		fixZ       = fill(0,nodeCount)
 
 
-		nnodePerElem = size(elems,2)
+		nnodePerElem = length(elems[1])
 
 		if nnodePerElem == 4 basis = Tet4()  end
 		if nnodePerElem == 8 basis = Hexa8() end

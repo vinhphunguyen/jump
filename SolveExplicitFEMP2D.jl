@@ -642,10 +642,12 @@ t       += dtime
                 ycenter   += N[i] * coords[i][2]			
 		   	end
 			   	
-		   	F[ip]        = Identity + vel_gradT
+		   	
 		   	#F[ip]        += dtime * vel_grad
 		   	# D            = 0.5 * (vel_grad + vel_grad')
 		   	Fdot   .= vel_grad/dtime
+		   	F[ip]      += Fdot*dtime
+		   	#F[ip]        = Identity + vel_gradT
 		   	#strain[ip]   = 0.5 * (vel_grad + vel_grad' + vel_grad * vel_grad')
 
 		   	L      = Fdot*inv(F[ip])
@@ -777,6 +779,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEMF
 		mat    = mats[s]
 		vol    = solid.volume
 		rho    = mats[s].density
+		meshBasis = solid.basis
 
 	  	@inbounds for ip = 1:solid.parCount
 			elemNodes  =  @view elems[ip,:]  
@@ -785,7 +788,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEMF
 	    
 			@inbounds for gp = 1:noGP
 			  xieta = @view gpCoords[:,gp]
-			  detJ  = lagrange_basis!(N, Quad4(), xieta, coords)
+			  detJ  = lagrange_basis!(N, meshBasis, xieta, coords)
 			  if detJ < 0.
 			  	elemNodes[2] = elemNodes0[4]			  	
 			  	elemNodes[4] = elemNodes0[2]
@@ -897,10 +900,13 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEMF
 	  	
 	  	
 	  	@inbounds for ip = 1:solid.nodeCount
-			support   = getShapeFunctions(nearPoints,funcs,ip, grid, solid, basis)	        
-			vvp       = vv[ip]
+		    support   = getShapeFunctions(nearPoints,funcs,ip, grid, solid, basis)	        
+			vp0       = vv[ip]
 			xxp       = xx[ip]
 			dup       = du[ip]
+			vx     = 0.
+			vy     = 0.
+			#vvt = [0.,0.]
 			for i = 1:support
 				in = nearPoints[i]; # index of node 'i'
 				Ni = funcs[i]
@@ -908,12 +914,17 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEMF
 			    if (mI > alg.tolerance)
 					invM       = 1.0 / mI
 					vI         = nodalMomentum[in] * invM
-					vvp       += Ni * (nodalMomentum[in] - nodalMomentum0[in]) * invM
+					#vvt        += Ni * vI  => too much dissipation
+					#vvp       += Ni * (nodalMomentum[in] - nodalMomentum0[in]) * invM
+					vx        += Ni * (nodalMomentum[in][1] - 0.98*nodalMomentum0[in][1]) * invM
+					vy        += Ni * (nodalMomentum[in][2] - 0.98*nodalMomentum0[in][2]) * invM
 					xxp       += Ni * vI * dtime				
 					dup       += Ni * vI * dtime				
 		   		end
 		   	end
-			vv[ip]      = vvp
+			#vv[ip]      = vvp
+			vv[ip] = setindex(vv[ip],0.98*vp0[1] + vx,1)
+			vv[ip] = setindex(vv[ip],0.98*vp0[2] + vy,2)
 			xx[ip]      = xxp	
 			du[ip]      = dup
 		    # Dirichlet BCs on the mesh
