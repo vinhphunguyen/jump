@@ -140,6 +140,7 @@ struct FEM3D
 	fixedNodesZ         :: Vector{Int64}
 
 	basis               :: FiniteElement
+	vtk_cell            :: VTKCellType
 
 	# particles from a mesh
 	function FEM3D(fileName)
@@ -205,11 +206,18 @@ struct FEM3D
 
 		nnodePerElem = length(elems[1])
 
-		if nnodePerElem == 4 basis = Tet4()  end
-		if nnodePerElem == 8 basis = Hexa8() end
+		if nnodePerElem == 4 
+			basis = Tet4()  
+			vtk_cell = VTKCellTypes.VTK_TETRA
+		end
+		if nnodePerElem == 8 
+			basis = Hexa8() 
+			vtk_cell = VTKCellTypes.VTK_HEXAHEDRON
+		end
+
 
 		new(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
-			   strain,stress,parCount,nodeCount,vcat(map(x->x', elems)...), mesh, fixX,fixY,fixZ,basis)
+			   strain,stress,parCount,nodeCount,vcat(map(x->x', elems)...), mesh, fixX,fixY,fixZ,basis,vtk_cell)
 	end
 end
 

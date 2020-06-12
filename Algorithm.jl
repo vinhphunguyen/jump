@@ -11,6 +11,7 @@ module Algorithm
 
 	struct TLFEM  <: AlgorithmType  
 		tolerance::Float64
+		alpha::Float64
     end
 
     struct TLFEM_MUSL  <: AlgorithmType  

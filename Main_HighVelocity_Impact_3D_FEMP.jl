@@ -49,36 +49,39 @@ using BodyForce
 
 
 	# grid creation
-	grid  = Grid2D(0.,60.0, 0.,60.0, 61, 61)
+	grid  = Grid3D(0.,60.0, 0.,60.0, 0,60, 61, 61, 61)
 	basis = LinearBasis()
 
-    solid1   = FEM2D("disk-steel.msh")
-    solid2   = FEM2D("rect.msh")
+    solid1   = FEM3D("sphere.msh")
+    solid2   = FEM3D("rect-3D.msh")
 
 
     material1 = ElasticMaterial(steelE,steelNu,steelRho,0.,0.)
     material2 = ElastoPlasticMaterial(alumE,alumNu,alumRho,alumFy,alumK,solid2.parCount)
 
-    v0 = SVector{2,Float64}([0.0 -v])
+    v0 = SVector{3,Float64}([0.0 -v 0.])
 
     # assign initial velocity for the particles
     Fem.assign_velocity(solid1, v0)
-    Fem.move(solid1,SVector{2,Float64}([ 30.,  40. + 10.]))
+    Fem.move(solid1,SVector{3,Float64}([ 30.,  40. + 10., 30.]))
    # Fem.move(solid2,SVector{2,Float64}([ 1.,  1.]))
     
 
     solids = [solid1 solid2]
     mats   = [material1 material2]
 
-    fixNodes(solid2,"bottom")
-    fixNodes(solid2,"left-right")
+    #fixNodes(solid2,"bottom")
+    #fixNodes(solid2,"left-right")
 
     fixXForLeft(grid)
     fixYForLeft(grid)
+    fixZForLeft(grid)
     fixXForRight(grid)
     fixYForRight(grid)
+    fixZForRight(grid)
     fixXForBottom(grid)
     fixYForBottom(grid)
+    fixZForBottom(grid)
 
     Tf      = 50e-6
     interval= 200
@@ -89,8 +92,8 @@ using BodyForce
     # dtime     = 0.1 * dt
 
 
-	output2  = VTKOutput(interval,"impact-femp-results/",["vx","sigmaxx"])
-	fix      = DisplacementFemFix(solid2,"impact-femp-results/",212)
+	output2  = VTKOutput(interval,"impact-femp-3D-results/",["vx","sigmaxx"])
+	fix      = DisplacementFemFix(solid2,"impact-femp-3D-results/",212)
     algo1    = USL(0.)
     algo2    = TLFEM(0.,0.999)
     bodyforce = ConstantBodyForce2D([0.,0.])
@@ -102,9 +105,9 @@ using BodyForce
     @printf("dt        : %+.6e \n", dtime)
     println(typeof(basis))
 
-	plotGrid(output2,grid)
+	plotGrid(output2,grid,0)
 	plotParticles_2D(output2,solids,mats,0)
-    solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,bodyforce,algo2,output2,fix,Tf,dtime)
+    #solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,bodyforce,algo2,output2,fix,Tf,dtime)
 
 
 # end

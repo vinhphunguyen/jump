@@ -5,8 +5,8 @@ w  = 40.;
 
 h = 5.;
 
-m = 100;
-n = 60;
+m = 60;
+n = 40;
 
 Point(1) = {0,0,0,h};
 Point(2) = {l,0,0,h};
@@ -30,7 +30,11 @@ Transfinite Surface{1} = {1,2,3,4};
 
 Recombine Surface{1};
 
+Extrude {0, 0, 60} {
+  Surface{1}; Layers{60}; Recombine;
+}
 
-Physical Line("bottom") = {1}; // force
-Physical Line("left-right") = {2,4}; // force
-Physical Surface("All") = {1}; // force
+
+//Physical Surface("bottom") = {1}; // force
+//Physical Surface("left-right") = {2,4}; // force
+Physical Volume("All") = {1}; // force

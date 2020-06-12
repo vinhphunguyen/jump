@@ -314,6 +314,8 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,
 	nodalMomentum  = grid.momentum
 	nodalForce     = grid.force
 
+	alpha          = alg.alpha
+
 
     # pre_allocating arrays for temporary variable
    
@@ -559,15 +561,15 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,
 					vI         = nodalMomentum[in] * invM
 					#vvt        += Ni * vI  => too much dissipation
 					#vvp       += Ni * (nodalMomentum[in] - nodalMomentum0[in]) * invM
-					vx        += Ni * (nodalMomentum[in][1] - 0.98*nodalMomentum0[in][1]) * invM
-					vy        += Ni * (nodalMomentum[in][2] - 0.98*nodalMomentum0[in][2]) * invM
+					vx        += Ni * (nodalMomentum[in][1] - alpha*nodalMomentum0[in][1]) * invM
+					vy        += Ni * (nodalMomentum[in][2] - alpha*nodalMomentum0[in][2]) * invM
 					xxp       += Ni * vI * dtime				
 					dup       += Ni * vI * dtime				
 		   		end
 		   	end
 			#vv[ip]      = vvp
-			vv[ip] = setindex(vv[ip],0.98*vp0[1] + vx,1)
-			vv[ip] = setindex(vv[ip],0.98*vp0[2] + vy,2)
+			vv[ip] = setindex(vv[ip],alpha*vp0[1] + vx,1)
+			vv[ip] = setindex(vv[ip],alpha*vp0[2] + vy,2)
 			xx[ip]      = xxp	
 			du[ip]      = dup
 		    # Dirichlet BCs on the mesh

@@ -3,6 +3,7 @@ module Fix
 using Printf
 using LinearAlgebra
 using Solid
+using Fem
 
 abstract type FixBase end
 
@@ -105,7 +106,8 @@ function compute_femp(fix::DisplacementFemFix,time)
     #println(fix.index)
     x = fix.solid.pos[fix.nodeID][1] - fix.solid.pos0[fix.nodeID][1]
     y = fix.solid.pos[fix.nodeID][2] - fix.solid.pos0[fix.nodeID][2]
-    z = fix.solid.pos[fix.nodeID][3] - fix.solid.pos0[fix.nodeID][3]
+    z = 0
+    if typeof(fix.solid) <: FEM3D z = fix.solid.pos[fix.nodeID][3] - fix.solid.pos0[fix.nodeID][3] end
     write(fix.file, "$(time) $(x) $(y) $(z)\n")
 end
 
