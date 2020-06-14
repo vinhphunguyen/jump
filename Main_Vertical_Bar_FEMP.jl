@@ -44,7 +44,7 @@ using Util
     material = NeoHookeanMaterial(youngModulus,poissonRatio,density)
 
     #solid1   = FEM3D("bar1000.msh",material)
-    solid1   = FEM3D("bar640.msh",material)
+    solid1   = FEM3D("bar640.msh")
     #solid1   = FEM3D("bar8000.msh",material)
     
     # as the mesh was created with the center of the disk at (0,0)
@@ -74,6 +74,7 @@ using Util
 	
 
     solids = [solid1]
+    mats   = [material]
 
     Tf       = 0.25 #3.5e-0
     interval = 20
@@ -84,7 +85,7 @@ using Util
 	fix      = DisplacementFemFix(solid1,"vertical-bar-femp/",2)
 
     algo1    = USL(0.)
-    algo2    = TLFEM(0.)
+    algo2    = TLFEM(0.,1.)
 
     body     = ConstantBodyForce3D(@SVector[0.,-g,0.])
 
@@ -94,7 +95,7 @@ using Util
     #plotParticles_3D(output2,solids,0)
 
 	#reset_timer!
-    solve_explicit_dynamics_femp_3D(grid,solids,basis,body,algo2,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,algo2,output2,fix,Tf,dtime)
     #print_timer()
 
 	# #PyPlot.savefig("plot_2Disk_Julia.pdf")

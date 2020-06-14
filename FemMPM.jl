@@ -26,6 +26,7 @@ using Basis
 using Mesh
 using Material
 using Output
+using Fem
 
 include("SolveExplicitFEMP2D.jl")
 include("SolveExplicitFEMP3D.jl")

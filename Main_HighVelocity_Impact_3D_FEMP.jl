@@ -36,35 +36,47 @@ using BodyForce
 #function main()
 
     # problem parameters
-    steelRho  = 7850e-12
-    steelE    = 200.0e3
+    steelRho  = 7850e-9
+    steelE    = 200.0
     steelNu   = 0.3
-    v         = 1160.0e3
+    v         = 1160.0
 
-    alumRho   = 2700e-12
-    alumE     = 78.2e3
+    alumRho   = 2700e-9
+    alumE     = 78.2
     alumNu    = 0.3
     alumFy    = 300.
     alumK     = 0.    # hardening modulus
 
 
+    A       = .3*1.224744871391589
+    B       = 0.0
+    C       = 0#0.013
+    n       = 0.37
+    eps0dot = 1e-3
+    Tm      = 1600.
+
+
 	# grid creation
-	grid  = Grid3D(0.,60.0, 0.,60.0, 0,60, 61, 61, 61)
+	grid  = Grid3D(0.,61.0, 0.,60.0, 0,61, 71, 61, 71)
 	basis = LinearBasis()
 
     solid1   = FEM3D("sphere.msh")
     solid2   = FEM3D("rect-3D.msh")
+    #solid2   = FEM3D("cylinder.msh")
+    #solid2   = FEM3D("cylinder.inp")
 
 
     material1 = ElasticMaterial(steelE,steelNu,steelRho,0.,0.)
-    material2 = ElastoPlasticMaterial(alumE,alumNu,alumRho,alumFy,alumK,solid2.parCount)
+    material2 = JohnsonCookMaterial(alumE,alumNu,alumRho,A,B,C,n,eps0dot,.42,solid2.parCount) 
+    #ElastoPlasticMaterial(alumE,alumNu,alumRho,alumFy,alumK,solid2.parCount)
 
     v0 = SVector{3,Float64}([0.0 -v 0.])
 
     # assign initial velocity for the particles
     Fem.assign_velocity(solid1, v0)
     Fem.move(solid1,SVector{3,Float64}([ 30.,  40. + 10., 30.]))
-   # Fem.move(solid2,SVector{2,Float64}([ 1.,  1.]))
+    #Fem.move(solid2,SVector{3,Float64}([ 35.,  0., 35.]))
+    Fem.move(solid2,SVector{3,Float64}([ .5,  0., .5]))
     
 
     solids = [solid1 solid2]
@@ -82,21 +94,32 @@ using BodyForce
     fixXForBottom(grid)
     fixYForBottom(grid)
     fixZForBottom(grid)
+    fixXForFront(grid)
+    fixYForFront(grid)
+    fixZForFront(grid)
+    fixXForBack(grid)
+    fixYForBack(grid)
+    fixZForBack(grid)
 
-    Tf      = 50e-6
+    #fixForTop(grid)
+  
+
+
+    c_dil     = sqrt(alumE/alumRho)
+    dt        = grid.dy/c_dil
+    dtime     = 0.1 * dt
+
+
+    Tf      = 50e-3
     interval= 200
-	dtime   = 1.0e-8
-
-    # c_dil     = sqrt(alumE/alumRho)
-    # dt        = grid.dy/c_dil
-    # dtime     = 0.1 * dt
+    #dtime   = 1.0e-8
 
 
 	output2  = VTKOutput(interval,"impact-femp-3D-results/",["vx","sigmaxx"])
-	fix      = DisplacementFemFix(solid2,"impact-femp-3D-results/",212)
+	fix      = DisplacementFemFix(solid2,"impact-femp-3D-results/",2)
     algo1    = USL(0.)
     algo2    = TLFEM(0.,0.999)
-    bodyforce = ConstantBodyForce2D([0.,0.])
+    bodyforce = ConstantBodyForce3D([0.,0.,0.])
 
 
 
@@ -106,10 +129,14 @@ using BodyForce
     println(typeof(basis))
 
 	plotGrid(output2,grid,0)
-	plotParticles_2D(output2,solids,mats,0)
-    #solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,bodyforce,algo2,output2,fix,Tf,dtime)
+	plotParticles_3D(output2,solids,mats,0)
+    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,bodyforce,algo2,output2,fix,Tf,dtime)
 
 
+    @printf("Total number of material points: %d \n", solid1.parCount+solid2.parCount)
+    @printf("Total number of grid points:     %d\n", grid.nodeCount)
+    @printf("dt        : %+.6e \n", dtime)
+    println(typeof(basis))
 # end
 
 # @time main()

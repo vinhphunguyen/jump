@@ -142,6 +142,10 @@ struct FEM3D
 	basis               :: FiniteElement
 	vtk_cell            :: VTKCellType
 
+    detJ                :: Vector{Float64} 
+    dNdx                :: Vector{Array{Float64,2}}  # derivatives of all shape functions
+    N                   :: Vector{Vector{Float64}}  # shape functions of all elements
+
 	# particles from a mesh
 	function FEM3D(fileName)
 
@@ -190,8 +194,10 @@ struct FEM3D
 		strain    = fill(zeros(3,3),parCount)
 		stress    = fill(zeros(3,3),parCount)
 		vol       = fill(0.,parCount)
+		detJ      = fill(0.,parCount)
 		m         = fill(0.,nodeCount)
 		x         = fill(zeros(3),nodeCount)
+		
 		
 		
 		velo      = fill(zeros(3),nodeCount)
@@ -207,17 +213,22 @@ struct FEM3D
 		nnodePerElem = length(elems[1])
 
 		if nnodePerElem == 4 
-			basis = Tet4()  
-			vtk_cell = VTKCellTypes.VTK_TETRA
+			basis     = Tet4()  
+			vtk_cell  = VTKCellTypes.VTK_TETRA
+			dNdx      = fill(zeros(3,4),parCount)
+            N         = fill(zeros(4),parCount)
 		end
 		if nnodePerElem == 8 
 			basis = Hexa8() 
-			vtk_cell = VTKCellTypes.VTK_HEXAHEDRON
+			vtk_cell  = VTKCellTypes.VTK_HEXAHEDRON
+			dNdx      = fill(zeros(3,8),parCount)
+            N         = fill(zeros(8),parCount)
 		end
 
 
+
 		new(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
-			   strain,stress,parCount,nodeCount,vcat(map(x->x', elems)...), mesh, fixX,fixY,fixZ,basis,vtk_cell)
+			   strain,stress,parCount,nodeCount,vcat(map(x->x', elems)...), mesh, fixX,fixY,fixZ,basis,vtk_cell,detJ,dNdx,N)
 	end
 end
 
@@ -266,7 +277,58 @@ function fixNodes(solid, tag)
   solid.fixedNodesY[ids] .= 1
 end
 
-export FEM2D, FEM3D, move, assign_velocity, fixYNodes, fixNodes, rotate
+function initializeBasis(solid::FEM3D,density)
+	nodePerElem = size(solid.elems,2)
+
+	if (nodePerElem == 4)  		
+		weights   =  0.166666667  # this is so dangerous!!! all books ay weight =1
+		gpCoords  = [0.25,0.25,0.25]
+		funcs     = zeros(4)
+        ders      = zeros(3,4)
+    end
+
+    if (nodePerElem == 8)  	    
+        weights   = 8.
+        gpCoords  = [0.,0.,0.]
+        funcs     = zeros(8)
+        ders      = zeros(3,8)
+	end
+
+	xx     = solid.pos
+	mm     = solid.mass  # to be updated here
+	elems  = solid.elems		
+	vol    = solid.volume
+	meshBasis = solid.basis
+	N      = solid.N
+	detJ   = solid.detJ
+	dNdx   = solid.dNdx
+
+  	@inbounds for ip = 1:solid.parCount
+		elemNodes  =  @view elems[ip,:]  
+		elemNodes0 =        elems[ip,:]  
+		coords     =  @view xx[elemNodes]
+    
+		J          = lagrange_basis_derivatives!(funcs, ders, meshBasis, gpCoords, coords)
+		if J < 0.
+		  	#elemNodes[2] = elemNodes0[4]			  	
+		  	#elemNodes[4] = elemNodes0[2]
+		  	error("Mesh with negative Jacobian!")
+		end
+
+        www       = J*weights
+		detJ[ip]  = www
+		N[ip]     = copy(funcs)  # be careful with this, 
+		dNdx[ip]  = copy(ders)
+		
+		vol[ip]   = www
+		for i=1:length(elemNodes)
+		  	id      = elemNodes[i]
+		  	mm[id]  += density*funcs[i]*www			  	
+		end
+  	end
+end	
+
+export FEM2D, FEM3D, move, assign_velocity, fixYNodes, fixNodes, rotate, initializeBasis
 
 
 end

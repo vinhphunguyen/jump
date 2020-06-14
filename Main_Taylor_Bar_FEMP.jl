@@ -65,7 +65,7 @@ using BodyForce
     basis = LinearBasis()
 
     # (E,nu,density,A,B,C,n,eps0dot,cellsize,parCount)
-    material  = JohnsonCookMaterial(E,nu,density,A,B,C,n,eps0dot,.42,47040)
+    
     #material  = NeoHookeanMaterial(E,nu,density)
     
     
@@ -74,9 +74,11 @@ using BodyForce
 	dtime     = 0.1 * dt
 
 
-    solid1   = FEM3D("taylor-bar-47040.msh",material)
+    #solid1   = FEM3D("taylor-bar-47040.msh")
     #solid1   = FEM3D("taylor-bar-tet4.msh",material)
-    #solid1   = FEM3D("taylor-bar-52920.msh",material)
+    solid1   = FEM3D("taylor-bar-52920.msh")
+
+    material  = JohnsonCookMaterial(E,nu,density,A,B,C,n,eps0dot,.42,solid1.parCount)
 
     v0       = SVector{3,Float64}([0.0 -vel 0.])
 
@@ -87,6 +89,7 @@ using BodyForce
     
 
     solids = [solid1]
+    mats   = [material]
 
    
  
@@ -94,7 +97,7 @@ using BodyForce
     
 
     @printf("Total number of material points: %d \n", solid1.parCount)
-    @printf("Total mass: %f \n", sum(solid1.mass))
+    @printf("Total mass: %+.6e \n", sum(solid1.mass))
     @printf("Total number of grid points:     %d\n", grid.nodeCount)
     @printf("Sound vel : %+.6e \n", c_dil)
     @printf("dt        : %+.6e \n", dtime)
@@ -106,16 +109,16 @@ using BodyForce
 	output   = VTKOutput(interval,"taylor-femp-tet4-results/",["vx","sigmaxx"])
 	fix      = EnergiesFix(solids,"taylor-femp-tet4-results/energies.txt")
     algo1    = USL(0.)
-    algo2    = TLFEM(0.)
+    algo2    = TLFEM(0.,1.)
     bodyforce = ConstantBodyForce3D([0., 0.,0.])
 
 	plotGrid(output,grid,0)
-	plotParticles_3D(output,solids,0)
-    solve_explicit_dynamics_femp_3D(grid,solids,basis,bodyforce,algo2,output,fix,Tf,dtime)
+	plotParticles_3D(output,solids,mats,0)
+    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,bodyforce,algo2,output,fix,Tf,dtime)
 
     D = abs(solid1.pos[1][1] - solid1.pos[3][1])
     L = abs(solid1.pos[2][2] - solid1.pos[6][2])
     #W = abs(solid1.pos[?][1] - solid1.pos[?][1]) # 5.08 from the bottom 
-# end
+#  end
 
 # @time main()
