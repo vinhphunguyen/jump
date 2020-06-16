@@ -563,7 +563,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 
 		   	#println(strain[ip])
 	   	     #@timeit "3" update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
-	   	    update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
+	   	    update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,T,ip,dtime)
 
             sigma = stress[ip]
             P     = J*sigma*inv(F[ip])'  # convert to Piola Kirchoof stress
@@ -650,6 +650,261 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
   #@printf("Solving done \n")
   closeFile(fixes)
 end # end solve()
+
+
+######################################################################
+# Update Stress Last, TLFEM for internal force, axi-symmetric
+######################################################################
+function solve_explicit_dynamics_femp_3D(grid,solids::Array{FEMAxis,1},mats,basis,body,alg::TLFEM,output,fixes,Tf,dtime)
+    t       = 0.
+    counter = 0
+
+    Identity       = UniformScaling(1.)
+	solidCount     = length(solids)
+	nodalMass      = grid.mass
+	nodalMomentum0 = grid.momentum0
+	nodalMomentum  = grid.momentum
+	nodalForce     = grid.force
+
+    # pre_allocating arrays for temporary variable
+   
+	nearPoints,funcs, ders = initialise(grid,basis)
+
+    vel_grad   = zeros(3,3)
+    vel_gradT  = zeros(3,3)
+    D          = SMatrix{3,3}(0,0,0,0,0,0,0,0,0) #zeros(Float64,2,2)
+    g          = [0.,0.]
+  
+
+	@inbounds for s = 1:solidCount
+		solid  = solids[s]
+        initializeBasis(solid,mats[s].density)
+    end
+
+  while t < Tf
+
+    @printf("Solving step: %d %f \n", counter, t)
+
+    # ===========================================
+    # reset grid data
+    # ===========================================
+
+    @inbounds for i = 1:grid.nodeCount
+	  nodalMass[i]      = 0.
+	  nodalMomentum0[i] =  @SVector [0., 0.]
+	  nodalForce[i]     =  @SVector [0., 0.]
+    end
+
+    # ===========================================
+    # particle to grid (deformable solids)
+    # ===========================================
+
+	@inbounds for s = 1:solidCount
+		solid  = solids[s]
+	
+		xx     = solid.pos
+		mm     = solid.mass
+		vv     = solid.velocity		
+		fint   = solid.fint
+		fbody  = solid.fbody
+		ftrac  = solid.ftrac
+		du     = solid.dU
+
+	  	@inbounds for ip = 1:solid.nodeCount	        
+			support   = getShapeFunctions(nearPoints,funcs,ip, grid, solid,basis)
+	        
+	        fMass     = mm[ip]
+	        vp        = vv[ip]
+	        fp        = fint[ip]
+	        fb        = fbody[ip]
+	        ft        = ftrac[ip]
+			#body      = problem.bodyforce(xx[ip],t)
+			
+			@inbounds for i = 1:support
+				in    = nearPoints[i]; # index of node 'i'
+				Ni    = funcs[i]				
+				Nim   = Ni * fMass
+				# mass, momentum, internal force and external force
+				nodalMass[in]      += Nim
+				nodalMomentum0[in] += Nim * vp 
+				nodalForce[in]     -= Ni  * fp
+				nodalForce[in]     += Ni  * fb
+				nodalForce[in]     += Ni  * ft
+			end
+			du[ip] = @SVector [0., 0.]
+	  	end
+	end
+
+	# ===========================================
+	# update grid
+	# ===========================================
+
+	@inbounds for i=1:grid.nodeCount
+		nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
+        # apply Dirichet boundary conditions
+        if grid.fixedXNodes[i] == 1
+			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
+   		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
+        end
+        if grid.fixedYNodes[i] == 1
+			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
+			nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
+        end
+	end
+
+	
+    # ====================================================================
+    # grid to particle (deformable solids): update particle velocity/pos
+    # ====================================================================
+
+    @inbounds for s = 1:solidCount
+		# only deformable solids here
+	  	solid = solids[s]
+
+	  	xx    = solid.pos
+	  	mm    = solid.mass
+	  	vv    = solid.velocity
+	  	du    = solid.dU
+	  	fixX  = solid.fixedNodesX
+	  	fixY  = solid.fixedNodesY
+	  	
+	  	@inbounds for ip = 1:solid.nodeCount
+			support   = getShapeFunctions(nearPoints,funcs,ip, grid, solid, basis)	        
+			vvp       = vv[ip]
+			xxp       = xx[ip]
+			dup       = du[ip]
+			for i = 1:support
+				in = nearPoints[i]; # index of node 'i'
+				Ni = funcs[i]
+				mI = nodalMass[in]
+			    if (mI > alg.tolerance)
+					invM       = 1.0 / mI
+					vI         = nodalMomentum[in] * invM
+					vvp       += Ni * (nodalMomentum[in] - nodalMomentum0[in]) * invM
+					xxp       += Ni * vI * dtime				
+					dup       += Ni * vI * dtime						
+		   		end
+		   	end
+			vv[ip]      = vvp
+			xx[ip]      = xxp	
+			du[ip]      = dup
+			# Dirichlet BCs on the mesh
+			if fixY[ip] == 1 
+				vv[ip] = setindex(vv[ip],0.,2)
+				du[ip] = setindex(du[ip],0.,2)
+				xx[ip] = setindex(xx[ip],solid.pos0[ip][2],2)
+			end
+	    end
+	end
+
+
+    # ====================================================================
+    #  update particle internal forces
+    # ====================================================================
+
+    @inbounds for s = 1:solidCount
+		# only deformable solids here
+	  	solid = solids[s]
+
+	  	XX     = solid.pos0
+	  	xx     = solid.pos
+	  	mm     = solid.mass
+	  	du     = solid.dU
+	  	F      = solid.deformationGradient
+	  	mat    = mats[s]
+	  	stress = solid.stress
+	  	strain = solid.strain
+	  	elems  = solid.elems
+	  	fint   = solid.fint
+	  	fbody  = solid.fbody
+	  	vol    = solid.volume
+	  	meshBasis = solid.basis
+	  	feFuncs   = solid.N
+	  	feDers    = solid.dNdx
+	  	feJaco    = solid.detJ
+	  	
+	  	for ip=1:solid.nodeCount 
+	  		fint[ip]  = @SVector [0., 0.]
+	  		fbody[ip] = @SVector [0., 0.]
+	  	end
+        # loop over solid elements, not solid nodes
+	  	@inbounds for ip = 1:solid.parCount
+			elemNodes =  @view elems[ip,:]  			
+			detJ      = feJaco[ip]
+			N         = feFuncs[ip]
+			dNdx      = feDers[ip]
+			
+			vol[ip]   = detJ
+			#println(dNdx)
+			#println(sum(dNdx, dims=2))
+			vel_grad  .= 0.
+			vel_gradT .= 0.
+			for i = 1:length(elemNodes)
+				in         = elemNodes[i]; # index of node 'i'
+			    dNi        = @view dNdx[:,i]			
+				vI         = du[in]
+				vIt        = xx[in] - XX[in]
+
+				vel_grad[1,1]  += dNi[1]*vI[1] 
+				vel_grad[1,2]  += dNi[2]*vI[1] 
+				vel_grad[2,1]  += dNi[1]*vI[2] 
+				vel_grad[2,2]  += dNi[2]*vI[2] 
+				vel_grad[3,3]  += N[i]*vI[1] 
+
+				vel_gradT[1,1]  += dNi[1]*vIt[1] 
+				vel_gradT[1,2]  += dNi[2]*vIt[1] 
+				vel_gradT[2,1]  += dNi[1]*vIt[2] 
+				vel_gradT[2,2]  += dNi[2]*vIt[2] 
+				vel_gradT[3,3]  += N[i]*vIt[1] 
+		   	end
+		   	
+			#dstrain      = 0.5 * (vel_grad + vel_grad' + vel_grad * vel_grad') - strain[ip] 
+			
+			Fdot         = vel_grad/dtime
+
+		   	
+		   	F[ip]        = Identity + vel_gradT
+		   	J            = det(F[ip])
+
+		   	L             = Fdot*inv(F[ip])
+		   	D             = 0.5 * dtime * (L + L')
+		   	strain[ip]   += D #0.5 * (vel_grad + vel_grad' + vel_grad * vel_grad')
+
+		   	#println(strain[ip])
+	   	     #@timeit "3" update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
+	   	    update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
+
+            sigma = stress[ip]
+            P     = J*sigma*inv(F[ip])'  # convert to Piola Kirchoof stress
+
+            body(g,[0 0 0],t)  
+            # compute nodal internal force fint
+		    for i = 1:length(elemNodes)
+				in  = elemNodes[i]; # index of node 'i'
+			    dNi = @view dNdx[:,i]			
+	   	        fint[in]  +=  detJ * @SVector[P[1,1] * dNi[1] + P[1,2] * dNi[2] + P[3,3] * N[i],
+										      P[2,1] * dNi[1] + P[2,2] * dNi[2]  ]
+                fbody[in] += detJ*mat.density*N[i]*g								        
+            end
+	   end
+	end
+
+	t       += dtime
+
+	if (counter%output.interval == 0)
+		#println("haha\n")
+		plotParticles_2D(output,solids,mats,counter)
+		#plotGrid(output,grid,counter)
+		compute_femp(fixes,t)
+	end
+
+    
+    counter += 1
+  end # end of time loop
+  #@printf("Solving done \n")
+  closeFile(fixes)
+end # end solve()
+
 
 ######################################################################
 # Update Stress Last, TLFEM for internal force

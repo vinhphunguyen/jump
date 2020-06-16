@@ -278,6 +278,9 @@ struct JohnsonCookMaterial <: MaterialType
 	C      :: Float64
 	n      :: Float64
 	epsdot0:: Float64
+	m      :: Float64
+	χ      :: Float64  # Taylor-Quinney coeffcient
+	Cp     :: Float64  # specific heat
 	# Lame's constant
     lambda ::Float64
     mu     ::Float64
@@ -294,7 +297,7 @@ struct JohnsonCookMaterial <: MaterialType
 	sigmaTrial_dev::MMatrix{3,3,Float64,9}
 	sigmaFinal_dev::MMatrix{3,3,Float64,9}
 
-	function JohnsonCookMaterial(E,nu,density,A,B,C,n,eps0dot,cellsize,parCount)
+	function JohnsonCookMaterial(E,nu,density,A,B,C,n,eps0dot,m,χ,Cp,cellsize,parCount)
 
 		lambda = E*nu/(1+nu)/(1-2*nu)
 		mu     = E/2/(1+nu)
@@ -306,7 +309,7 @@ struct JohnsonCookMaterial <: MaterialType
 		alphad   = fill(0,parCount)
 		vmStr    = fill(0,parCount)		
 
-        new(E,nu,density,A,B,C,n,eps0dot,lambda,mu,kappa,velo,cellsize,alpha,alphad,vmStr,zeros(3,3),zeros(3,3),zeros(3,3))
+        new(E,nu,density,A,B,C,n,eps0dot,m,χ,Cp,lambda,mu,kappa,velo,cellsize,alpha,alphad,vmStr,zeros(3,3),zeros(3,3),zeros(3,3))
     end
 end
 
@@ -377,8 +380,9 @@ struct JohnsonCookDamage
 	Tr      :: Float64
 	Tm      :: Float64
 	Tmr     :: Float64
-	function JohnsonCookDamage(d1,d2,d3,d4,d5,epsdot0,Tr,Tm)
-		return new(d1,d2,d3,d4,d5,epsdot0,Tr,Tm,Tm-Tr)
+	temp    :: Vector{Float64}
+	function JohnsonCookDamage(d1,d2,d3,d4,d5,epsdot0,Tr,Tm,parCount)
+		return new(d1,d2,d3,d4,d5,epsdot0,Tr,Tm,Tm-Tr,fill(Tr,parCount))
 	end
 end
 
@@ -438,6 +442,17 @@ end
 # 3D stress update for J2 plasticity
 function update_stress!(sig::MMatrix{3,3,Float64},mat::JohnsonCookMaterialWithDamage,
 	                    eps0::SMatrix{3,3,Float64},strain_increment,F, J, ip,dtime)
+
+    damage = mat.damage.dam[ip]
+
+    # id damage = 1: only pressure (no deviatoric stress)
+	if (damage >= 1.0)
+	    pH  = mat.kappa*(eps0[1,1]+eps0[2,2]+eps0[3,3])*UniformScaling(1.)
+	    sig                 .=       pH
+	    return nothing;
+	end
+
+
     sigmaTrial     = mat.strength.sigmaTrial
     sigmaTrial_dev = mat.strength.sigmaTrial_dev
     sigmaFinal_dev = mat.strength.sigmaFinal_dev
@@ -447,17 +462,24 @@ function update_stress!(sig::MMatrix{3,3,Float64},mat::JohnsonCookMaterialWithDa
     epsdot_ratio        = mat.strength.alphadot[ip] / mat.strength.epsdot0;
     epsdot_ratio        = max(epsdot_ratio, 1.0);
 
+    T = mat.damage.temp[ip]
+
     if (eff_plastic_strain < 1.0e-10)
       yieldStress = mat.strength.A;
-    else 
+    elseif ( T < damage.Tm ) 
       if (mat.strength.C != 0)
         yieldStress = (mat.strength.A + mat.strength.B * eff_plastic_strain^mat.strength.n) * (1.0 + epsdot_ratio)^mat.strength.C;
       else
         yieldStress = mat.strength.A + mat.strength.B * eff_plastic_strain^mat.strength.n;
       end  
+      if (mat.strength.m != 0 && T >= mat.damage.Tr)
+        yieldStress *= 1.0 - ((T - mat.damage.Tr) / mat.damage.Tmr)^mat.strength.m ;
+      end
+    else
+        yieldStress = 0.
     end
 
-    damage = mat.damage.dam[ip]
+    
     Gd     = mat.strength.mu
 	if (damage > 0)
 		Gd          *= (1 - damage);
@@ -489,11 +511,15 @@ function update_stress!(sig::MMatrix{3,3,Float64},mat::JohnsonCookMaterialWithDa
     mat.strength.alphadot[ip] += plastic_strain_increment / tav;
     mat.strength.alphadot[ip] = max(0.0, mat.alphadot[ip]);
 
-    mat.strength.vmStr[ip] = sqrt(  sigmaFinal_dev[1,1]^2 + sigmaFinal_dev[2,2]^2 + sigmaFinal_dev[3,3]^2 + 2*(sigmaFinal_dev[1,2]^2+sigmaFinal_dev[1,3]^2+sigmaFinal_dev[2,3]^2) )
+    flow_stress            = 1.224744871391589 * sqrt(  sigmaFinal_dev[1,1]^2 + sigmaFinal_dev[2,2]^2 + sigmaFinal_dev[3,3]^2 + 2*(sigmaFinal_dev[1,2]^2+sigmaFinal_dev[1,3]^2+sigmaFinal_dev[2,3]^2) )
+    mat.strength.vmStr[ip] = flow_stress
 
     # update damage
     damage_init[ip], dam[ip] = compute_damage(damage_init[ip], dam[ip], pH, sigmaFinal_dev, 
     	                                         mat.strength.alphadot[ip], plastic_strain_increment,T, mat.damage)
+
+    T += alpha*flow_stress*plastic_strain_increment;
+    mat.damage.temp[ip] = T
 end	                    
 
 export MaterialType, RigidMaterial, ElasticMaterial, ElastoPlasticMaterial, NeoHookeanMaterial, JohnsonCookMaterial

@@ -60,27 +60,42 @@ using BodyForce
 	grid  = Grid3D(0.,60.0, 0.,60.0, 0,60, 71, 61, 71)
 	basis = LinearBasis()
 
-    solid1   = FEM3D("sphere.msh")
-    #solid2   = FEM3D("rect-3D.msh")
+    dx1 = fOffset1 = grid.dx/2
+    dx2 = fOffset2 = grid.dx/1
+
+    coords1 = buildParticleForSphere([0.0; 0.0; 0.0], 9.53/2, fOffset1)
+    #coords2 = buildParticleForBlock([0.0; 0.0; 0.0], 60., 40., 60., fOffset2)
+    coords2 = buildParticleForCylinder([0.;  0.; 0.], 30., 20., fOffset2, fOffset2)
+    
     #solid2   = FEM3D("cylinder.msh")
-    solid2   = FEM3D("cylinder.inp")
+    #solid2   = FEM3D("cylinder.inp")
 
 
     material1 = ElasticMaterial(steelE,steelNu,steelRho,0.,0.)
-    material2 = JohnsonCookMaterial(alumE,alumNu,alumRho,A,B,C,n,eps0dot,.42,solid2.parCount) 
+    material2 = JohnsonCookMaterial(alumE,alumNu,alumRho,A,B,C,n,eps0dot,.42,length(coords2)) 
     #ElastoPlasticMaterial(alumE,alumNu,alumRho,alumFy,alumK,solid2.parCount)
+
+    solid1   = Solid3D(coords1,material1)
+    solid2   = Solid3D(coords2,material2)
+
+    solid1.mass          .*= dx1^3
+    solid1.volume        .=  dx1^3
+    solid1.volumeInitial .=  dx1^3
+
+    solid2.mass          .*= dx2^3
+    solid2.volume        .=  dx2^3
+    solid2.volumeInitial .=  dx2^3
 
     v0 = SVector{3,Float64}([0.0 -v 0.])
 
     # assign initial velocity for the particles
-    Fem.assign_velocity(solid1, v0)
-    Fem.move(solid1,SVector{3,Float64}([ 30.,  40. + 10., 30.]))
-    Fem.move(solid2,SVector{3,Float64}([ 30.,  0., 30.]))
-    #Fem.move(solid2,SVector{3,Float64}([ .5,  0., .5]))
+    Solid.assign_velocity(solid1, v0)
+    Solid.move(solid1,SVector{3,Float64}([ 30.,  40. + 10., 30.]))
+    Solid.move(solid2,SVector{3,Float64}([ 30.,  20., 30.]))
     
 
-    solids = [solid1 solid2]
-    mats   = [material1 material2]
+    solids = [solid1, solid2]
+    
 
     #fixNodes(solid2,"bottom")
     #fixNodes(solid2,"left-right")
@@ -115,10 +130,10 @@ using BodyForce
     #dtime   = 1.0e-8
 
 
-	output2  = VTKOutput(interval,"impact-femp-3D-results/",["vx","sigmaxx"])
-	fix      = DisplacementFemFix(solid2,"impact-femp-3D-results/",2)
+	output2  = OvitoOutput(interval,"impact-3D-results/",["pressure","vonMises"])
+	fix      = DisplacementFix(solids,@SVector[30.42857142857142, 39, 30.42857142857142],"impact-3D-results/")
     algo1    = USL(0.)
-    algo2    = TLFEM(0.,0.999)
+    algo2    = MUSL(0.999)
     bodyforce = ConstantBodyForce3D([0.,0.,0.])
 
 
@@ -129,8 +144,10 @@ using BodyForce
     println(typeof(basis))
 
 	plotGrid(output2,grid,0)
-	plotParticles_3D(output2,solids,mats,0)
-    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,bodyforce,algo2,output2,fix,Tf,dtime)
+	plotParticles_3D(output2,solids,[grid.lx, grid.ly, grid.lz],
+                    [grid.nodeCountX, grid.nodeCountY, grid.nodeCount],0)
+    
+    solve_explicit_dynamics_3D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
 
 
     @printf("Total number of material points: %d \n", solid1.parCount+solid2.parCount)

@@ -2,8 +2,11 @@ module Fix
 
 using Printf
 using LinearAlgebra
+using StaticArrays
+
 using Solid
 using Fem
+
 
 abstract type FixBase end
 
@@ -15,7 +18,7 @@ struct DisplacementFix <: FixBase
     file
     index
 
-    function DisplacementFix(solids,point,dir)
+    function DisplacementFix(solids,point::SVector{2,Float64},dir)
         index      = [-10 -10]
         println(point)
         for s = 1:length(solids)
@@ -25,6 +28,37 @@ struct DisplacementFix <: FixBase
                 x = pos[p][1]
                 y = pos[p][2]
                 if sqrt((x - point[1])^2 + (y - point[2])^2) < 1e-10
+                    index = [s p]
+                    #println(index)
+                    break
+                end
+            end
+        end
+
+        if (index[2] < 0 ) error("No particle with that position found\n") end
+
+        filename = string(dir,"recorded-position.txt")
+
+        if (isfile(filename))
+            rm(filename)
+        end
+
+        file = open(filename, "a")
+
+        new(solids,file,index)
+    end
+
+    function DisplacementFix(solids,point::SVector{3,Float64},dir)
+        index      = [-10 -10]
+        println(point)
+        for s = 1:length(solids)
+            solid = solids[s]
+            pos   = solid.pos
+            for p = 1:solid.parCount
+                x = pos[p][1]
+                y = pos[p][2]
+                z = pos[p][3]
+                if sqrt((x - point[1])^2 + (y - point[2])^2 + (z - point[3])^2) < 1e-10
                     index = [s p]
                     #println(index)
                     break
