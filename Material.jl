@@ -547,6 +547,10 @@ function get_von_mises_stress(ip,mat)
 	return mat.vmStr[ip]
 end
 
+function get_von_mises_stress(ip,mat::ElasticMaterial)
+	return 0.
+end
+
 function getPlasticStrain(ip,mat::JohnsonCookMaterialWithDamage)
 	return mat.strength.alpha[ip]
 end

@@ -170,6 +170,7 @@ struct FEM3D
 			for i=1:parCount			
 				push!(elems,mesh.elements[volumetricElems[i]])
 			end
+			if (haskey(mesh.element_sets,"boundary")) Mesh.create_node_set_from_element_set!(mesh, "boundary") end
 		elseif ext == ".inp"
 			mesh_abaqus     = abaqus_read_mesh(fileName)
 			nodeCount       = length(mesh_abaqus["nodes"])
