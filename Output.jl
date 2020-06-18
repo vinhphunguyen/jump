@@ -458,6 +458,8 @@ function plotParticles_3D(plot::VTKOutput,solids,mats,counter::Int64)
 	    p      = zeros(solid.parCount)
 	    ps     = zeros(solid.parCount)
 	    sigyy  = zeros(solid.parCount)
+	    d      = zeros(solid.parCount)       # damage
+	    T      = zeros(solid.parCount)       # temperature
         
 
 	    cc = 1
@@ -485,11 +487,11 @@ function plotParticles_3D(plot::VTKOutput,solids,mats,counter::Int64)
 		    c    = MeshCell(cell_type, inds)
             push!(cells, c)
             sigma = stress[e]
-            vmsigma = elastic ? 0. : mat.vmStr[e]
-            pStrain = elastic ? 0. : mat.alpha[e]
-            p[e]  = sigma[1,1]+sigma[2,2]
-            vm[e] = vmsigma
-            ps[e] = pStrain
+            vm[e]   = get_von_mises_stress(e,mat)
+            ps[e]   = getPlasticStrain(e,mat)
+            T[e]    = getTemperature(e,mat)
+            d[e]    = getDamage(e,mat)
+            p[e]    = sigma[1,1]+sigma[2,2]                      
             sigyy[e] = solid.stress[e][2,2]
         end
 
@@ -501,6 +503,8 @@ function plotParticles_3D(plot::VTKOutput,solids,mats,counter::Int64)
 	    vtkfile["Velocity", VTKPointData()] = velo
 	    vtkfile["Displacement", VTKPointData()] = disp
 	    vtkfile["vonMises", VTKCellData()] = vm
+	    vtkfile["damage", VTKCellData()] = d
+	    vtkfile["temperature", VTKCellData()] = T
 	end
 	outfiles    = vtk_save(vtmfile)
 end

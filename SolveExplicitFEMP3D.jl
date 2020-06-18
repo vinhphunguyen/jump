@@ -563,7 +563,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 
 		   	#println(strain[ip])
 	   	     #@timeit "3" update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
-	   	    update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,T,ip,dtime)
+	   	    update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
 
             sigma = stress[ip]
             P     = J*sigma*inv(F[ip])'  # convert to Piola Kirchoof stress

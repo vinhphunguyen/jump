@@ -287,6 +287,7 @@ struct JohnsonCookMaterial <: MaterialType
     kappa  ::Float64
     signal_velocity::Float64
     cellsize::Float64
+    delta::Float64
 
 
 	alpha    ::Vector{Float64}             # equivalent plastic strain
@@ -309,7 +310,10 @@ struct JohnsonCookMaterial <: MaterialType
 		alphad   = fill(0,parCount)
 		vmStr    = fill(0,parCount)		
 
-        new(E,nu,density,A,B,C,n,eps0dot,m,χ,Cp,lambda,mu,kappa,velo,cellsize,alpha,alphad,vmStr,zeros(3,3),zeros(3,3),zeros(3,3))
+		delta    = χ/(density*Cp)
+
+        new(E,nu,density,A,B,C,n,eps0dot,m,χ,Cp,lambda,mu,kappa,velo,cellsize,delta,
+        	alpha,alphad,vmStr,zeros(3,3),zeros(3,3),zeros(3,3))
     end
 end
 
@@ -398,7 +402,7 @@ function compute_damage(damage_init, damage,
   # determine stress triaxiality
   triax = 0.0;
   if (pH != 0.0 && vm != 0.0)
-    triax = -pH / (vm + 0.01 * fabs(pH)); # have softening in denominator to avoid divison by zero
+    triax = -pH / (vm + 0.01 * abs(pH)); # have softening in denominator to avoid divison by zero
   end
 
   if (triax > 3.0) triax = 3.0; end
@@ -415,7 +419,7 @@ function compute_damage(damage_init, damage,
     end
   end
 
-  if (mat.d5 > 0.0 && T >= mat.Tr) jc_failure_strain *= 1 + mat.d5 * (T - mat.Tr) / mat.Tmr; end
+  if (mat.d5 > 0.0 && T >= mat.Tr) jc_failure_strain *= 1. + mat.d5 * (T - mat.Tr) / mat.Tmr; end
 
   damage_init += plastic_strain_increment / jc_failure_strain;
 
@@ -427,15 +431,16 @@ function compute_damage(damage_init, damage,
 end
 
 struct JohnsonCookMaterialWithDamage
-	strength::JohnsonCookMaterial
-	damage  ::JohnsonCookDamage
+	strength_part::JohnsonCookMaterial
+	damage_part  ::JohnsonCookDamage
 
 
 	damage_init    ::Vector{Float64}             
 	dam            ::Vector{Float64}     
+	density ::Float64
 	function   JohnsonCookMaterialWithDamage(strength,damage)
 		damage_init = zeros(length(strength.alpha))
-		return new(strength,damage,damage_init,copy(damage_init))
+		return new(strength,damage,damage_init,copy(damage_init),strength.density)
 	end
 end
 
@@ -443,44 +448,44 @@ end
 function update_stress!(sig::MMatrix{3,3,Float64},mat::JohnsonCookMaterialWithDamage,
 	                    eps0::SMatrix{3,3,Float64},strain_increment,F, J, ip,dtime)
 
-    damage = mat.damage.dam[ip]
+    damage = mat.dam[ip]
 
     # id damage = 1: only pressure (no deviatoric stress)
 	if (damage >= 1.0)
-	    pH  = mat.kappa*(eps0[1,1]+eps0[2,2]+eps0[3,3])*UniformScaling(1.)
-	    sig                 .=       pH
+	    pH  = mat.strength_part.kappa*(eps0[1,1]+eps0[2,2]+eps0[3,3])
+	    sig        .=  SMatrix{3,3}(pH,0,0,0,pH,0,0,0,pH)
 	    return nothing;
 	end
 
 
-    sigmaTrial     = mat.strength.sigmaTrial
-    sigmaTrial_dev = mat.strength.sigmaTrial_dev
-    sigmaFinal_dev = mat.strength.sigmaFinal_dev
+    sigmaTrial     = mat.strength_part.sigmaTrial
+    sigmaTrial_dev = mat.strength_part.sigmaTrial_dev
+    sigmaFinal_dev = mat.strength_part.sigmaFinal_dev
 
-    eff_plastic_strain  = mat.strength.alpha[ip]
+    eff_plastic_strain  = mat.strength_part.alpha[ip]
 
-    epsdot_ratio        = mat.strength.alphadot[ip] / mat.strength.epsdot0;
+    epsdot_ratio        = mat.strength_part.alphadot[ip] / mat.strength_part.epsdot0;
     epsdot_ratio        = max(epsdot_ratio, 1.0);
 
-    T = mat.damage.temp[ip]
+    T = mat.damage_part.temp[ip]
 
     if (eff_plastic_strain < 1.0e-10)
-      yieldStress = mat.strength.A;
-    elseif ( T < damage.Tm ) 
-      if (mat.strength.C != 0)
-        yieldStress = (mat.strength.A + mat.strength.B * eff_plastic_strain^mat.strength.n) * (1.0 + epsdot_ratio)^mat.strength.C;
+      yieldStress = mat.strength_part.A;
+    elseif ( T < mat.damage.Tm ) 
+      if (mat.strength_part.C != 0)
+        yieldStress = (mat.strength_part.A + mat.strength_part.B * eff_plastic_strain^mat.strength_part.n) * (1.0 + epsdot_ratio)^mat.strength_part.C;
       else
-        yieldStress = mat.strength.A + mat.strength.B * eff_plastic_strain^mat.strength.n;
+        yieldStress = mat.strength_part.A + mat.strength_part.B * eff_plastic_strain^mat.strength_part.n;
       end  
-      if (mat.strength.m != 0 && T >= mat.damage.Tr)
-        yieldStress *= 1.0 - ((T - mat.damage.Tr) / mat.damage.Tmr)^mat.strength.m ;
+      if (mat.strength_part.m != 0 && T >= mat.damage_part.Tr)
+        yieldStress *= 1.0 - ((T - mat.damage_part.Tr) / mat.damage_part.Tmr)^mat.strength_part.m ;
       end
     else
         yieldStress = 0.
     end
 
     
-    Gd     = mat.strength.mu
+    Gd     = mat.strength_part.mu
 	if (damage > 0)
 		Gd          *= (1 - damage);
 		yieldStress *= (1 - damage);
@@ -500,29 +505,65 @@ function update_stress!(sig::MMatrix{3,3,Float64},mat::JohnsonCookMaterialWithDa
        sigmaFinal_dev     *= (yieldStress / J2);
     end
 
-	mat.alpha[ip]        = eff_plastic_strain + plastic_strain_increment
+	mat.strength_part.alpha[ip]        = eff_plastic_strain + plastic_strain_increment
 	# be careful with .=, without it sig is not updated 
 	
-	pH                   = mat.kappa*(eps0[1,1]+eps0[2,2]+eps0[3,3])*UniformScaling(1.)
-	sig                 .= sigmaFinal_dev     + pH
+	pH                   = mat.strength_part.kappa*(eps0[1,1]+eps0[2,2]+eps0[3,3])
+	sig                 .= sigmaFinal_dev     + pH*UniformScaling(1.)
 
-	tav = 1000 * mat.cellsize / mat.signal_velocity;
-    mat.strength.alphadot[ip] -= mat.alphadot[ip] * dtime / tav;
-    mat.strength.alphadot[ip] += plastic_strain_increment / tav;
-    mat.strength.alphadot[ip] = max(0.0, mat.alphadot[ip]);
+	tav = 1000 * mat.strength_part.cellsize / mat.strength_part.signal_velocity;
+    mat.strength_part.alphadot[ip] -= mat.strength_part.alphadot[ip] * dtime / tav;
+    mat.strength_part.alphadot[ip] += plastic_strain_increment / tav;
+    mat.strength_part.alphadot[ip] = max(0.0, mat.strength_part.alphadot[ip]);
 
     flow_stress            = 1.224744871391589 * sqrt(  sigmaFinal_dev[1,1]^2 + sigmaFinal_dev[2,2]^2 + sigmaFinal_dev[3,3]^2 + 2*(sigmaFinal_dev[1,2]^2+sigmaFinal_dev[1,3]^2+sigmaFinal_dev[2,3]^2) )
-    mat.strength.vmStr[ip] = flow_stress
+    mat.strength_part.vmStr[ip] = flow_stress
 
     # update damage
-    damage_init[ip], dam[ip] = compute_damage(damage_init[ip], dam[ip], pH, sigmaFinal_dev, 
-    	                                         mat.strength.alphadot[ip], plastic_strain_increment,T, mat.damage)
+    mat.damage_init[ip], mat.dam[ip] = compute_damage(mat.damage_init[ip], mat.dam[ip], pH, sigmaFinal_dev, 
+    	                                         mat.strength_part.alphadot[ip], plastic_strain_increment,T, mat.damage_part)
 
-    T += alpha*flow_stress*plastic_strain_increment;
+    T += mat.strength_part.delta*flow_stress*plastic_strain_increment;
     mat.damage.temp[ip] = T
 end	                    
 
-export MaterialType, RigidMaterial, ElasticMaterial, ElastoPlasticMaterial, NeoHookeanMaterial, JohnsonCookMaterial
-export update_stress!, computeCrackDrivingForce
+function getPlasticStrain(ip,mat)
+	return mat.alpha[ip]
+end
+
+function getPlasticStrain(ip,mat::Union{ElasticMaterial,NeoHookeanMaterial})
+	return 0.
+end
+
+function getTemperature(ip,mat::Union{ElasticMaterial,NeoHookeanMaterial})
+	return 0.
+end
+
+function getDamage(ip,mat::Union{ElasticMaterial,NeoHookeanMaterial})
+	return 0.
+end
+
+function get_von_mises_stress(ip,mat)
+	return mat.vmStr[ip]
+end
+
+function getPlasticStrain(ip,mat::JohnsonCookMaterialWithDamage)
+	return mat.strength.alpha[ip]
+end
+
+function get_von_mises_stress(ip,mat::JohnsonCookMaterialWithDamage)
+	return mat.strength.vmStr[ip]
+end
+
+function getTemperature(ip,mat::JohnsonCookMaterialWithDamage)
+	return mat.damage.temp[ip]
+end
+
+function getDamage(ip,mat::JohnsonCookMaterialWithDamage)
+	return mat.dam[ip]
+end
+
+export MaterialType, RigidMaterial, ElasticMaterial, ElastoPlasticMaterial, NeoHookeanMaterial, JohnsonCookMaterial, JohnsonCookDamage, JohnsonCookMaterialWithDamage
+export update_stress!, computeCrackDrivingForce, getPlasticStrain, get_von_mises_stress,getTemperature, getDamage
 
 end

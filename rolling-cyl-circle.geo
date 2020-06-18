@@ -1,5 +1,5 @@
-h=0.02;
-r1 = 0.2;
+h=40.;
+r1 = 0.5e3;
 
 Point(1) = {0,0, 0, h};
 Point(2) = {r1,0, 0, h};
@@ -13,6 +13,6 @@ Circle(4) = {5, 1, 2};
 Line Loop(5) = {1, 2, 3, 4};
 
 Plane Surface(60) = {5};
-Physical Line("boundary")={1,2,3,4};
 Physical Surface("All")={60};
+Physical Line("boundary")={1,2,3,4};
 

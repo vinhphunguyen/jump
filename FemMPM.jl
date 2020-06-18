@@ -30,8 +30,12 @@ using Fem
 
 include("SolveExplicitFEMP2D.jl")
 include("SolveExplicitFEMP3D.jl")
+include("SolveExplicitFEMP2DContact.jl")
 
 export solve_explicit_dynamics_femp_2D
 export solve_explicit_dynamics_femp_3D
+
+export solve_explicit_dynamics_femp_2D_Contact
+#export solve_explicit_dynamics_femp_3D_Contact
 
 end

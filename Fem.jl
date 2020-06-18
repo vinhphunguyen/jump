@@ -45,6 +45,7 @@ struct FEM2D
 
 	basis               :: FiniteElement     # finite element basis function
 	vtk_cell            :: VTKCellType
+	#boundary_nodes      :: Set{Int64}
 
 	# particles from a mesh
 	function FEM2D(fileName)
@@ -101,6 +102,8 @@ struct FEM2D
 
 	    fixX       = fill(0,nodeCount)
 		fixY       = fill(0,nodeCount)
+
+		if (haskey(mesh.element_sets,"boundary")) Mesh.create_node_set_from_element_set!(mesh, "boundary") end
 		
 
 		new(m,vol,centerX,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
