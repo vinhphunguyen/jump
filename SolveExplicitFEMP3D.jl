@@ -306,8 +306,19 @@ end # end solve()
 ######################################################################
 # Update Stress Last, TLFEM for internal force
 ######################################################################
-function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,output,fixes,Tf,dtime)
-    t       = 0.
+
+# data is a dictionary: 
+# data["pressure"]   = [(1,"tag1",f),(2,"tag2",g)]
+# data["total_time"] = Tf
+# data["dt"]         = dtime
+# data["time"]       = t
+
+
+function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,output,fixes,data)
+    Tf    = data["total_time"]
+	dtime = data["dt"]         
+	t     = data["time"]      
+
     counter = 0
 
     Identity       = UniformScaling(1.)
@@ -587,47 +598,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 
     t       += dtime
 
-    @inbounds for s = 1:solidCount
-		# only deformable solids here
-	  	solid = solids[s]
-
-	  	XX     = solid.pos0	  	  	  
-	  	elems  = solid.mesh.elements
-	  	ftrac  = solid.ftrac
-	  	for ip=1:solid.nodeCount 
-	  		ftrac[ip]  = @SVector [0., 0., 0.]	  		
-	  	end
-
-        if haskey(solid.mesh.element_sets, "force")
-	  	    surf_elems_ids = collect(solid.mesh.element_sets["force"])
-	  	else
-	  		continue
-	  	end
-        # loop over  elements of the surface tag 'force'
-	  	@inbounds for ip in surf_elems_ids
-			elemNodes =  elems[ip]  
-			coords    =  @view XX[elemNodes]
-			#println(coords)
-			getNormals!(funcs_surface, normals_surface, weights_surface , coords, gpCoords_surface, Quad4() )
-			# loop over Gauss points
-			for ip=1:4                     
-			    ww = weights_surface[ip]   
-			    #println(normals_surface[:,ip])       
-			    #println(ww)       
-				for i = 1:length(elemNodes)
-				   in  = elemNodes[i]; # index of node 'i'
-				   ss  = funcs_surface[i,ip]*ww*400*exp(-10000*t)
-		           ftrac[in][1] -= normals_surface[1,ip]*ss
-		           #if normals_surface[2,ip] < 0. 
-		           	ftrac[in][2] -= normals_surface[2,ip]*ss
-		           #else
-		           #	ftrac[in][2] += normals_surface[2,ip]*ss
-		           #end
-		           ftrac[in][3] -= normals_surface[3,ip]*ss
-		        end
-	        end
-	   end
-	end
+    compute_fext(solids,funcs_surface, normals_surface, weights_surface, gpCoords_surface,data,t)
 
     # checking the pressure 
  #    ftrac = solids[1].ftrac

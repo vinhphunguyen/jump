@@ -143,6 +143,7 @@ struct FEM3D
 	fixedNodesZ         :: Vector{Int64}
 
 	basis               :: FiniteElement
+	basis_S             :: FiniteElement
 	vtk_cell            :: VTKCellType
 
     detJ                :: Vector{Float64} 
@@ -220,12 +221,14 @@ struct FEM3D
 
 		if nnodePerElem == 4 
 			basis     = Tet4()  
+			basis_S   = Tri3()  
 			vtk_cell  = VTKCellTypes.VTK_TETRA
 			dNdx      = fill(zeros(3,4),parCount)
             N         = fill(zeros(4),parCount)
 		end
 		if nnodePerElem == 8 
-			basis = Hexa8() 
+			basis     = Hexa8() 
+			basis_S   = Quad4() 
 			vtk_cell  = VTKCellTypes.VTK_HEXAHEDRON
 			dNdx      = fill(zeros(3,8),parCount)
             N         = fill(zeros(8),parCount)
@@ -234,7 +237,7 @@ struct FEM3D
 
 
 		new(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
-			   strain,stress,parCount,nodeCount,vcat(map(x->x', elems)...), mesh, fixX,fixY,fixZ,basis,vtk_cell,detJ,dNdx,N)
+			   strain,stress,parCount,nodeCount,vcat(map(x->x', elems)...), mesh, fixX,fixY,fixZ,basis,basis_S,vtk_cell,detJ,dNdx,N)
 	end
 end
 

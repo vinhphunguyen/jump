@@ -107,13 +107,25 @@ struct StressFix <: FixBase
     end
 end
 
+struct CenterOfMassFix <: FixBase
+    solid
+    file
+    function CenterOfMassFix(solid,filename)
+        if (isfile(filename))
+            rm(filename)
+        end
+        file = open(filename, "a")
+        new(solid,file)
+    end
+end
+
 struct DisplacementFemFix <: FixBase
     solid
     file
     nodeID
 
     function DisplacementFemFix(solid,dir,nodeID)
-filename = string(dir,"recorded-position.txt")
+        filename = string(dir,"recorded-position.txt")
         if (isfile(filename))
             rm(filename)
         end
@@ -143,6 +155,18 @@ function compute_femp(fix::DisplacementFemFix,time)
     z = 0
     if typeof(fix.solid) <: FEM3D z = fix.solid.pos[fix.nodeID][3] - fix.solid.pos0[fix.nodeID][3] end
     write(fix.file, "$(time) $(x) $(y) $(z)\n")
+end
+
+function compute_femp(fix::CenterOfMassFix,time)
+    tmass = 0.
+    xcm   = @SVector[0,0]
+    mm    = fix.solid.mass
+    for ip = 1:fix.solid.nodeCount
+        tmass += mm[ip] 
+        xcm   += mm[ip] * fix.solid.pos[ip]    
+    end
+    #if typeof(fix.solid) <: FEM3D z = fix.solid.pos[fix.nodeID][3] - fix.solid.pos0[fix.nodeID][3] end
+    write(fix.file, "$(time) $(xcm[1]/tmass) $(xcm[2]/tmass)\n")
 end
 
 function compute(fix::EnergiesFix,time)
@@ -216,6 +240,6 @@ struct MaximumPlasticStrainFix <: FixBase
 
 end
 
-export FixBase, EmptyFix, EnergiesFix, DisplacementFix, StressFix, MaximumPlasticStrainFix, DisplacementFemFix
+export FixBase, EmptyFix, EnergiesFix, DisplacementFix, StressFix, MaximumPlasticStrainFix, DisplacementFemFix, CenterOfMassFix
 export compute, closeFile, compute_femp
 end

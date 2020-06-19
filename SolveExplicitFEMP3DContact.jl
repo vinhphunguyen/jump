@@ -55,11 +55,15 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,fri
 	linBasis       = LinearBasis()
 	nearPointsLin  = [0,0,0,0]
 
-    
+    # temporary variables, just 1 memory allocation
     Fdot      = zeros(3,3)
     vel_grad  = SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
     D         = SMatrix{3,3}(0,0,0,0,0,0,0,0,0) #zeros(Float64,2,2)
     g         = [0.,0.,0.]
+    deltaVe1  = zeros(3)
+    dVxNI     = zeros(3)
+    omega     = zeros(3)
+    nI        = zeros(3)
    
 
     @inbounds for s = 1:solidCount
@@ -160,16 +164,20 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,fri
 			  
 
 	        # apply Dirichet boundary conditions on which solid?
-	        if s == 2 
-				if grid.fixedXNodes[i] == 1
-					nMomenta0[i] = setindex(nMomenta0[i],0.,1)
-		   		    nMomenta[i]  = setindex(nMomenta[i], 0.,1)
-				end
-		        if grid.fixedYNodes[i] == 1
-					nMomenta0[i] = setindex(nMomenta0[i],0.,2)
-					nMomenta[i]  = setindex(nMomenta[i], 0.,2)
-		        end	 
-	        end      
+	        
+			if grid.fixedXNodes[i] == 1
+				nMomenta0[i] = setindex(nMomenta0[i],0.,1)
+	   		    nMomenta[i]  = setindex(nMomenta[i], 0.,1)
+			end
+	        if grid.fixedYNodes[i] == 1
+				nMomenta0[i] = setindex(nMomenta0[i],0.,2)
+				nMomenta[i]  = setindex(nMomenta[i], 0.,2)
+	        end	 
+	        if grid.fixedZNodes[i] == 1
+				nMomenta0[i] = setindex(nMomenta0[i],0.,3)
+				nMomenta[i]  = setindex(nMomenta[i], 0.,3)
+	        end	 
+	         
 		end
 	end # end of loop over solids
 
@@ -219,19 +227,19 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,fri
 		nodalMass_1     = nodalMass[s]
 		bnd_nodes       = boundary_nodes[s]
 		normals         = nodalNormals[s]
-		@inbounds for i=1:nodeCount
-			if ( i in bnd_nodes ) && ( nodalMass_S[i] != nodalMass_1[i]) # this is  a boundary node
+		@inbounds for i in bnd_nodes
+			if ( nodalMass_S[i] != nodalMass_1[i] ) # this is  a contact node
 				println(i)
 				velo1    = nodalMomentum_1[i];        # body 1 velo				
 			    velocm   = nodalMomentum_S[i]/nodalMass_S[i];        # system velo
-			    nI       = normals[i] / norm(normals[i])
-			    deltaVe1 = velo1 - velocm;			    
+			    nI      .= normals[i] / norm(normals[i])
+			    deltaVe1 .= velo1 .- velocm;			    
 			    D1       = dot(deltaVe1,  nI);			    
     
 			    if ( D1 > 0 )
-				    dVxNI    = cross(deltaVe1,  nI);			    
+				    dVxNI   .= cross(deltaVe1,  nI);			    
 				    C1       = norm(dVxNI)		    
-				    omega    = dVxNI / C1
+				    omega   .= dVxNI / C1
 				    muPrime1 = min(fric,C1/D1);
 			        
 			        nodalMomentum_1[i] = velo1 - D1*(  nI + muPrime1*cross(nI,omega) );		        
@@ -364,7 +372,7 @@ t       += dtime
 		   	
 			#dstrain      = 0.5 * (vel_grad + vel_grad' + vel_grad * vel_grad') - strain[ip] 
 			
-			Fdot          = vel_grad/dtime		   
+			Fdot         .= vel_grad/dtime		   
 		   	F[ip]         = Identity + vel_gradT
 		   	J             = det(F[ip])
 		   	L             = Fdot*inv(F[ip])

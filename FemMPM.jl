@@ -27,6 +27,7 @@ using Mesh
 using Material
 using Output
 using Fem
+using Neumann
 
 include("SolveExplicitFEMP2D.jl")
 include("SolveExplicitFEMP3D.jl")

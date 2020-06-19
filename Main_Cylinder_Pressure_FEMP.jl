@@ -1,6 +1,17 @@
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
 
-# Phu Nguyen, Monash University
-# 20 March, 2020 (Coronavirus outbreak)
+# This file is for the bi-material cylinder under internal pressure presented in
+# paper 'A generalized particle in cell metghod for explicit solid dynamics', V.P. Nguyen et all 2020.
 
 push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
 # import Gadfly
@@ -45,8 +56,8 @@ using Util
     material1 = ElasticMaterial(youngModulus1,poissonRatio,density)
     material2 = ElasticMaterial(youngModulus2,poissonRatio,density)
 
-    solid1   = FEM3D("ring1.msh",material1)
-    solid2   = FEM3D("ring2.msh",material2)
+    solid1   = FEM3D("ring1.msh")
+    solid2   = FEM3D("ring2.msh")
     
     # as the mesh was created with the center of the disk at (0,0)
 	#move(solid1,SVector{2,Float64}([ 0.2+grid.dx  0.2+grid.dx]))
@@ -65,11 +76,25 @@ using Util
 	fixYNodes(solid1, "fix")
 	fixYNodes(solid2, "fix")
 
-    solids = [solid1 solid2]
+    solids = [solid1, solid2]
+    mats   = [material1,material2]
 
     Tf       = 200e-6 #3.5e-0
     interval = 10
 	dtime    = 0.4*grid.dx/sqrt(youngModulus2/density)
+
+
+	# data is a dictionary: 
+	# data["pressure"]   = [(1,"tag1",f),(2,"tag2",g)]
+	# data["total_time"] = Tf
+	# data["dt"]         = dtime
+	# data["time"]       = t
+
+	data               = Dict()
+	data["pressure"]   = [(1,"force",t ->  400*exp(-10000*t))]
+	data["total_time"] = Tf
+	data["dt"]         = dtime
+	data["time"]       = 0.
 
 	#output1  = PyPlotOutput(interval,"twodisks-results/","Two Disks Collision",(4., 4.))
 	output2  = VTKOutput(interval,"cylinder-pressure-femp/",["pressure"])
@@ -77,7 +102,7 @@ using Util
 	fix      = EnergiesFix(solids,"cylinder-pressure-femp/energies.txt")
 
     algo1    = USL(0.)
-    algo2    = TLFEM(0.)
+    algo2    = TLFEM(0.,1.)
 
     body     = ConstantBodyForce3D(@SVector[0.,-g,0.])
 
@@ -87,7 +112,7 @@ using Util
     plotParticles_3D(output2,solids,0)
 
 	#reset_timer!
-    solve_explicit_dynamics_femp_3D(grid,solids,basis,body,algo2,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,algo2,output2,fix,data)
     #print_timer()
 
 	# #PyPlot.savefig("plot_2Disk_Julia.pdf")

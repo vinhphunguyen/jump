@@ -295,12 +295,13 @@ function solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,fri
 		nodalMass_1     = nodalMass[s]
 		bnd_nodes       = boundary_nodes[s]
 		normals         = nodalNormals[s]
-		@inbounds for i=1:nodeCount
-			if ( i in bnd_nodes ) && ( nodalMass_S[i] != nodalMass_1[i]) # this is  a boundary node
+		@inbounds for i in bnd_nodes 
+			if ( nodalMass_S[i] != nodalMass_1[i]) # this is  a boundary node
 				println(i)
 				velo1    = nodalMomentum_1[i];        # body 1 velo				
 			    velocm   = nodalMomentum_S[i]/nodalMass_S[i];        # system velo
-			    nI       = normals[i] / norm(normals[i])
+			    #nI       = normals[i] / norm(normals[i])
+                if s == 1 nI = [0,-1] else nI =[0,1] end
 			    deltaVe1 = velo1 - velocm;			    
 			    D1       = dot(deltaVe1,  nI);			    
 			    C1       =  deltaVe1[1]*nI[2] - deltaVe1[2]*nI[1];			    

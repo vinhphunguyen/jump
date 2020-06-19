@@ -48,20 +48,19 @@ using Mesh
 	nu2     = (3*K2-2*mu2)/2/(3*K2+mu2);
 
 	theta = pi/3; # inclination angle
-	fric  = 0.0;  # friction coefficient
+	fric  = 0.6;  # friction coefficient
 	g     = 10e3; # gravity
 	bodyf = [g*sin(theta) -g*cos(theta)];
-	bodyf = [0. 0.];
 
     # create the grid of a 1 x 1 square, with 20 x 20 cells
 	# and a basis: linear and CPDI-Q4 supported
 	ra = 0.5e3;
-	l  = 1.65e3;
+	l  = 1.9e3;
 	h  = 0.25e3;
 	w  = h + 2*ra;
 	ratio = l/w;
 
-	noX0      = 30;        # number of elements along X direction
+	noX0      = 50;        # number of elements along X direction
 	noY0      = noX0/ratio; # number of elements along Y direction (to have square cells)
     grid      =  Grid2D(0,l, 0, w, noX0+1, floor(Int64,noY0+1))
     basis     =  LinearBasis()
@@ -76,10 +75,8 @@ using Mesh
     # as the mesh was created with the center of the disk at (0,0)
 	#move(solid1,SVector{2,Float64}([ 0.2+grid.dx  0.2+grid.dx]))
 	#move(solid2,SVector{2,Float64}([ 0.8-grid.dx  0.8-grid.dx]))
-	Fem.move(solid1,SVector{2,Float64}([ ra+5,  ra+130]))
-	Fem.move(solid2,SVector{2,Float64}([ 0.,  2.]))
-
-    Fem.assign_velocity(solid1,[1e3,0.])
+	Fem.move(solid1,SVector{2,Float64}([ ra+50,  ra+100]))
+	Fem.move(solid2,SVector{2,Float64}([ 10.,  2.]))
 
 	# initial stress due to gravity
 	# funcs = zeros(4)
@@ -100,19 +97,24 @@ using Mesh
 	#     solid1.stress[p][2,2] = -rho1*g*hh;
 	# end
 
+    fixXForBottom(grid)
     fixYForBottom(grid)
     fixYNodes(solid2, "BotSurface")
 
     solids = [solid1, solid2]
     mats   = [material1,material2]
 
-    Tf       = 0.05
-    interval = 1
-	dtime    = 0.00005;
+    Tf       = 0.3
+    interval = 100
+	
+	c_dil     = sqrt(E2/rho2)
+	dt        = grid.dy/c_dil
+	dtime     = 0.1 * dt
+
 
 	#output1  = PyPlotOutput(interval,"twodisks-results/","Two Disks Collision",(4., 4.))
 	output2  = VTKOutput(interval,"rolling-cyl-femp/",["pressure"])
-	fix      = EnergiesFix(solids,"rolling-cyl-femp/energies.txt")
+	fix      = CenterOfMassFix(solid1,"rolling-cyl-femp/numerical.txt")
 
     algo2    = USL(1e-9)
     algo1    = TLFEM(1e-9,1.0)
@@ -127,7 +129,18 @@ using Mesh
     solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,fric,algo1,output2,fix,Tf,dtime)
     #print_timer()
 	# plotting energies
-
+	# analytical solution
+	# filename = string("rolling-cyl-femp/","exact.txt")
+ #    if (isfile(filename)) rm(filename) end
+ #    file = open(filename, "a")
+ #    tt = LinRange(0.,Tf,30);
+	
+	# for i=1:length(tt)
+	# 	xx1 = ra + 0.5*g*tt[i]^2*(sin(theta)-fric*cos(theta));
+	# 	xx2 = ra + 1/3*g*tt[i]^2*sin(theta);
+	#     write(file, "$(tt[i]) $(xx1) $(xx2)\n")
+ #    end
+ #    close(file)
 
 # end
 
