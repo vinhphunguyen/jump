@@ -71,10 +71,6 @@ using Util
 	Fem.move(solid1,SVector{3,Float64}([155,155,5]))
 	Fem.move(solid2,SVector{3,Float64}([155,155,5]))
 
-  
-    # Symmetric BCs
-	fixYNodes(solid1, "fix")
-	fixYNodes(solid2, "fix")
 
     solids = [solid1, solid2]
     mats   = [material1,material2]
@@ -95,6 +91,12 @@ using Util
 	data["total_time"] = Tf
 	data["dt"]         = dtime
 	data["time"]       = 0.
+    data["dirichlet_solid"] = [(1,"fix",(0,1,0)), # => fix  nodes of 'fix' group of solid 1 on Y dir
+                               (2,"fix",(0,1,0))] # => fix  nodes of 'fix' group of solid 2 on Y dir
+
+    # Symmetric BCs
+	# fixYNodes(solid1, "fix")
+	# fixYNodes(solid2, "fix")
 
 	#output1  = PyPlotOutput(interval,"twodisks-results/","Two Disks Collision",(4., 4.))
 	output2  = VTKOutput(interval,"cylinder-pressure-femp/",["pressure"])
@@ -109,7 +111,7 @@ using Util
 	report(grid,solids,dtime)
 
     plotGrid(output2,grid,0)
-    plotParticles_3D(output2,solids,0)
+    plotParticles_3D(output2,solids,mats,0)
 
 	#reset_timer!
     solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,algo2,output2,fix,data)

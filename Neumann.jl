@@ -8,6 +8,9 @@ module Neumann
 # f(t) applied on solid '1' (over element set 'tag1')
 # g(t) applied on solid '2' (over element set 'tag2')
 
+using StaticArrays
+using Mesh
+
 function compute_fext(solids,funcs_surface, normals_surface, weights_surface, gpCoords_surface,data,t)
  	if haskey(data, "pressure") == false return end 
 
@@ -56,3 +59,5 @@ function compute_fext(solids,funcs_surface, normals_surface, weights_surface, gp
 end
 
 export compute_fext	
+
+end

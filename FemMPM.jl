@@ -28,6 +28,7 @@ using Material
 using Output
 using Fem
 using Neumann
+using Dirichlet
 
 include("SolveExplicitFEMP2D.jl")
 include("SolveExplicitFEMP3D.jl")

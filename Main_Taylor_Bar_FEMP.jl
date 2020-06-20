@@ -10,6 +10,10 @@
 #
 # -----------------------------------------------------------------------
 
+
+# This file is for the Taylor anvil test presented in
+# paper 'A generalized particle in cell metghod for explicit solid dynamics', V.P. Nguyen et all 2020.
+
 push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
 #
 import PyPlot
@@ -17,9 +21,6 @@ using Printf
 using LinearAlgebra
 using StaticArrays   # if not yet installed, in REPL, do import Pkg and Pkd.add("StaticArrays")
 
-
-#include("./Grid.jl")
-#include("./Problem.jl")
 
 using Solid
 using Fem
@@ -48,9 +49,12 @@ using BodyForce
     n       = 0.37
     eps0dot = 1e-3
     Tm      = 1600
+    m       = 0.
+    χ       = 0.
+    Cp      = 0.
 
 	vel     = 190# mm/s
-    vel     = 750# mm/s
+    #vel     = 750# mm/s
 
     if vel == 190 
         # create the grid of a 1 x 1 square, with 20 x 20 cells
@@ -78,7 +82,8 @@ using BodyForce
     #solid1   = FEM3D("taylor-bar-tet4.msh",material)
     solid1   = FEM3D("taylor-bar-52920.msh")
 
-    material  = JohnsonCookMaterial(E,nu,density,A,B,C,n,eps0dot,.42,solid1.parCount)
+    
+    material = JohnsonCookMaterial(E,nu,density,A,B,C,n,eps0dot,m,χ,Cp,.42,solid1.parCount)
 
     v0       = SVector{3,Float64}([0.0 -vel 0.])
 
@@ -90,10 +95,6 @@ using BodyForce
 
     solids = [solid1]
     mats   = [material]
-
-   
- 
-    fixYForBottom(grid)
     
 
     @printf("Total number of material points: %d \n", solid1.parCount)
@@ -112,9 +113,16 @@ using BodyForce
     algo2    = TLFEM(0.,1.)
     bodyforce = ConstantBodyForce3D([0., 0.,0.])
 
+
+    data               = Dict()
+    data["total_time"] = Tf
+    data["dt"]         = dtime
+    data["time"]       = 0.
+    data["dirichlet_grid"] = [("bottom",(0,1,0))] # => fix bottom nodes on Y dir
+
 	plotGrid(output,grid,0)
 	plotParticles_3D(output,solids,mats,0)
-    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,bodyforce,algo2,output,fix,Tf,dtime)
+    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,bodyforce,algo2,output,fix,data)
 
     D = abs(solid1.pos[1][1] - solid1.pos[3][1])
     L = abs(solid1.pos[2][2] - solid1.pos[6][2])

@@ -138,9 +138,7 @@ struct FEM3D
 
 	elems               :: Array{Int64,2}
 	mesh                :: FEMesh
-	fixedNodesX         :: Vector{Int64}
-	fixedNodesY         :: Vector{Int64}
-	fixedNodesZ         :: Vector{Int64}
+	fixedNodes          :: Array{Int64,2}
 
 	basis               :: FiniteElement
 	basis_S             :: FiniteElement
@@ -211,10 +209,8 @@ struct FEM3D
 		#println(size(nodes,2))
 		#println(parCount)
 
-
-		fixX       = fill(0,nodeCount)
-		fixY       = fill(0,nodeCount)
-		fixZ       = fill(0,nodeCount)
+        fixedNodes   = Array{Int64}(undef, 3, nodeCount)
+        fixedNodes  .= 0
 
 
 		nnodePerElem = length(elems[1])
@@ -237,7 +233,7 @@ struct FEM3D
 
 
 		new(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
-			   strain,stress,parCount,nodeCount,vcat(map(x->x', elems)...), mesh, fixX,fixY,fixZ,basis,basis_S,vtk_cell,detJ,dNdx,N)
+			   strain,stress,parCount,nodeCount,vcat(map(x->x', elems)...), mesh, fixedNodes,basis,basis_S,vtk_cell,detJ,dNdx,N)
 	end
 end
 

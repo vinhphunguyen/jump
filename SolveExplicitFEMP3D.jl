@@ -380,6 +380,10 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
         initializeBasis(solid,mats[s].density)
     end
 
+    # time-independent Dirichlet boundary conditions on grid/solids
+    fix_Dirichlet_grid(grid,data)
+    fix_Dirichlet_solid(solids,data)
+
   while t < Tf
 
     @printf("Solving step: %d %f \n", counter, t)
@@ -441,15 +445,16 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 	@inbounds for i=1:grid.nodeCount
 		nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
         # apply Dirichet boundary conditions
-        if grid.fixedXNodes[i] == 1
+        fixed_dirs       = @view grid.fixedNodes[:,i]
+        if fixed_dirs[1] == 1
 			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
    		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
         end
-        if grid.fixedYNodes[i] == 1
+        if fixed_dirs[2] == 1
 			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
 			nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
         end
-        if grid.fixedZNodes[i] == 1
+        if fixed_dirs[3] == 1
 			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,3)
 			nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,3)
         end
@@ -468,9 +473,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 	  	mm    = solid.mass
 	  	vv    = solid.velocity
 	  	du    = solid.dU
-	  	fixX  = solid.fixedNodesX
-	  	fixY  = solid.fixedNodesY
-	  	fixZ  = solid.fixedNodesZ
+	  	fix   = solid.fixedNodes
 	  	
 	  	@inbounds for ip = 1:solid.nodeCount
 			support   = getShapeFunctions(nearPoints,funcs,ip, grid, solid, basis)	        
@@ -493,11 +496,22 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 			xx[ip]      = xxp	
 			du[ip]      = dup
 			# Dirichlet BCs on the mesh
-			if fixY[ip] == 1 
+			fixed_dirs       = @view fix[:,ip]
+	        if fixed_dirs[1] == 1
+				vv[ip] = setindex(vv[ip],0.,1)
+				du[ip] = setindex(du[ip],0.,1)
+				xx[ip] = setindex(xx[ip],solid.pos0[ip][1],1)
+	        end
+	        if fixed_dirs[2] == 1
 				vv[ip] = setindex(vv[ip],0.,2)
 				du[ip] = setindex(du[ip],0.,2)
 				xx[ip] = setindex(xx[ip],solid.pos0[ip][2],2)
-			end
+	        end
+	        if fixed_dirs[3] == 1
+				vv[ip] = setindex(vv[ip],0.,3)
+				du[ip] = setindex(du[ip],0.,3)
+				xx[ip] = setindex(xx[ip],solid.pos0[ip][3],3)
+	        end
 	    end
 	end
 

@@ -145,9 +145,13 @@ module Grid
      momentum2 :: Vector{MVector{3,Float64}}  # for MUSL algorithm
      force     :: Vector{MVector{3,Float64}}
 
-     fixedXNodes::Vector{Int64}         # 1D indices of all nodes fixed in X dir.: 1 = fixed, 0: free
-     fixedYNodes::Vector{Int64}         # 1D indices of all nodes fixed in Y dir.
-     fixedZNodes::Vector{Int64}         # 1D indices of all nodes fixed in Z dir.
+     fixedNodes :: Array{Int64,2}
+     bottomNodes:: Vector{Int64}
+     topNodes   :: Vector{Int64}
+     leftNodes  :: Vector{Int64}
+     rightNodes :: Vector{Int64}
+     frontNodes :: Vector{Int64}
+     backNodes  :: Vector{Int64}
 
      # constructor, GL_x is length of the grid in x dir
      # iN_x: number of nodes in x dir
@@ -168,10 +172,44 @@ module Grid
         force        = fill(zeros(3),nodeCount)
         pos          = fill(zeros(3),nodeCount)
 
-        idx          = fill(0,nodeCount)
-        idy          = fill(0,nodeCount)
-        idz          = fill(0,nodeCount)
+        bNodes       = Vector{Int64}(undef,iN_x*iN_z)
+        tNodes       = Vector{Int64}(undef,iN_x*iN_z)
+        lNodes       = Vector{Int64}(undef,iN_y*iN_z)
+        rNodes       = Vector{Int64}(undef,iN_y*iN_z)
+        fNodes       = Vector{Int64}(undef,iN_x*iN_y)
+        baNodes      = Vector{Int64}(undef,iN_x*iN_y)
+ 
 
+        fixedNodes   = Array{Int64}(undef, 3, nodeCount)
+        fixedNodes  .= 0
+
+        c = 1
+        for k=1:iN_z
+          @inbounds for i=1:iN_x
+            ii         = i                 + (k-1)*iN_x*iN_y 
+            jj         = i + iN_x*(iN_y-1) + (k-1)*iN_x*iN_y              
+            bNodes[c]  = ii  
+            tNodes[c]  = jj
+            c         += 1    
+          end
+        end
+
+        c = 1
+        for k=1:iN_z
+          for i=1:iN_y
+            rNodes[c] = iN_x*i       + (k-1)*iN_x*iN_y  
+            lNodes[c] = iN_x*(i-1)+1 + (k-1)*iN_x*iN_y 
+            c         += 1    
+          end
+        end
+
+       @inbounds for i=1:iN_x*iN_y  
+          fNodes[i]  = i
+          baNodes[i] = i+(iN_z-1)*iN_x*iN_y 
+        end
+  
+
+        # build grid node coords
         for k=1:iN_z
            for j=1:iN_y
               for i=1:iN_x
@@ -185,7 +223,7 @@ module Grid
            end
       end
       new(xmin, ymin, zmin, xmax-xmin, ymax-ymin, zmax-zmin, dx, dy, dz, dxI, dyI, dzI, nodeCount, iN_x,
-          iN_y,iN_z, iN_x*iN_y, mass, pos, momentum0,momentum, momentum2, force,idx,idy,idz)
+          iN_y,iN_z, iN_x*iN_y, mass, pos, momentum0,momentum, momentum2, force,fixedNodes,bNodes,tNodes,lNodes,rNodes,fNodes,baNodes)
      end
   end
 # ----------------------------------------------------------------------
@@ -297,158 +335,7 @@ module Grid
     xnodes[grid.nodeCount] = 1
   end
 
-  function fixForTop(grid::Grid3D;ghostcell=false)
-    xnodes = grid.fixedXNodes
-    ynodes = grid.fixedYNodes
-    znodes = grid.fixedZNodes
-    for k=1:grid.nodeCountZ
-      for i=1:grid.nodeCountX
-        c = i + grid.nodeCountX*(grid.nodeCountY-1) + (k-1)*grid.nodeCountXY
-        xnodes[c] = 1
-        ynodes[c] = 1
-        znodes[c] = 1
-      end
-    end
-  end
-
-  function fixYForTop(grid::Grid3D;ghostcell=false)
-    
-    ynodes = grid.fixedYNodes
-    
-    for k=1:grid.nodeCountZ
-      for i=1:grid.nodeCountX
-        c = i + grid.nodeCountX*(grid.nodeCountY-1) + (k-1)*grid.nodeCountXY        
-        ynodes[c] = 1        
-      end
-    end
-  end
-
-
-  function fixXForBottom(grid::Grid3D)
-    xnodes = grid.fixedXNodes
-    for k=1:grid.nodeCountZ
-      @inbounds for i=1:grid.nodeCountX
-        ii         = i + (k-1)*grid.nodeCountXY        
-        xnodes[ii] = 1        
-      end
-    end
-  end
-
-  function fixYForBottom(grid::Grid3D)
-    ynodes = grid.fixedYNodes
-    for k=1:grid.nodeCountZ
-      @inbounds for i=1:grid.nodeCountX
-        ii         = i + (k-1)*grid.nodeCountXY        
-        ynodes[ii] = 1        
-      end
-    end
-  end
-
-  function fixZForBottom(grid::Grid3D)
-    znodes = grid.fixedZNodes
-    for k=1:grid.nodeCountZ
-      @inbounds for i=1:grid.nodeCountX
-        ii         = i + (k-1)*grid.nodeCountXY        
-        znodes[ii] = 1        
-      end
-    end
-  end
-
-  function fixXForRight(grid::Grid3D)
-    xnodes = grid.fixedXNodes
-    for k=1:grid.nodeCountZ
-      for i=1:grid.nodeCountY
-        xnodes[grid.nodeCountX*i+ (k-1)*grid.nodeCountXY ] = 1
-      end
-    end
-  end
-
-  function fixYForRight(grid::Grid3D)
-    ynodes = grid.fixedYNodes
-    for k=1:grid.nodeCountZ
-      @inbounds for i=1:grid.nodeCountY
-        ynodes[grid.nodeCountX*i+ (k-1)*grid.nodeCountXY ] = 1
-      end
-    end
-  end
-
-  function fixZForRight(grid::Grid3D)
-    znodes = grid.fixedZNodes
-    for k=1:grid.nodeCountZ
-      @inbounds for i=1:grid.nodeCountY
-        znodes[grid.nodeCountX*i+ (k-1)*grid.nodeCountXY ] = 1
-      end
-    end
-  end
-
-  function fixXForLeft(grid::Grid3D)
-    xnodes = grid.fixedXNodes
-    for k=1:grid.nodeCountZ
-      @inbounds for i=1:grid.nodeCountY
-        xnodes[grid.nodeCountX*(i-1)+1 + (k-1)*grid.nodeCountXY] = 1
-      end
-    end
-  end
-
-  function fixYForLeft(grid::Grid3D)
-    ynodes = grid.fixedYNodes
-    for k=1:grid.nodeCountZ
-      @inbounds for i=1:grid.nodeCountY
-        ynodes[grid.nodeCountX*(i-1)+1 + (k-1)*grid.nodeCountXY] = 1
-      end
-    end
-  end
-
-  function fixZForLeft(grid::Grid3D)
-    znodes = grid.fixedZNodes
-    for k=1:grid.nodeCountZ
-      @inbounds for i=1:grid.nodeCountY
-        znodes[grid.nodeCountX*(i-1)+1 + (k-1)*grid.nodeCountXY] = 1
-      end
-    end
-  end
-
-  function fixXForFront(grid::Grid3D)
-    znodes = grid.fixedXNodes    
-    @inbounds for i=1:grid.nodeCountXY
-        znodes[i] = 1
-      end
-  end
-
-  function fixYForFront(grid::Grid3D)
-    znodes = grid.fixedYNodes    
-    @inbounds for i=1:grid.nodeCountXY
-        znodes[i] = 1
-      end
-  end
-
-  function fixZForFront(grid::Grid3D)
-    znodes = grid.fixedZNodes    
-    @inbounds for i=1:grid.nodeCountXY
-        znodes[i] = 1
-      end
-  end
-
-  function fixXForBack(grid::Grid3D)
-    znodes = grid.fixedXNodes    
-    @inbounds for i=1:grid.nodeCountXY
-        znodes[i+(grid.nodeCountZ-1)*grid.nodeCountXY] = 1
-      end
-  end
-
-    function fixYForBack(grid::Grid3D)
-    znodes = grid.fixedYNodes    
-    @inbounds for i=1:grid.nodeCountXY
-        znodes[i+(grid.nodeCountZ-1)*grid.nodeCountXY] = 1      
-    end
-  end
-
-  function fixZForBack(grid::Grid3D)
-    znodes = grid.fixedZNodes    
-    @inbounds for i=1:grid.nodeCountXY
-        znodes[i+(grid.nodeCountZ-1)*grid.nodeCountXY] = 1      
-    end
-  end
+  
 
   # find the neighbors of a given element "elemId"
   # in a structured grid of numx x numy elements
@@ -492,6 +379,6 @@ module Grid
 
   export Grid1D, Grid2D, Grid3D
   export index2DTo1D, index3DTo1D, getNeighbors,
-         fixXForBottom, fixYForBottom, fixZForBottom, fixForBottom, fixXForTop, fixYForTop, fixXForLeft, fixYForLeft, fixZForLeft, fixXForRight, fixYForRight, fixZForRight, fixForTop, fixXForFront, fixYForFront, fixZForFront, fixXForBack, fixYForBack, fixZForBack
+         fixXForBottom, fixYForBottom, fixZForBottom, fixForBottom, fixXForTop, fixYForTop, fixXForLeft, fixYForLeft, fixZForLeft, fixXForRight, fixYForRight, fixZForRight, fixForTop
 
 end

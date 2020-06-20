@@ -531,16 +531,30 @@ function getPlasticStrain(ip,mat)
 	return mat.alpha[ip]
 end
 
+function getPlasticStrain(ip,mat::JohnsonCookMaterialWithDamage)
+	return mat.strength.alpha[ip]
+end
+
 function getPlasticStrain(ip,mat::Union{ElasticMaterial,NeoHookeanMaterial})
 	return 0.
 end
 
-function getTemperature(ip,mat::Union{ElasticMaterial,NeoHookeanMaterial})
+function getTemperature(ip,mat::Union{ElasticMaterial,NeoHookeanMaterial,JohnsonCookMaterial})
 	return 0.
 end
 
-function getDamage(ip,mat::Union{ElasticMaterial,NeoHookeanMaterial})
+function getTemperature(ip,mat::JohnsonCookMaterialWithDamage)
+	return mat.damage.temp[ip]
+end
+
+
+function getDamage(ip,mat::Union{ElasticMaterial,NeoHookeanMaterial,JohnsonCookMaterial})
 	return 0.
+end
+
+
+function getDamage(ip,mat::JohnsonCookMaterialWithDamage)
+	return mat.dam[ip]
 end
 
 function get_von_mises_stress(ip,mat)
@@ -551,21 +565,12 @@ function get_von_mises_stress(ip,mat::ElasticMaterial)
 	return 0.
 end
 
-function getPlasticStrain(ip,mat::JohnsonCookMaterialWithDamage)
-	return mat.strength.alpha[ip]
-end
 
 function get_von_mises_stress(ip,mat::JohnsonCookMaterialWithDamage)
 	return mat.strength.vmStr[ip]
 end
 
-function getTemperature(ip,mat::JohnsonCookMaterialWithDamage)
-	return mat.damage.temp[ip]
-end
 
-function getDamage(ip,mat::JohnsonCookMaterialWithDamage)
-	return mat.dam[ip]
-end
 
 export MaterialType, RigidMaterial, ElasticMaterial, ElastoPlasticMaterial, NeoHookeanMaterial, JohnsonCookMaterial, JohnsonCookDamage, JohnsonCookMaterialWithDamage
 export update_stress!, computeCrackDrivingForce, getPlasticStrain, get_von_mises_stress,getTemperature, getDamage
