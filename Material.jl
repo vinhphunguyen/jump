@@ -27,15 +27,7 @@ Identity   = UniformScaling(1.)
 # RigidMaterial: model rigid bodies
 ###############################################################
 struct RigidMaterial <: MaterialType
-	vx
-	vy
-	density    # not used, but needed for compability with density of non-rigid materials
-	fixed::Bool
-	function RigidMaterial(vx,vy,density)
-		fixed = false
-		if vx == 0. && vy == 0. fixed = true end
-		return new(vx,vy,density,fixed)
-	end
+density::Float64
 end
 
 
@@ -53,16 +45,19 @@ struct ElasticMaterial <: MaterialType
 	l0     ::Float64
 	fac    ::Float64
 
-	function ElasticMaterial(E,nu,density,Gf,l)
+	vmStr    ::Vector{Float64}             # equivalent von Mises stress
+	dam      ::Vector{Float64}             # equivalent von Mises stress
+
+	function ElasticMaterial(E,nu,density,Gf,l,parCount)
 		lambda = E*nu/(1+nu)/(1-2*nu)
 		mu     = E/2/(1+nu)
 
-        new(E,nu,density,lambda,mu,Gf,l,0.5/E)
+        new(E,nu,density,lambda,mu,Gf,l,0.5/E,fill(0.,parCount),fill(0.,parCount))
     end
 end
 
 # outer constructor to simplify 
-ElasticMaterial(E,nu,rho)=ElasticMaterial(E,nu,rho,0.,0.)
+ElasticMaterial(E,nu,rho,parCount)=ElasticMaterial(E,nu,rho,0.,0.,parCount)
 
 # do not update solid.stress!!!
 function update_stress!(sigma::MMatrix{2,2,Float64},mat::ElasticMaterial,
@@ -74,14 +69,19 @@ end
 function update_stress!(sigma::MMatrix{3,3,Float64},mat::ElasticMaterial,
 						epsilon::SMatrix{3,3,Float64},strain_increment,F, J,ip,dtime)
   sigma    .= mat.lambda * (epsilon[1,1]+epsilon[2,2]+epsilon[3,3]) * UniformScaling(1.) + 2.0 * mat.mu * epsilon
+
+  sigma_dev     = sigma - 0.333333333 *(sigma[1,1]+sigma[2,2]+sigma[3,3]) * UniformScaling(1.); 
+  mat.vmStr[ip] = sqrt(  sigma[1,1]^2 + sigma[2,2]^2 + sigma[3,3]^2 + 2*(sigma[1,2]^2+sigma[1,3]^2+sigma[2,3]^2) )
 end
 
 function computeCrackDrivingForce(stress,mat::ElasticMaterial)
-	sigma1 = computeMaxPrincipleStress2D(stress)
+	sigma1 = computeMaxPrincipleStress(stress)
 	term1  = max( sigma1, 0. )
 
     return mat.fac * term1 * term1;
 end
+
+
 
 # function update_stress(mat::ElasticMaterial,epsilon::SMatrix{2,2,Float64})
 #      return mat.lambda * (epsilon[1,1]+epsilon[2,2]) * Identity + 2.0 * mat.mu * epsilon
@@ -535,11 +535,11 @@ function getPlasticStrain(ip,mat::JohnsonCookMaterialWithDamage)
 	return mat.strength.alpha[ip]
 end
 
-function getPlasticStrain(ip,mat::Union{ElasticMaterial,NeoHookeanMaterial})
+function getPlasticStrain(ip,mat::Union{ElasticMaterial,RigidMaterial,NeoHookeanMaterial})
 	return 0.
 end
 
-function getTemperature(ip,mat::Union{ElasticMaterial,NeoHookeanMaterial,JohnsonCookMaterial})
+function getTemperature(ip,mat::Union{ElasticMaterial,RigidMaterial,NeoHookeanMaterial,JohnsonCookMaterial})
 	return 0.
 end
 
@@ -548,12 +548,12 @@ function getTemperature(ip,mat::JohnsonCookMaterialWithDamage)
 end
 
 
-function getDamage(ip,mat::Union{ElasticMaterial,NeoHookeanMaterial,JohnsonCookMaterial})
+function getDamage(ip,mat::Union{NeoHookeanMaterial,RigidMaterial,JohnsonCookMaterial})
 	return 0.
 end
 
 
-function getDamage(ip,mat::JohnsonCookMaterialWithDamage)
+function getDamage(ip,mat::Union{ElasticMaterial,JohnsonCookMaterialWithDamage})
 	return mat.dam[ip]
 end
 
@@ -562,6 +562,10 @@ function get_von_mises_stress(ip,mat)
 end
 
 function get_von_mises_stress(ip,mat::ElasticMaterial)
+	return mat.vmStr[ip]
+end
+
+function get_von_mises_stress(ip,mat::RigidMaterial)
 	return 0.
 end
 

@@ -40,5 +40,6 @@ export solve_explicit_dynamics_femp_3D
 
 export solve_explicit_dynamics_femp_2D_Contact
 export solve_explicit_dynamics_femp_3D_Contact
+export solve_explicit_dynamics_femp_eigen_erosion_3D
 
 end

@@ -6,6 +6,7 @@ using StaticArrays
 
 using Solid
 using Fem
+using Grid
 
 
 abstract type FixBase end
@@ -15,8 +16,8 @@ end
 
 struct DisplacementFix <: FixBase
     solids::Vector{Solid3D}
-    file
-    index
+    file  ::IOStream
+    index ::Int64
 
     function DisplacementFix(solids,point::SVector{2,Float64},dir)
         index      = [-10 -10]
@@ -82,7 +83,7 @@ end
 
 struct EnergiesFix <: FixBase
     solids
-    file
+    file::IOStream
 	kinEnergy ::Vector{Float64}
 	strEnergy ::Vector{Float64}
 	recordTime::Vector{Float64}
@@ -97,7 +98,7 @@ end
 
 struct StressFix <: FixBase
     solids
-    file
+    file::IOStream
     function StressFix(solids,filename)
         if (isfile(filename))
             rm(filename)
@@ -109,7 +110,7 @@ end
 
 struct CenterOfMassFix <: FixBase
     solid
-    file
+    file::IOStream
     function CenterOfMassFix(solid,filename)
         if (isfile(filename))
             rm(filename)
@@ -121,8 +122,8 @@ end
 
 struct DisplacementFemFix <: FixBase
     solid
-    file
-    nodeID
+    file::IOStream
+    nodeID::Int64
 
     function DisplacementFemFix(solid,dir,nodeID)
         filename = string(dir,"recorded-position.txt")
@@ -135,6 +136,35 @@ struct DisplacementFemFix <: FixBase
         new(solid,file,nodeID)
     end
 end
+
+struct ReactionForceFix <: FixBase
+    solid::FEM3D
+    file::IOStream
+    function ReactionForceFix(solid,filename)
+        if (isfile(filename))
+            rm(filename)
+        end
+        file = open(filename, "a")
+        new(solid,file)
+    end
+end
+
+
+struct ReactionForceGridFix <: FixBase
+    grid::Grid3D
+    file::IOStream
+    function ReactionForceGridFix(grid,filename)
+        if (isfile(filename))
+            rm(filename)
+        end
+        file = open(filename, "a")
+        new(grid,file)
+    end
+end
+
+###########################################
+# define functions compute(...) here
+###########################################
 
 function compute(fix::EmptyFix,time)
 end
@@ -223,6 +253,36 @@ function compute_femp(fix::EnergiesFix,time)
     write(fix.file, "$(time) $(KE) $(SE)\n")
 end
 
+function compute_femp(fix::ReactionForceFix,time)
+   
+    ids  = collect(fix.solid.mesh.node_sets["bottom"])
+    force = fix.solid.fint
+
+    fx = fy = fz = 0.
+    for id in ids
+        fx += force[id][1]
+        fy += force[id][2]
+        fz += force[id][3]
+    end
+    write(fix.file, "$(time) $(fx) $(fy) $(fz)\n")
+
+
+    #write(fix.file, "$(time) $(fix.solid.reaction_forces[1]) $(fix.solid.reaction_forces[2]) $(fix.solid.reaction_forces[3])\n")
+end
+
+
+function compute_femp(fix::ReactionForceGridFix,time)
+    grid = fix.grid
+    force = grid.force
+    fx = fy = fz = 0.
+    for id in grid.bottomNodes
+        fx += force[id][1]
+        fy += force[id][2]
+        fz += force[id][3]
+    end
+    write(fix.file, "$(time) $(fx) $(fy) $(fz)\n")
+end
+
 function compute(fix::StressFix,time)
     #println(fix.index)    
     write(fix.file, "$(fix.solids[1].strain[1][1,1]) $(fix.solids[1].stress[1][1,1]) \n")
@@ -241,5 +301,6 @@ struct MaximumPlasticStrainFix <: FixBase
 end
 
 export FixBase, EmptyFix, EnergiesFix, DisplacementFix, StressFix, MaximumPlasticStrainFix, DisplacementFemFix, CenterOfMassFix
+export ReactionForceFix, ReactionForceGridFix
 export compute, closeFile, compute_femp
 end

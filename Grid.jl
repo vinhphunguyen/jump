@@ -78,8 +78,11 @@ module Grid
       momentum2 :: Vector{SVector{2,Float64}}  # for MUSL algorithm
       force     :: Vector{SVector{2,Float64}}
 
-      fixedXNodes::Vector{Int64}         # 1D indices of all nodes fixed in X dir.: 1 = fixed, 0: free
-      fixedYNodes::Vector{Int64}         # 1D indices of all nodes fixed in Y dir.
+      fixedNodes :: Array{Int64,2}
+      bottomNodes:: Vector{Int64}
+      topNodes   :: Vector{Int64}
+      leftNodes  :: Vector{Int64}
+      rightNodes :: Vector{Int64}
 
       damage     :: Vector{Float64}      # nodal damage for phase field
       damage0    :: Vector{Float64}      # nodal damage for phase field
@@ -101,20 +104,39 @@ module Grid
          force        = [@SVector [0., 0.] for _ in 1:nodeCount]
          pos          = [@SVector [0., 0.] for _ in 1:nodeCount]
 
-         idx          = fill(0,nodeCount)
-         idy          = fill(0,nodeCount)
+         bNodes       = Vector{Int64}(undef,iN_x)
+         tNodes       = Vector{Int64}(undef,iN_x)
+         lNodes       = Vector{Int64}(undef,iN_y)
+         rNodes       = Vector{Int64}(undef,iN_y)
+ 
+         fixedNodes   = Array{Int64}(undef, 2, nodeCount)
+         fixedNodes  .= 0
+
+        
+        @inbounds for i=1:iN_x
+            ii         = i                
+            jj         = i + iN_x*(iN_y-1)
+            bNodes[i]  = ii 
+            tNodes[i]  = jj                       
+        end
+
+        for i=1:iN_y
+            rNodes[i] = iN_x*i       
+            lNodes[i] = iN_x*(i-1)+1           
+        end
+
 
          for j=1:iN_y
             for i=1:iN_x
                x     = (i-1) * dx
                y     = (j-1) * dy
-               index = index2DTo1D(i, j, iN_x, iN_y)
+               index = iN_x*(j-1) + i
                pos[index] = @SVector [xmin+x, ymin+y]
             end
         end
         return new(xmin, ymin, xmax-xmin, ymax-ymin,dx, dy, dxI, dyI, nodeCount,
             iN_x, iN_y, (iN_x-1)*(iN_y-1) ,mass, pos, momentum0,
-            momentum, momentum2, force,idx,idy,copy(mass),copy(mass),copy(mass))
+            momentum, momentum2, force,fixedNodes,bNodes,tNodes,lNodes,rNodes,copy(mass),copy(mass),copy(mass))
       end
    end
   # ----------------------------------------------------------------------
@@ -216,7 +238,7 @@ module Grid
                  x     = (i-1) * dx
                  y     = (j-1) * dy
                  z     = (k-1) * dz
-                 index = index3DTo1D(i, j, k, iN_x, iN_y, iN_z)
+                 index = iN_x*iN_y*(k-1) + iN_x*(j-1) + i
 
                  pos[index] = @SVector [xmin+x, ymin+y, zmin+z]
               end
@@ -228,24 +250,22 @@ module Grid
   end
 # ----------------------------------------------------------------------
 
-  function index2DTo1D(i::Int64, j::Int64, nColumns::Int64, nRows::Int64)
-    index = nColumns*(j-1) + i
+  function to_1D_index(i::Int64, j::Int64, grid::Grid2D)
+    index = grid.nodeCountX*(j-1) + i
 
-    if(index > nRows*nColumns || index < 1)
-      @printf("Index out of bounds: i, j: %d, %d \n", i, j)
-    end
-
-    return(Int64(index))
+    # if(index > nRows*nColumns || index < 1)
+    #   @printf("Index out of bounds: i, j: %d, %d \n", i, j)
+    # end
   end
 
-  function index3DTo1D(i, j, k, nColumns, nRows, nLayers)
-     index = nColumns*nRows*(k-1) + nColumns*(j-1) + i
+  @inline function to_1D_index(i, j, k, grid::Grid3D)
+     index = grid.nodeCountXY*(k-1) + grid.nodeCountX*(j-1) + i
 
-     if(index > nRows*nColumns*nLayers)
-        @printf("Index out of bounds")
-     end
+     # if(index > nRows*nColumns*nLayers)
+     #    @printf("Index out of bounds")
+     # end
 
-     return(Int(index))
+     #return(Int(index))
   end
 
   function fixXForBottom(grid::Grid2D)
@@ -378,7 +398,7 @@ module Grid
   end
 
   export Grid1D, Grid2D, Grid3D
-  export index2DTo1D, index3DTo1D, getNeighbors,
+  export to_1D_index, getNeighbors,
          fixXForBottom, fixYForBottom, fixZForBottom, fixForBottom, fixXForTop, fixYForTop, fixXForLeft, fixYForLeft, fixZForLeft, fixXForRight, fixYForRight, fixZForRight, fixForTop
 
 end

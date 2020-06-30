@@ -19,8 +19,12 @@
 ######################################################################
 # Update Stress Last, TLFEM for internal force
 ######################################################################
-function solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,fric,alg::TLFEM,output,fixes,Tf,dtime)
-    t       = 0.
+function solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,alg::TLFEM,output,fixes,data)
+    Tf    = data["total_time"]
+	dtime = data["dt"]         
+	t     = data["time"]      
+	fric  = data["friction"]
+
     counter = 0
 
     Identity       = UniformScaling(1.)
@@ -43,7 +47,8 @@ function solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,fri
 
     nodeCount        = grid.nodeCount
 
-    boundary_nodes   = Vector{Set{Int64}}(undef,solidCount)
+    # for all grid nodes, store ids of solids that are in contact
+    contact_solids   = Vector{Set{Int64}}(undef,nodeCount)
 
 
 
@@ -60,6 +65,11 @@ function solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,fri
     D         = SMatrix{2,2}(0., 0., 0., 0.) #zeros(Float64,2,2)
     Fdot      = zeros(2,2)
     g         = [0.,0.]
+    deltaVe1  = zeros(2)
+    dVxNI     = zeros(2)
+    omega     = zeros(2)
+    nI        = zeros(2)
+    nI_common = zeros(2)
    
 
     # compute nodal mass (only once)
@@ -114,6 +124,10 @@ function solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,fri
 
     @inbounds for s = 1:solidCount
 		solid  = solids[s]
+		if typeof(mats[s]) <: RigidMaterial 
+			compute_normals!(solid)
+			continue 
+		end
 		xx     = solid.pos
 		mm     = solid.mass  # to be updated here
 		elems  = solid.elems
@@ -143,6 +157,11 @@ function solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,fri
 	  	end
     end
 
+    # time-independent Dirichlet boundary conditions on grid/solids
+    fix_Dirichlet_grid(grid,data)
+    fix_Dirichlet_solid(solids,data)
+
+
   #################################################
   # Time loop 
   #################################################
@@ -158,7 +177,10 @@ function solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,fri
     @inbounds for i = 1:nodeCount
 	  nodalMass_S[i]      = 0.	  
 	  nodalMomentum_S[i]  =  @SVector [0., 0.]
+	  contact_solids[i]   = Set{Int64}()
     end
+
+    boundary_nodes   = Set{Int64}()
 
     # ===========================================
     # particle to grid (deformable solids)
@@ -190,7 +212,6 @@ function solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,fri
 		fill!(nMomenta0,@SVector[0.,0.])
 		fill!(nForce,   @SVector[0.,0.])
 		fill!(normals,  @SVector[0.,0.])
-		bnd_nodes     = Set()#solid.boundary_nodes
 		
 
 	  	@inbounds for ip = 1:solid.nodeCount
@@ -214,12 +235,11 @@ function solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,fri
 				nForce[id]     -= Ni  * fp
 				nForce[id]     += Ni  * fb
 				normals[id]    += fMass * dNi
-				if (ip in bnd_particles ) push!(bnd_nodes,id) end
+				if (ip in bnd_particles ) push!(boundary_nodes,id) end
+				push!(contact_solids[id],s)  # add solid 's' to the set of contact solids at node 'id'
 			end
 			du[ip] = @SVector [0., 0.]
-	  	end
-
-	  	boundary_nodes[s] = bnd_nodes
+	  	end	  	
 	
 		# ===========================================
 		# update grid
@@ -234,91 +254,137 @@ function solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,fri
 		    nMomenta0[i]  /= nMass[i]
 		    nMomenta[i]   /= nMass[i]
 			  
-
-	        # apply Dirichet boundary conditions on which solid?
-	        if s == 2 
-				if grid.fixedXNodes[i] == 1
-					nMomenta0[i] = setindex(nMomenta0[i],0.,1)
-		   		    nMomenta[i]  = setindex(nMomenta[i], 0.,1)
-				end
-		        if grid.fixedYNodes[i] == 1
-					nMomenta0[i] = setindex(nMomenta0[i],0.,2)
-					nMomenta[i]  = setindex(nMomenta[i], 0.,2)
-		        end	 
-	        end      
+    
+	        fixed_dirs       = @view grid.fixedNodes[:,i]
+	        if fixed_dirs[1] == 1
+	        	nMomenta0[i] = setindex(nMomenta0[i],0.,1)
+	   		    nMomenta[i]  = setindex(nMomenta[i], 0.,1)
+	        end
+	        if fixed_dirs[2] == 1
+				nMomenta0[i] = setindex(nMomenta0[i],0.,2)
+				nMomenta[i]  = setindex(nMomenta[i], 0.,2)
+	        end	         
 		end
 	end # end of loop over solids
 
-	# ===========================================
-	# particle to grid (rigid solids)
-	# ===========================================
+	if haskey(data, "rigid_body_velo") 
 
-# 	@inbounds for s = 1:solidCount
-# 		solid  = solids[s]
-# 		# rigid solids only
-# 		if !(typeof(mats[s]) <: RigidMaterial) continue end
-# 		xx      = solid.pos
-# 		vex     = solid.mat.vx
-# 		vey     = solid.mat.vy
-# 		@inbounds for ip = 1:solid.parCount
-# 			getAdjacentGridPoints(nearPointsLin,xx[ip],grid,linBasis)
-# #			println(nearPoints)
-# 			@inbounds for i = 1:4
-# 				id                  = nearPointsLin[i]; # index of node 'i'
-# 				mi                  = nodalMass[id]
-# 				if solid.mat.fixed
-# 				  nodalMomentum[id]   = setindex(nodalMomentum[id],0.,1)
-# 				  nodalMomentum[id]   = setindex(nodalMomentum[id],0.,2)
-#   				  nodalMomentum0[id]  = setindex(nodalMomentum0[id],0.,1)
-#   				  nodalMomentum0[id]  = setindex(nodalMomentum0[id],0.,2)
-# 			    else
-# 					if vex != 0.
-# 					  nodalMomentum[id]   = setindex(nodalMomentum[id], mi*vex,1)
-# 					  nodalMomentum0[id]  = setindex(nodalMomentum0[id],mi*vex,1)
-# 				    end
-# 					if vey != 0.
-# 					  nodalMomentum[id]   = setindex(nodalMomentum[id], mi*vey,2)
-# 					  nodalMomentum0[id]  = setindex(nodalMomentum0[id],mi*vey,2)
-# 					end
-# 				end
-# 				#println(nodalMomentum)
-# 			end
-# 		end
-# 	end
+	    rigid_solids = data["rigid_body_velo"]
+
+	 	for (s,f) in rigid_solids
+	 		solid       = solids[s]
+			xx          = solid.centroids		
+			surf_normals= solid.normals	
+			normals     = nodalNormals[s]
+	
+			fill!(normals,  @SVector[0.,0.])
+			vex,vey     = f(t)			
+			
+			@inbounds for ip = 1:solid.parCount
+				#getAdjacentGridPoints(nearPointsLin,xx[ip],grid,linBasis)
+				#support   = getShapeAndGradient(nearPoints,funcs,ders,ip, grid, solid,basis)
+				support    = getShapeFunctions(nearPoints,funcs,xx[ip],grid, basis)
+				#println(nearPoints)
+				normal_ip = surf_normals[ip]
+				@inbounds for i = 1:4
+					id                  = nearPoints[i]; # index of node 'i'					
+					#dNi                 = @view ders[:,i]		
+					normals[id]        += funcs[i] * normal_ip
+					mi                  = nodalMass_S[id]
+					#if (ip in bnd_particles ) push!(boundary_nodes,id) end
+				    push!(contact_solids[id],s)  # add solid 's' to the set of contact solids at node 'id'
+	
+				    nodalMomentum_S[id]   = setindex(nodalMomentum_S[id], mi*vex,1)
+				    nodalMomentum_S[id]   = setindex(nodalMomentum_S[id], mi*vey,2)				    			    
+				end
+			end
+			#solid.reaction_forces .= @SVector[Fx, Fy, Fz]
+		end
+	end
 
     ###########################################################################
     # contact treatments
     ###########################################################################
-	@inbounds for s = 1:solidCount
-		solid           = solids[s]
-		nodalMomentum_1 = nodalMomentum[s]
-		nodalMass_1     = nodalMass[s]
-		bnd_nodes       = boundary_nodes[s]
-		normals         = nodalNormals[s]
-		@inbounds for i in bnd_nodes 
-			if ( nodalMass_S[i] != nodalMass_1[i]) # this is  a boundary node
-				println(i)
-				velo1    = nodalMomentum_1[i];        # body 1 velo				
-			    velocm   = nodalMomentum_S[i]/nodalMass_S[i];        # system velo
-			    #nI       = normals[i] / norm(normals[i])
-                if s == 1 nI = [0,-1] else nI =[0,1] end
-			    deltaVe1 = velo1 - velocm;			    
-			    D1       = dot(deltaVe1,  nI);			    
+	
+	# loop over all boundary nodes, some of them, which are contact nodes, need 
+    # contact treatments
+	@inbounds for i in boundary_nodes
+	    solids_at_node_i = collect(contact_solids[i]) # to convert from set to array to access using index
+	    
+	    # skip nodes receive contribution from 1 single solid,
+	    # as they are not contact nodes
+	    if length(solids_at_node_i) == 1 continue end 
+
+        # special treatment of normals here, average normal of solid 1 and solid 2
+        # just for 2 deformable solids
+        s1        = solids_at_node_i[1]
+        s2        = solids_at_node_i[2]
+
+#@printf("Contacting solids at node i: %d %d %d\n", s1, s2, i)
+
+	    nI_body_1 = nodalNormals[s1][i]
+	    nI_body_2 = nodalNormals[s2][i]
+
+	    # if one solid is rigid, then use normal of it
+	    # otherwise, use average
+
+	    if     typeof(mats[s1]) <: RigidMaterial 
+	    	nI_common .= nI_body_1 
+	    	nI_common /= norm(nI_common)
+
+		    #normals    = [nI_common -nI_common]
+		    normals    = SMatrix{2,2}( nI_common[1], nI_common[2],
+		    	                      -nI_common[1],-nI_common[2])
+		    
+#println(normals)
+	    elseif typeof(mats[s2]) <: RigidMaterial 
+	    	nI_common .= nI_body_2
+	    	nI_common /= norm(nI_common)	    
+
+		    #normals    = [nI_common -nI_common]
+		    normals    = SMatrix{2,2}( -nI_common[1], -nI_common[2],
+		    	                        nI_common[1], nI_common[2])	
+
+	    else
+	    	nI_common .= nI_body_1 .- nI_body_2
+	    	nI_common /= norm(nI_common)
+
+		    #normals    = [nI_common -nI_common]
+		    normals    = SMatrix{2,2}( nI_common[1], nI_common[2],
+		    	                      -nI_common[1],-nI_common[2])
+	    end
+
+
+	    for is = 1 : length(solids_at_node_i)
+	    	s               = solids_at_node_i[is]
+            # do not correct velocity of rigid body
+	    	if typeof(mats[s]) <: RigidMaterial continue end
+
+		    solid           = solids[s]
+			nodalMomentum_1 = nodalMomentum[s]
+			nodalMass_1     = nodalMass[s]
+			
+
+			velo1    = nodalMomentum_1[i];                       # body 1 velo				
+		    velocm   = nodalMomentum_S[i]/nodalMass_S[i];        # system velo
+		    
+		    nI      .= normals[:,is]
+		    deltaVe1 .= velo1 .- velocm;			    
+		    D1       = dot(deltaVe1,  nI);			    
+
+		    if ( D1 > 0 )
 			    C1       =  deltaVe1[1]*nI[2] - deltaVe1[2]*nI[1];			    
 			    absC1    = abs(C1);			    
 			    muPrime1 = min(fric,absC1/D1);
-			    
-			    if ( D1 > 0 )
-			        
-			        nodalMomentum_1[i] = velo1 - D1*(  nI + (muPrime1/absC1)*@SVector[ nI[2]*C1, - nI[1]*C1] );		        
-			    
-			        println("approaching\n")
-			    else			    	
-			        println("separating\n")
-			    end
-		    end			
-		end
-    end
+		        
+		        nodalMomentum_1[i] = velo1 - D1*(  nI + (muPrime1/absC1)*@SVector[ nI[2]*C1, - nI[1]*C1] );		        	        
+		    
+		        #println("approaching\n")
+		    else			    	
+		        #println("separating\n")
+		    end		
+	    end
+	end
 
     # ====================================================================
     # grid to particle (deformable solids): update particle velocity/pos
@@ -334,8 +400,7 @@ function solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,fri
 	  	mm    = solid.mass
 	  	vv    = solid.velocity
 	  	du    = solid.dU
-	    fixX  = solid.fixedNodesX
-	  	fixY  = solid.fixedNodesY
+	    fix   = solid.fixedNodes
 	  	nMomentum0 = nodalMomentum0[s]
 	  	nMomentum  = nodalMomentum[s]
 	  	nMass      = nodalMass[s]
@@ -364,17 +429,17 @@ function solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,fri
 			xx[ip]      = xxp	
 			du[ip]      = dup
 		    # Dirichlet BCs on the mesh
-			if fixX[ip] == 1 
+			fixed_dirs       = @view fix[:,ip]
+	        if fixed_dirs[1] == 1
 				vv[ip] = setindex(vv[ip],0.,1)
 				du[ip] = setindex(du[ip],0.,1)
 				xx[ip] = setindex(xx[ip],solid.pos0[ip][1],1)
-			end
-				# Dirichlet BCs on the mesh
-			if fixY[ip] == 1 
+	        end
+	        if fixed_dirs[2] == 1
 				vv[ip] = setindex(vv[ip],0.,2)
 				du[ip] = setindex(du[ip],0.,2)
 				xx[ip] = setindex(xx[ip],solid.pos0[ip][2],2)
-			end
+	        end
 	    end
 	end
 
@@ -477,19 +542,33 @@ t       += dtime
 	##################################################
 	# update position of rigid solids
     ##################################################
-	@inbounds for s = 1:solidCount
-		# only rigid solids here
-	  	solid = solids[s]
-		if !(typeof(mats[s]) <: RigidMaterial) continue end
+	
+	if haskey(data, "rigid_body_velo") 
 
-	  	xx    = solid.pos
-	  	vx    = solid.mat.vx
-	  	vy    = solid.mat.vy
-		#println(ve)
-        @inbounds for ip = 1:solid.nodeCount
-	      xx[ip]   += dtime * @SVector [vx,vy]
-	    end
+	    rigid_solids = data["rigid_body_velo"]
+
+	 	for (s,f) in rigid_solids
+	 		solid       = solids[s]
+			xx          = solid.pos
+			xc          = solid.centroids
+			(vex,vey) = f(t)
+
+			if (vex,vey) == (0.,0.) continue end
+			
+			@inbounds for ip = 1:solid.nodeCount
+		      xx[ip]   += dtime * @SVector [vex,vey]
+		    end
+
+		    @inbounds for ip = 1:solid.parCount
+		      xc[ip]   += dtime * @SVector [vex,vey]
+		    end
+		end
 	end
+
+
+	##################################################
+	# output
+    ##################################################
 
 	if (counter%output.interval == 0)
 		plotParticles_2D(output,solids,mats,counter)

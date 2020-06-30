@@ -40,11 +40,13 @@ using Util
     grid      =  Grid3D(0,1.,0,1.,0,1., 31, 31,31)
     basis     =  LinearBasis()
 
-    material = ElasticMaterial(youngModulus,poissonRatio,density,0,0)
-    #material = NeoHookeanMaterial(youngModulus,poissonRatio,density)
 
     solid1   = FEM3D("sphere-1.msh")
     solid2   = FEM3D("sphere-1.msh")
+
+
+    material = ElasticMaterial(youngModulus,poissonRatio,density,solid1.parCount)
+    #material = NeoHookeanMaterial(youngModulus,poissonRatio,density)
 
     v0 = SVector{3,Float64}([ 0.1  0.1 0.0])
 
@@ -80,7 +82,13 @@ using Util
 	#reset_timer!
     fric = 0.
 
-    solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,fric,algo1,output2,fix,Tf,dtime)
+    data                    = Dict()
+    data["total_time"]      = Tf
+    data["time"]            = 0.
+    data["dt"]              = dtime
+    data["friction"]        = fric
+
+    solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,algo1,output2,fix,data)
     #print_timer()
 	# plotting energies
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))

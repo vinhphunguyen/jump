@@ -65,17 +65,21 @@ using Mesh
     grid      =  Grid2D(0,l, 0, w, noX0+1, floor(Int64,noY0+1))
     basis     =  LinearBasis()
 
-    material1 = ElasticMaterial(E1,nu1,rho1,0,0)
-    material2 = ElasticMaterial(E2,nu2,rho2,0,0)
+ 
     #material = NeoHookeanMaterial(youngModulus,poissonRatio,density)
 
     solid1   = FEM2D("rolling-cyl-circle.msh")
-    solid2   = FEM2D("rolling-cyl-plane.msh")
+    solid2   = Rigid2D("rolling-cyl-plane.msh")
+
+    material1 = ElasticMaterial(E1,nu1,rho1,solid1.parCount)
+    material2 = RigidMaterial(rho2)
+    #material2 = ElasticMaterial(E2,nu2,rho2,solid2.parCount)
+    
 
     # as the mesh was created with the center of the disk at (0,0)
 	#move(solid1,SVector{2,Float64}([ 0.2+grid.dx  0.2+grid.dx]))
 	#move(solid2,SVector{2,Float64}([ 0.8-grid.dx  0.8-grid.dx]))
-	Fem.move(solid1,SVector{2,Float64}([ ra+50,  ra+100]))
+	Fem.move(solid1,SVector{2,Float64}([ ra+50,  ra+110]))
 	Fem.move(solid2,SVector{2,Float64}([ 10.,  2.]))
 
 	# initial stress due to gravity
@@ -96,10 +100,6 @@ using Mesh
 	#     solid1.stress[p][1,1] = -rho1*g*hh;
 	#     solid1.stress[p][2,2] = -rho1*g*hh;
 	# end
-
-    fixXForBottom(grid)
-    fixYForBottom(grid)
-    fixYNodes(solid2, "BotSurface")
 
     solids = [solid1, solid2]
     mats   = [material1,material2]
@@ -125,20 +125,35 @@ using Mesh
     plotGrid(output2,grid)
     plotParticles_2D(output2,solids,mats,0)
 
+    # fixXForBottom(grid)
+    # fixYForBottom(grid)
+    # fixYNodes(solid2, "BotSurface")
+
+    data                    = Dict()
+    data["total_time"]      = Tf
+    data["time"]            = 0.
+    data["dt"]              = dtime
+    data["friction"]        = fric
+    #data["dirichlet_grid"]  = [("bottom",(1,1)),]      # => fix bottom nodes on X/Y/Z     dir   
+    data["rigid_body_velo"] = [(2,t -> (0.,0.))]            # => solid 1 has a velo given by velo_func            
+
+    #data["dirichlet_solid"] = [(2,"symmetry",(0,0,1))] # => fix  nodes of 'fix' group of solid 2 on Y dir
+#                                                                           
+
 	#reset_timer!
-    solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,fric,algo1,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,algo1,output2,fix,data)
     #print_timer()
 	# plotting energies
 	# analytical solution
-	# filename = string("rolling-cyl-femp/","exact.txt")
+	# filename = string("rolling-cyl-femp/","exact-stick.txt")
  #    if (isfile(filename)) rm(filename) end
  #    file = open(filename, "a")
  #    tt = LinRange(0.,Tf,30);
 	
 	# for i=1:length(tt)
-	# 	xx1 = ra + 0.5*g*tt[i]^2*(sin(theta)-fric*cos(theta));
-	# 	xx2 = ra + 1/3*g*tt[i]^2*sin(theta);
-	#     write(file, "$(tt[i]) $(xx1) $(xx2)\n")
+	# 	#xx1 = ra + 0.5*g*tt[i]^2*(sin(theta)-fric*cos(theta));
+	# 	xx1 = ra + 1/3*g*tt[i]^2*sin(theta);
+	#     write(file, "$(tt[i]) $(xx1)\n")
  #    end
  #    close(file)
 

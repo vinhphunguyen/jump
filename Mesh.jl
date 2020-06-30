@@ -239,6 +239,53 @@ function lagrange_basis_derivatives!(N, dNdx, type::Quad4,xieta,coords)
     return J11*J22 - J12*J21
 end
 
+function getNormals!(normals_surface, coords, eltype::Line2 )
+    dN1dxi  = -0.5
+    dN2dxi  =  0.5
+    
+    # tangent of the surface
+    s1 = dN1dxi * coords[1][1] + dN2dxi * coords[2][1]
+    s2 = dN1dxi * coords[1][2] + dN2dxi * coords[2][2]
+    
+    # find the normal n
+
+    normals_surface[1] = -s2 / sqrt(s1^2+s2^2)
+    normals_surface[2] = -s1 / sqrt(s1^2+s2^2)  
+end
+
+function getNormals!(normals_surface, coords, eltype::Tri3 )
+    s = zeros(3)
+    t = zeros(3)
+
+    dN1dxi  = -1.0
+    dN1deta = -1.0
+    dN2dxi  =  1.0
+    dN2deta =  0.0
+    dN3dxi  =  0.
+    dN3deta =  1.
+ 
+
+    # two tangents of the surface
+    s[1] += dN1dxi * coords[1][1] + dN2dxi * coords[2][1] + dN3dxi * coords[3][1] 
+    s[2] += dN1dxi * coords[1][2] + dN2dxi * coords[2][2] + dN3dxi * coords[3][2] 
+    s[3] += dN1dxi * coords[1][3] + dN2dxi * coords[2][3] + dN3dxi * coords[3][3] 
+
+
+    t[1] += dN1deta * coords[1][1] + dN2deta * coords[2][1] + dN3deta * coords[3][1]
+    t[2] += dN1deta * coords[1][2] + dN2deta * coords[2][2] + dN3deta * coords[3][2]
+    t[3] += dN1deta * coords[1][3] + dN2deta * coords[2][3] + dN3deta * coords[3][3]
+    
+    # find the normal n
+
+    n = cross(s,t)
+    weights_surface[ip]   = sqrt(n[1]^2+n[2]^2+n[3]^2)
+    #normalize!(n)
+
+    normals_surface[1,ip] = n[1]
+    normals_surface[2,ip] = n[2]
+    normals_surface[3,ip] = n[3]
+end
+
 function getNormals!(funcs_surface, normals_surface, weights_surface, coords, gpCoords_surface, eltype::Quad4 )
     for ip=1:4
         xi  = gpCoords_surface[1,ip]

@@ -65,7 +65,7 @@ function getAdjacentGridPoints(nearPts,xp,grid::Grid2D,basis::LinearBasis)
 		@printf("xp[2]: %e \n", xp[2])
 	end
 
-	iIndex   = index2DTo1D(iBottomLeft_i, iBottomLeft_j,   grid.nodeCountX, grid.nodeCountY)
+	iIndex   = to_1D_index(iBottomLeft_i, iBottomLeft_j,   grid)
 	nearPts  .= @SVector [iIndex, iIndex+1, iIndex+grid.nodeCountX,iIndex+1+grid.nodeCountX ]
 end
 
@@ -82,8 +82,7 @@ function getNearestGridPoints(points,start,xp,grid::Grid2D)
 	# 	@printf("xp[2]: %e \n", xp[2])
 	# end
 
-	iIndex   = index2DTo1D(iBottomLeft_i, iBottomLeft_j,
-	                       grid.nodeCountX, grid.nodeCountY)
+	iIndex   = to_1D_index(iBottomLeft_i, iBottomLeft_j, grid)
 	points[start]   = iIndex
 	points[start+1] = iIndex+1
 	points[start+2] = iIndex+grid.nodeCountX
@@ -103,7 +102,7 @@ function getAdjacentGridPoints(nearPts,xp,grid::Grid3D, basis::LinearBasis)
 	iBottomLeft_j  = floor(Int64,(xp[2]-grid.ymin) * fLength_Cell_y + 1.)
 	iBottomLeft_k  = floor(Int64,(xp[3]-grid.zmin) * fLength_Cell_z + 1.)
 
-	if(iBottomLeft_i < 1 || iBottomLeft_i > grid.nodeCountX)
+	if(iBottomLeft_i > grid.nodeCountX)
 		@printf("Index out of bounds: j: %d \n", iBottomLeft_i)
 		@printf("xp[1]: %e \n", xp[2])
 	end
@@ -114,13 +113,12 @@ function getAdjacentGridPoints(nearPts,xp,grid::Grid3D, basis::LinearBasis)
 	end
 
 	if(iBottomLeft_k < 1 || iBottomLeft_k > grid.nodeCountZ)
-		@printf("Index out of bounds: j: %d \n", iBottomLeft_k)
-		@printf("xp[2]: %e \n", xp[3])
+		@printf("Index out of bounds: k: %d \n", iBottomLeft_k)
+		@printf("xp: %e %e %e\n", xp[1], xp[2], xp[3])
 	end
 
 
-	iIndex = index3DTo1D(iBottomLeft_i, iBottomLeft_j, iBottomLeft_k,
-	                     grid.nodeCountX, grid.nodeCountY, grid.nodeCountZ)
+	iIndex = to_1D_index(iBottomLeft_i, iBottomLeft_j, iBottomLeft_k, grid)
 
 
 	nearPts .= @SVector [iIndex, iIndex+1, iIndex+grid.nodeCountX, iIndex+grid.nodeCountX+1,
@@ -538,6 +536,27 @@ end
 function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
                            p::Int64, grid::Grid2D, solid,basis::LinearBasis)
 	xp  = solid.pos[p]
+	xp1 = xp[1]
+	xp2 = xp[2]
+	getAdjacentGridPoints(nearPoints,xp,grid,basis)
+
+	dxI = grid.dxI
+	dyI = grid.dyI
+
+	@inbounds for i = 1:4
+		index  = nearPoints[i]
+		dx     = xp1 - grid.pos[index][1]
+		dy     = xp2 - grid.pos[index][2]
+
+		Nx = 1.0 - abs(dx) * dxI
+		Ny = 1.0 - abs(dy) * dyI
+		funcs[i]    = Nx * Ny
+	end
+	return 4
+end
+
+function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
+                           xp, grid::Grid2D,basis::LinearBasis)	
 	xp1 = xp[1]
 	xp2 = xp[2]
 	getAdjacentGridPoints(nearPoints,xp,grid,basis)
