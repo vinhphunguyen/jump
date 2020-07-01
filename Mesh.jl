@@ -239,6 +239,8 @@ function lagrange_basis_derivatives!(N, dNdx, type::Quad4,xieta,coords)
     return J11*J22 - J12*J21
 end
 
+# compute normal vector at centroid of a two-node line element
+# this can be the boundary of a 2D mesh
 function getNormals!(normals_surface, coords, eltype::Line2 )
     dN1dxi  = -0.5
     dN2dxi  =  0.5
@@ -253,39 +255,33 @@ function getNormals!(normals_surface, coords, eltype::Line2 )
     normals_surface[2] = -s1 / sqrt(s1^2+s2^2)  
 end
 
+# compute normal vector at centroid of a three-node triangle element
+# this can be the boundary of a 3D mesh of tetrahedra
 function getNormals!(normals_surface, coords, eltype::Tri3 )
-    s = zeros(3)
-    t = zeros(3)
-
-    dN1dxi  = -1.0
-    dN1deta = -1.0
-    dN2dxi  =  1.0
-    dN2deta =  0.0
-    dN3dxi  =  0.
-    dN3deta =  1.
+    # dN1dxi  = -1.0
+    # dN1deta = -1.0
+    # dN2dxi  =  1.0
+    # dN2deta =  0.0
+    # dN3dxi  =  0.
+    # dN3deta =  1.
  
 
     # two tangents of the surface
-    s[1] += dN1dxi * coords[1][1] + dN2dxi * coords[2][1] + dN3dxi * coords[3][1] 
-    s[2] += dN1dxi * coords[1][2] + dN2dxi * coords[2][2] + dN3dxi * coords[3][2] 
-    s[3] += dN1dxi * coords[1][3] + dN2dxi * coords[2][3] + dN3dxi * coords[3][3] 
-
-
-    t[1] += dN1deta * coords[1][1] + dN2deta * coords[2][1] + dN3deta * coords[3][1]
-    t[2] += dN1deta * coords[1][2] + dN2deta * coords[2][2] + dN3deta * coords[3][2]
-    t[3] += dN1deta * coords[1][3] + dN2deta * coords[2][3] + dN3deta * coords[3][3]
+    s = @SVector[-coords[1][1] + coords[2][1],-coords[1][2] + coords[2][2],-coords[1][3] + coords[2][3]]
+    t = @SVector[-coords[1][1] + coords[3][1],-coords[1][2] + coords[3][2],-coords[1][3] + coords[3][3]]
     
     # find the normal n
 
-    n = cross(s,t)
-    weights_surface[ip]   = sqrt(n[1]^2+n[2]^2+n[3]^2)
+    normals_surface = cross(s,t)
+
     #normalize!(n)
 
-    normals_surface[1,ip] = n[1]
-    normals_surface[2,ip] = n[2]
-    normals_surface[3,ip] = n[3]
+    #normals_surface = n
 end
 
+# compute normal vectors at 4 Gauss points of a Q4 element
+# used in pressure loads
+# can be improved
 function getNormals!(funcs_surface, normals_surface, weights_surface, coords, gpCoords_surface, eltype::Quad4 )
     for ip=1:4
         xi  = gpCoords_surface[1,ip]

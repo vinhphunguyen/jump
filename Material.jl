@@ -294,9 +294,9 @@ struct JohnsonCookMaterial <: MaterialType
 	alphadot ::Vector{Float64}             # equivalent plastic strain rate
 	vmStr    ::Vector{Float64}             # equivalent von Mises stress
 
-	sigmaTrial    ::MMatrix{3,3,Float64,9}
-	sigmaTrial_dev::MMatrix{3,3,Float64,9}
-	sigmaFinal_dev::MMatrix{3,3,Float64,9}
+	sigmaTrial    ::SMatrix{3,3,Float64,9}
+	sigmaTrial_dev::SMatrix{3,3,Float64,9}
+	sigmaFinal_dev::SMatrix{3,3,Float64,9}
 
 	function JohnsonCookMaterial(E,nu,density,A,B,C,n,eps0dot,m,χ,Cp,cellsize,parCount)
 
@@ -319,7 +319,7 @@ end
 
 
 # 3D stress update for J2 plasticity
-function update_stress!(sig::MMatrix{3,3,Float64},mat::JohnsonCookMaterial,
+function update_stress!(sig::SMatrix{3,3,Float64},mat::JohnsonCookMaterial,
 	                    eps0::SMatrix{3,3,Float64},strain_increment,F, J, ip,dtime)
 
     sigmaTrial     = mat.sigmaTrial
@@ -364,7 +364,7 @@ function update_stress!(sig::MMatrix{3,3,Float64},mat::JohnsonCookMaterial,
 
 	mat.alpha[ip]        = eff_plastic_strain + plastic_strain_increment
 	# be careful with .=, without it sig is not updated 
-	sig                 .= sigmaFinal_dev     + mat.kappa*(eps0[1,1]+eps0[2,2]+eps0[3,3])*UniformScaling(1.)
+	sig                  = sigmaFinal_dev     + mat.kappa*(eps0[1,1]+eps0[2,2]+eps0[3,3])*UniformScaling(1.)
 
 	tav = 1000 * mat.cellsize / mat.signal_velocity;
     mat.alphadot[ip] -= mat.alphadot[ip] * dtime / tav;

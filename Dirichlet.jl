@@ -10,7 +10,7 @@ using Mesh
 using Util
 using Grid
 
-function fix_Dirichlet_grid(grid::Grid2D,data)
+function fix_Dirichlet_grid(grid::Grid3D,data)
  	if haskey(data, "dirichlet_grid") == false return end 
 
     dirichlet_grid = data["dirichlet_grid"]
@@ -28,7 +28,7 @@ function fix_Dirichlet_grid(grid::Grid2D,data)
  	end
 end
 
-function fix_Dirichlet_grid(grid::Grid3D,data)
+function fix_Dirichlet_grid(grid::Grid2D,data)
  	if haskey(data, "dirichlet_grid") == false return end 
 
     dirichlet_grid = data["dirichlet_grid"]

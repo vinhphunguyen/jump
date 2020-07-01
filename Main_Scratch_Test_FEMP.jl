@@ -16,7 +16,8 @@ import PyPlot
 using Printf
 using LinearAlgebra
 using StaticArrays   # if not yet installed, in REPL, do import Pkg and Pkd.add("StaticArrays")
-
+using TimerOutputs
+using FunctionWrappers
 
 #include("./Grid.jl")
 #include("./Problem.jl")
@@ -109,7 +110,7 @@ using BodyForce
 
     data["dirichlet_solid"] = [(2,"symmetry",(0,0,1))] # => fix  nodes of 'fix' group of solid 2 on Y dir
 #                                                                            
-    data["rigid_body_velo"] = [(1,velo_func)]            # => solid 1 has a velo given by velo_func                             
+    data["rigid_body_velo"] = Array{Tuple{Int64,Function},1}([(1,velo_func)])            # => solid 1 has a velo given by velo_func                             
                              
 
 
@@ -129,7 +130,9 @@ using BodyForce
 	plotGrid(output2,grid,0)
 	plotParticles_3D(output2,solids,mats,0)
 
+    #reset_timer!()
     solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,bodyforce,algo2,output2,fix,data)
+    #print_timer()
     #solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,bodyforce,algo2,output2,fix,data)
 
 

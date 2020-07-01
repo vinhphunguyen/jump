@@ -280,7 +280,7 @@ function solve_explicit_dynamics_femp_2D_Contact(grid,solids,mats,basis,body,alg
 			fill!(normals,  @SVector[0.,0.])
 			vex,vey     = f(t)			
 			
-			@inbounds for ip = 1:solid.parCount
+			@inbounds for ip = 1:size(xx,1)
 				#getAdjacentGridPoints(nearPointsLin,xx[ip],grid,linBasis)
 				#support   = getShapeAndGradient(nearPoints,funcs,ders,ip, grid, solid,basis)
 				support    = getShapeFunctions(nearPoints,funcs,xx[ip],grid, basis)
@@ -559,7 +559,7 @@ t       += dtime
 		      xx[ip]   += dtime * @SVector [vex,vey]
 		    end
 
-		    @inbounds for ip = 1:solid.parCount
+		    @inbounds for ip = 1:size(xc,1)
 		      xc[ip]   += dtime * @SVector [vex,vey]
 		    end
 		end

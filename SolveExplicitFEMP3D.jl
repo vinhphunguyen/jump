@@ -144,7 +144,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,
 				Ni    = funcs[i]				
 				Nim   = Ni * fMass
 				# mass, momentum, internal force and external force
-				nodalMass[in]      += Nim
+			nodalMass[in]      += Nim
 				nodalMomentum0[in] += Nim * vp 
 				nodalForce[in]     -= Ni  * fp
 				nodalForce[in]     += Ni  * fb
@@ -432,9 +432,9 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 				Ni    = funcs[i]				
 				Nim   = Ni * fMass
 				# mass, momentum, internal force and external force
-				nodalMass[in]      += Nim
+		@timeit "1"			nodalMass[in]      += Nim
 				nodalMomentum0[in] += Nim * vp 
-				nodalForce[in]     -= Ni  * fp
+		@timeit "2"			nodalForce[in]     -= Ni  * fp
 				nodalForce[in]     += Ni  * fb
 				nodalForce[in]     += Ni  * ft
 			end
@@ -479,12 +479,12 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 			vex,vey,vez = f(t)
 			
 			@inbounds for ip = 1:solid.nodeCount
-				#getAdjacentGridPoints(nearPointsLin,xx[ip],grid,linBasis)
-				support   = getShapeAndGradient(nearPoints,funcs,ip, grid, solid,basis)
+				getAdjacentGridPoints(nearPoints,xx[ip],grid,basis)
+				#support   = getShapeAndGradient(nearPoints,funcs,ip, grid, solid,basis)
 	#			println(nearPoints)
 				@inbounds for i = 1:8
 					id                  = nearPoints[i]; # index of node 'i'
-					mi                  = nodalMass_S[id]
+					mi                  = nodalMass[id]
 	
 				    nodalMomentum[id]   = setindex(nodalMomentum[id],  mi*vex,1)
 				    nodalMomentum[id]   = setindex(nodalMomentum0[id], mi*vey,2)
@@ -642,7 +642,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 	   	    update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
 
 
-            P     = J*sigma*inv(F[ip])'  # convert to Piola Kirchoof stress
+            P     = J*stress[ip]*inv(F[ip])'  # convert to Piola Kirchoof stress
 
             body(g,[0 0 0],t)  
             # compute nodal internal force fint
@@ -663,7 +663,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 
     t       += dtime
 
-    compute_fext(solids,funcs_surface, normals_surface, weights_surface, gpCoords_surface,data,t)
+#    compute_fext(solids,funcs_surface, normals_surface, weights_surface, gpCoords_surface,data,t)
 
     # checking the pressure 
  #    ftrac = solids[1].ftrac

@@ -210,12 +210,13 @@ struct FEM3D
 	ftrac               :: Vector{MVector{3,Float64}}  # external forces  due to traction/pressure at FE nodes
 
 	deformationGradient :: Vector{SMatrix{3,3,Float64,9}}  # F, 2x2 matrix
-	strain              :: Vector{SMatrix{3,3,Float64,9}}  # stress, 2x2 matrix
-	stress              :: Vector{MMatrix{3,3,Float64,9}}  # strain
+	strain              :: Vector{SMatrix{3,3,Float64,9}}  # strain, 3x3 matrix
+	stress              :: Vector{SMatrix{3,3,Float64,9}}  # stress
 	
 
 	parCount            :: Int64              # same as element count in the mesh
 	nodeCount           :: Int64              # number of nodes in the mesh	
+	surfCount           :: Int64              # number of centroid
 
 	elems               :: Array{Int64,2}
 	mesh                :: FEMesh
@@ -232,6 +233,13 @@ struct FEM3D
     reaction_forces     :: MVector{3,Float64}
     neighbours          :: Vector{Set{Int64}}       # neighbours element for a give elem
     elem_mass           :: Vector{Float64}
+
+    # for rigid bodies
+
+    centroids           :: Vector{SVector{3,Float64}}  # centroids of boundary elems
+	normals             :: Vector{SVector{3,Float64}}  # normal vectors
+	surface_elems       :: Array{Int64,2}
+
 	# particles from a mesh
 	function FEM3D(fileName)
 
@@ -243,6 +251,7 @@ struct FEM3D
 		    parCount  = length(mesh.element_sets["All"])         # element count
 		    nodesX    = fill(zeros(3),nodeCount)
 		    elems     = Array{Array{Int64,1},1}(undef,0)   # element nodes
+		    surface_elems= Array{Array{Int64,1},1}(undef,0)   # element nodes
 	        # convert from mesh.nodes to our traditional data structure
 			for i=1:nodeCount			
 				nodesX[i] = mesh.nodes[i]
@@ -251,31 +260,52 @@ struct FEM3D
             neighbours      = Vector{Set{Int64}}(undef,parCount)
 	        # convert from mesh.elements to our traditional data structure
 	        volumetricElems = collect(mesh.element_sets["All"])
+	        boundaryElems   = collect(mesh.element_sets["boundary"])
+	        surfCount       = length(boundaryElems)
 			for i=1:parCount			
-				push!(elems,mesh.elements[volumetricElems[i]])
-				neighbours[i] = Set{Int64}()
+				push!(elems,mesh.elements[volumetricElems[i]])		
+				push!(neighbours,Set{Int64}())	
 			end
+			for i=1:length(boundaryElems)			
+			  push!(surface_elems,mesh.elements[boundaryElems[i]])
+		    end
+		    centroids       = fill(zeros(3),length(boundaryElems)	)
 			if (haskey(mesh.element_sets,"boundary")) Mesh.create_node_set_from_element_set!(mesh, "boundary") end
 		elseif ext == ".inp"
 			mesh_abaqus     = abaqus_read_mesh(fileName)
 			nodeCount       = length(mesh_abaqus["nodes"])
 			elem_sets       = mesh_abaqus["element_sets"]
-			volumetricElems = elem_sets["ALL"]
+			volumetricElems = elem_sets["ALL"]			
 			parCount        = length(volumetricElems)
 			elements        = mesh_abaqus["elements"]
-            nodesX          = fill(zeros(3),nodeCount)
-			elems           = Array{Array{Int64,1},1}(undef,0)   # element nodes			
+            nodesX          = fill(zeros(3),nodeCount)            
+			elems           = Array{Array{Int64,1},1}(undef,0)   # element nodes								
 			nodes           = mesh_abaqus["nodes"]
-			neighbours      = Vector{Set{Int64}}(undef,parCount)
 			
+			neighbours      = Vector{Set{Int64}}(undef,parCount)
+
 			for i=1:nodeCount			
 				nodesX[i] = nodes[i]
 			end
 
 			for i=1:parCount			
 				push!(elems,elements[volumetricElems[i]])
-				push!(neighbours,Set{Int64}())				
+				push!(neighbours,Set{Int64}())
 			end
+
+            if (haskey(elem_sets,"Boundary")) 
+            	boundaryElems   = elem_sets["Boundary"]
+            	centroids       = fill(zeros(3),length(boundaryElems)	)
+            	surfCount       = length(boundaryElems)
+            	surface_elems   = Array{Array{Int64,1},1}(undef,0)   # element nodes	
+				for i=1:length(boundaryElems)			
+					push!(surface_elems,elements[boundaryElems[i]])
+				end
+			else
+				centroids       = fill(zeros(3),0)
+				surface_elems   = [[1,1],[1,1]]
+				surfCount       = 1
+		    end
 
 			mesh = FEMesh()
 			# convert from mesh_abaqus to mesh (use slightly different data structure)
@@ -299,11 +329,7 @@ struct FEM3D
 		m         = fill(0.,nodeCount)
 		em        = fill(0.,parCount)
 
-		
 		x         = fill(zeros(3),nodeCount)
-		
-		
-		
 		velo      = fill(zeros(3),nodeCount)
 		#println(size(nodes,2))
 		#println(parCount)
@@ -330,8 +356,9 @@ struct FEM3D
 		end
 
 		new(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
-			   strain,stress,parCount,nodeCount,vcat(map(x->x', elems)...), mesh, 
-			   fixedNodes,basis,basis_S,vtk_cell,detJ,dNdx,N,zeros(3),neighbours,em)
+			   strain,stress,parCount,nodeCount,surfCount,vcat(map(x->x', elems)...), mesh, 
+			   fixedNodes,basis,basis_S,vtk_cell,detJ,dNdx,N,zeros(3),neighbours,em,
+			   centroids,copy(centroids),vcat(map(x->x', surface_elems)...) )
 	end
 end
 
@@ -389,6 +416,7 @@ struct Rigid3D
 			for i=1:length(boundaryElems)			
 			  push!(surface_elems,mesh.elements[boundaryElems[i]])
 		    end
+		    centroids       = fill(zeros(3),length(boundaryElems)	)
 			if (haskey(mesh.element_sets,"boundary")) Mesh.create_node_set_from_element_set!(mesh, "boundary") end
 		elseif ext == ".inp"
 			mesh_abaqus     = abaqus_read_mesh(fileName)
@@ -399,6 +427,7 @@ struct Rigid3D
 			parCount        = length(volumetricElems)
 			elements        = mesh_abaqus["elements"]
             nodesX          = fill(zeros(3),nodeCount)
+            centroids       = fill(zeros(3),length(boundaryElems)	)
 			elems           = Array{Array{Int64,1},1}(undef,0)   # element nodes			
 			surface_elems   = Array{Array{Int64,1},1}(undef,0)   # element nodes			
 			nodes           = mesh_abaqus["nodes"]
@@ -450,7 +479,7 @@ struct Rigid3D
             N         = fill(zeros(8),parCount)
 		end
 
-		new(nodesX,copy(nodesX),copy(velo),copy(velo),velo,stress,parCount,nodeCount,vcat(map(x->x', elems)...), 
+		new(nodesX,copy(nodesX),centroids,copy(velo),velo,stress,parCount,nodeCount,vcat(map(x->x', elems)...), 
 			vcat(map(x->x', surface_elems)...), mesh, basis,basis_S,vtk_cell)
 	end
 end
@@ -751,7 +780,7 @@ function compute_normals!(solid::Rigid2D)
     end		
 end
 
-function compute_normals!(solid::Rigid3D)
+function compute_normals!(solid::FEM3D)
 	elems   = solid.surface_elems
 	xx      = solid.pos
 	normals = solid.normals

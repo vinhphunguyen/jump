@@ -20,10 +20,10 @@
 # Update Stress Last, TLFEM for internal force
 ######################################################################
 function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg::TLFEM,output,fixes,data)
-    Tf    = data["total_time"]
-	dtime = data["dt"]         
-	t     = data["time"]      
-	fric  = data["friction"]
+    Tf    = data["total_time"]:: Float64
+	dtime = data["dt"]        :: Float64    
+	t     = data["time"]      :: Float64     
+	fric  = data["friction"]  :: Float64
 
     counter = 0
 
@@ -65,7 +65,8 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 	nearPointsLin  = [0,0,0,0,0,0,0,0]
 
     # temporary variables, just 1 memory allocation
-    Fdot      = zeros(3,3)
+    Fdot      = SMatrix{3,3}(0,0,0,0,0,0,0,0,0) #zeros(3,3)
+    sigma     = SMatrix{3,3}(0,0,0,0,0,0,0,0,0) #zeros(3,3)
     vel_grad  = SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
     D         = SMatrix{3,3}(0,0,0,0,0,0,0,0,0) #zeros(Float64,2,2)
     g         = [0.,0.,0.]
@@ -159,11 +160,11 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 				dNi   = @view ders[:,i]			
 				Nim   = Ni * fMass
 				# mass, momentum, internal force and external force
-				nMass[id]      += Nim
-				nMomenta0[id]  += Nim * vp 
+                nMass[id]      += Nim             # check: no memory alloc
+                nMomenta0[id]  .+= Nim.* vp 
 				nForce[id]     -= Ni  * fp
-				nForce[id]     += Ni  * fb
-				normals[id]    += fMass * dNi
+                nForce[id]    .+= Ni .* fb       # check: no memory alloc
+                normals[id]    .+= fMass .* dNi
 				#if (ip in bnd_particles ) push!(bnd_nodes,id) end
 				if (ip in bnd_particles ) push!(boundary_nodes,id) end
 				push!(contact_solids[id],s)  # add solid 's' to the set of contact solids at node 'id'
@@ -179,12 +180,12 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 
 		@inbounds for i=1:nodeCount
 
-		    nMomenta[i]          = nMomenta0[i] + nForce[i] * dtime
-		    nodalMass_S[i]      += nMass[i]
+            nMomenta[i]         .= nMomenta0[i] .+ dtime .* nForce[i] 
+            nodalMass_S[i]      += nMass[i]
 		    nodalMomentum_S[i]  += nMomenta[i]
 
-		    nMomenta0[i]  /= nMass[i]
-		    nMomenta[i]   /= nMass[i]
+            nMomenta0[i]  ./= nMass[i]
+		    nMomenta[i]   ./= nMass[i]
 			  
 
 	        # apply Dirichet boundary conditions on which solid?
@@ -192,16 +193,18 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 	        
 	        fixed_dirs       = @view grid.fixedNodes[:,i]
 	        if fixed_dirs[1] == 1
-	        	nMomenta0[i] = setindex(nMomenta0[i],0.,1)
-	   		    nMomenta[i]  = setindex(nMomenta[i], 0.,1)
+                 #nMomenta0[i] = setindex(nMomenta0[i],0.,1) => memory alloc!!!
+                nMomenta0[i][1] = 0.
+                nMomenta[i][1]  = 0.
+	   		    
 	        end
 	        if fixed_dirs[2] == 1
-				nMomenta0[i] = setindex(nMomenta0[i],0.,2)
-				nMomenta[i]  = setindex(nMomenta[i], 0.,2)
+			    nMomenta0[i][2] = 0.
+                nMomenta[i][2]  = 0.
 	        end
 	        if fixed_dirs[3] == 1
-			    nMomenta0[i] = setindex(nMomenta0[i],0.,3)
-				nMomenta[i]  = setindex(nMomenta[i], 0.,3)
+			    nMomenta0[i][3] = 0.
+                nMomenta[i][3]  = 0.
 	        end
 	   
 	         
@@ -214,7 +217,7 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 
 	if haskey(data, "rigid_body_velo") 
 
-	    rigid_solids = data["rigid_body_velo"]
+	    rigid_solids = data["rigid_body_velo"]::Array{Tuple{Int64,Function},1}
 
 	 	for (s,f) in rigid_solids
 	 		solid       = solids[s]
@@ -223,29 +226,27 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 			normals     = nodalNormals[s]
 	
 			fill!(normals,  @SVector[0.,0.,0.])
-			vex,vey,vez = f(t)
+			(vex,vey,vez) = f(t)::Tuple{Float64, Float64, Float64} 
 
-			Fx = Fy = Fz = 0.
-			
-			@inbounds for ip = 1:solid.nodeCount
+			#Fx = Fy = Fz = 0.
+			# loop over centroids of surface elements
+			@inbounds for ip = 1:solid.surfCount
 			    support    = getShapeFunctions(nearPoints,funcs,xx[ip],grid, basis)
 				#println(nearPoints)
 				normal_ip = surf_normals[ip]
 	#			println(nearPoints)
 				@inbounds for i = 1:8
 					id                  = nearPoints[i]; # index of node 'i'					
-					normals[id]        += funcs[i] * normal_ip
+                    normals[id]       .+= funcs[i] .* normal_ip
 					mi                  = nodalMass_S[id]
 					#if (ip in bnd_particles ) push!(boundary_nodes,id) end
 				    push!(contact_solids[id],s)  # add solid 's' to the set of contact solids at node 'id'
 
-                    Fx += (mi*vex - nodalMomentum_S[id][1])/dtime
-                    Fy += (mi*vey - nodalMomentum_S[id][2])/dtime
-                    Fz += (mi*vez - nodalMomentum_S[id][3])/dtime
+                    # Fx += (mi*vex - nodalMomentum_S[id][1])/dtime
+                    # Fy += (mi*vey - nodalMomentum_S[id][2])/dtime
+                    # Fz += (mi*vez - nodalMomentum_S[id][3])/dtime
 	
-				    nodalMomentum_S[id]   = setindex(nodalMomentum_S[id], mi*vex,1)
-				    nodalMomentum_S[id]   = setindex(nodalMomentum_S[id], mi*vey,2)
-				    nodalMomentum_S[id]   = setindex(nodalMomentum_S[id], mi*vez,3)				    
+                    nodalMomentum_S[id]   .=  mi*@SVector[vex,vey,vez]				    		    
 				end
 			end
 			#solid.reaction_forces .= @SVector[Fx, Fy, Fz]
@@ -279,10 +280,10 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 
 	    if     typeof(mats[s1]) <: RigidMaterial 
 	    	nI_common .= nI_body_1 
-	    	nI_common /= norm(nI_common)
+            nI_common /= norm(nI_common)
 
 		    #normals    = [nI_common -nI_common]
-		    normals    = SMatrix{3,2}( nI_common[1], nI_common[2], nI_common[3],
+ 		    normals    = SMatrix{3,2}( nI_common[1], nI_common[2], nI_common[3],
 		    	                      -nI_common[1],-nI_common[2],-nI_common[3])
 
 	    elseif typeof(mats[s2]) <: RigidMaterial 
@@ -313,7 +314,7 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 			
 
 			velo1    = nodalMomentum_1[i];                       # body 1 velo				
-		    velocm   = nodalMomentum_S[i]/nodalMass_S[i];        # system velo
+            velocm   = nodalMomentum_S[i]./nodalMass_S[i];        # system velo
 		    
 		    nI      .= normals[:,is]
 		    deltaVe1 .= velo1 .- velocm;			    
@@ -449,7 +450,7 @@ t       += dtime
 				in         = elemNodes[i]; # index of node 'i'
 			    dNi        = @view dNdx[:,i]			
 				vI         = du[in]
-				vIt        = xx[in] - XX[in]
+                vIt        = xx[in] - XX[in]   # no memory alloc
 				vel_grad  += SMatrix{3,3}(dNi[1]*vI[1], dNi[1]*vI[2], dNi[1]*vI[3],
    										  dNi[2]*vI[1], dNi[2]*vI[2], dNi[2]*vI[3],
    										  dNi[3]*vI[1], dNi[3]*vI[2], dNi[3]*vI[3] )
@@ -461,29 +462,33 @@ t       += dtime
 		   	
 			#dstrain      = 0.5 * (vel_grad + vel_grad' + vel_grad * vel_grad') - strain[ip] 
 			
-			Fdot         .= vel_grad/dtime		   
-		   	F[ip]         = Identity + vel_gradT
+			Fdot          = vel_grad/dtime		   
+       	    F[ip]         = Identity + vel_gradT  # no memory alloc
 		   	J             = det(F[ip])
-		   	L             = Fdot*inv(F[ip])
-		   	D             = 0.5 * dtime * (L + L')
+            Finv          = inv(F[ip])    # no memory alloc
+            L             = Fdot*Finv     # no memory alloc when Fdot is a SMatrix
+#@timeit "2"            D             .= (0.5 * dtime) .* (L .+ L')
+            D             = (0.5 * dtime) * (L + L')  # no memory alloc
 		   	strain[ip]   += D #0.5 * (vel_grad + vel_grad' + vel_grad * vel_grad')
 
 		   	#println(strain[ip])
 	   	     #@timeit "3" update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
 	   	    update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
 
+            #sigma = SMatrix{3,3}(0,0,0,0,0,0,0,0,0) #stress[ip]
             sigma = stress[ip]
-            P     = J*sigma*inv(F[ip])'  # convert to Piola Kirchoof stress
+            P     = J*sigma*Finv'  # convert to Piola Kirchoof stress, no memory alloc
 
-            body(g,[0 0 0],t)  
+            #body(g,[0 0 0],t)  
             # compute nodal internal force fint
 		    for i = 1:length(elemNodes)
 				in  = elemNodes[i]; # index of node 'i'
 			    dNi = @view dNdx[:,i]			
-	   	        fint[in]  +=  detJ * @SVector[P[1,1] * dNi[1] + P[1,2] * dNi[2] + P[1,3] * dNi[3],
+                fint[in]  +=  detJ * @SVector[P[1,1] * dNi[1] + P[1,2] * dNi[2] + P[1,3] * dNi[3],
 										      P[2,1] * dNi[1] + P[2,2] * dNi[2] + P[2,3] * dNi[3],
 										      P[3,1] * dNi[1] + P[3,2] * dNi[2] + P[3,3] * dNi[3] ]
-                fbody[in] += detJ*mat.density*N[i]*g								        
+# Performance issue here: mat.density is ANY because we have heterogeneous contains of mats: RIgid/other mats.										      
+#@timeit "4"                fbody[in] += detJ*mat.density*N[i]*g								        
             end
 	   end
 	end
@@ -496,22 +501,22 @@ t       += dtime
 	
 		
 	if haskey(data, "rigid_body_velo") 
-
-	    rigid_solids = data["rigid_body_velo"]
+	    
+	    rigid_solids = data["rigid_body_velo"]::Array{Tuple{Int64,Function},1}
 
 	 	for (s,f) in rigid_solids
 	 		solid       = solids[s]
 			xx          = solid.pos
 			xc          = solid.centroids
-			(vex,vey,vez) = f(t)
+			(vex,vey,vez) = f(t)::Tuple{Float64, Float64, Float64} 
 
 			if (vex,vey,vez) == (0.,0.,0.) continue end
 			# update all nodes for visualization only
 			@inbounds for ip = 1:solid.nodeCount
-		      xx[ip]   += dtime * @SVector [vex,vey,vez]
+		      xx[ip]   += dtime * @SVector [vex,vey,vez]   # no memory alloc, 
 		    end
             # update the centroids of surface elems
-		    @inbounds for ip = 1:solid.parCount
+		    @inbounds for ip = 1:solid.surfCount
 		      xc[ip]   += dtime * @SVector [vex,vey,vez]
 		    end
 		end
