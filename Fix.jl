@@ -7,6 +7,7 @@ using StaticArrays
 using Solid
 using Fem
 using Grid
+using Mesh
 
 
 abstract type FixBase end
@@ -140,12 +141,31 @@ end
 struct ReactionForceFix <: FixBase
     solid::FEM3D
     file::IOStream
-    function ReactionForceFix(solid,filename)
+    function ReactionForceFix(solid,tag,filename)
         if (isfile(filename))
             rm(filename)
         end
         file = open(filename, "a")
+        if haskey(solid.mesh.node_sets,tag ) == false 
+           Mesh.create_node_set_from_element_set!(solid.mesh, tag)
+        end
         new(solid,file)
+    end
+end
+
+struct SpatialReactionForceFix <: FixBase
+    solid::FEM3D
+    file::IOStream
+    tag::String
+    function SpatialReactionForceFix(solid,tag,filename)
+        if (isfile(filename))
+            rm(filename)
+        end
+        file = open(filename, "a")
+        if haskey(solid.mesh.node_sets,tag ) == false 
+           Mesh.create_node_set_from_element_set!(solid.mesh, tag)
+        end
+        new(solid,file,tag)
     end
 end
 
@@ -176,6 +196,9 @@ function compute(fix::DisplacementFix,time)
     #println(fix.index)
     x = fix.solids[fix.index[1]].pos[fix.index[2]]
     write(fix.file, "$(time) $(x[1]) $(x[2])\n")
+end
+
+function compute_femp(fix::EmptyFix,time)
 end
 
 function compute_femp(fix::DisplacementFemFix,time)
@@ -283,6 +306,20 @@ function compute_femp(fix::ReactionForceGridFix,time)
     write(fix.file, "$(time) $(fx) $(fy) $(fz)\n")
 end
 
+function compute_femp(fix::SpatialReactionForceFix,time)
+    ids   = collect(fix.solid.mesh.node_sets[fix.tag])
+    force = fix.solid.fint
+    xx    = fix.solid.pos
+
+    for id in ids
+        x  = xx[id][1]
+        fx = force[id][1]
+        fy = force[id][2]
+        fz = force[id][3]
+        write(fix.file, "$(x) $(fx) $(fy) $(fz)\n")
+    end        
+end
+
 function compute(fix::StressFix,time)
     #println(fix.index)    
     write(fix.file, "$(fix.solids[1].strain[1][1,1]) $(fix.solids[1].stress[1][1,1]) \n")
@@ -301,6 +338,6 @@ struct MaximumPlasticStrainFix <: FixBase
 end
 
 export FixBase, EmptyFix, EnergiesFix, DisplacementFix, StressFix, MaximumPlasticStrainFix, DisplacementFemFix, CenterOfMassFix
-export ReactionForceFix, ReactionForceGridFix
+export ReactionForceFix, ReactionForceGridFix, SpatialReactionForceFix
 export compute, closeFile, compute_femp
 end

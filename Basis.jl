@@ -98,24 +98,24 @@ function getAdjacentGridPoints(nearPts,xp,grid::Grid3D, basis::LinearBasis)
 	fLength_Cell_y = grid.dyI
 	fLength_Cell_z = grid.dzI
 
-	iBottomLeft_i  = floor(Int64,(xp[1]-grid.xmin) * fLength_Cell_x + 1.)
-	iBottomLeft_j  = floor(Int64,(xp[2]-grid.ymin) * fLength_Cell_y + 1.)
-	iBottomLeft_k  = floor(Int64,(xp[3]-grid.zmin) * fLength_Cell_z + 1.)
+	iBottomLeft_i  = floor(Int64, (xp[1]-grid.xmin) * fLength_Cell_x + 1.)
+	iBottomLeft_j  = floor(Int64, (xp[2]-grid.ymin) * fLength_Cell_y + 1.)
+	iBottomLeft_k  = floor(Int64, (xp[3]-grid.zmin) * fLength_Cell_z + 1.)
 
-	# if(iBottomLeft_i > grid.nodeCountX)
-	# 	@printf("Index out of bounds: j: %d \n", iBottomLeft_i)
-	# 	@printf("xp[1]: %e \n", xp[2])
-	# end
+	if(iBottomLeft_i >= grid.nodeCountX)
+		@printf("Index out of bounds: i: %d \n", iBottomLeft_i)
+		@printf("xp[1]: %e \n", xp[1])
+	end
 
-	# if(iBottomLeft_j < 1 || iBottomLeft_j > grid.nodeCountY)
-	# 	@printf("Index out of bounds: j: %d \n", iBottomLeft_j)
-	# 	@printf("xp[2]: %e \n", xp[2])
-	# end
+	if(iBottomLeft_j < 1 || iBottomLeft_j > grid.nodeCountY)
+		@printf("Index out of bounds: j: %d \n", iBottomLeft_j)
+		@printf("xp[2]: %e \n", xp[2])
+	end
 
-	# if(iBottomLeft_k < 1 || iBottomLeft_k > grid.nodeCountZ)
-	# 	@printf("Index out of bounds: k: %d \n", iBottomLeft_k)
-	# 	@printf("xp: %e %e %e\n", xp[1], xp[2], xp[3])
-	# end
+	if(iBottomLeft_k < 1 || iBottomLeft_k >= grid.nodeCountZ)
+		@printf("Index out of bounds: k: %d \n", iBottomLeft_k)
+		@printf("xp: %e %e %e\n", xp[1], xp[2], xp[3])
+	end
 
 
 	iIndex = to_1D_index(iBottomLeft_i, iBottomLeft_j, iBottomLeft_k, grid)

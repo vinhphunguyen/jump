@@ -241,7 +241,7 @@ end
 
 # compute normal vector at centroid of a two-node line element
 # this can be the boundary of a 2D mesh
-function getNormals!(normals_surface, coords, eltype::Line2 )
+function getNormals(coords, eltype::Line2 )
     dN1dxi  = -0.5
     dN2dxi  =  0.5
     
@@ -251,13 +251,12 @@ function getNormals!(normals_surface, coords, eltype::Line2 )
     
     # find the normal n
 
-    normals_surface[1] = -s2 / sqrt(s1^2+s2^2)
-    normals_surface[2] = -s1 / sqrt(s1^2+s2^2)  
+    return  @SVector[-s2 / sqrt(s1^2+s2^2), -s1 / sqrt(s1^2+s2^2)] 
 end
 
 # compute normal vector at centroid of a three-node triangle element
 # this can be the boundary of a 3D mesh of tetrahedra
-function getNormals!(normals_surface, coords, eltype::Tri3 )
+function getNormals(coords, eltype::Tri3 )
     # dN1dxi  = -1.0
     # dN1deta = -1.0
     # dN2dxi  =  1.0
@@ -272,11 +271,32 @@ function getNormals!(normals_surface, coords, eltype::Tri3 )
     
     # find the normal n
 
-    normals_surface = cross(s,t)
+    return cross(s,t)
+end
 
-    #normalize!(n)
+function getNormals(coords, eltype::Quad4 )
+    dN1dxi  = -0.25
+    dN1deta = -0.25
+    dN2dxi  =  0.25 
+    dN2deta = -0.25
+    dN3dxi  =  0.25 
+    dN3deta =  0.25
+    dN4dxi  = -0.25 
+    dN4deta =  0.25
 
-    #normals_surface = n
+    # two tangents of the surface
+    s = @SVector[dN1dxi * coords[1][1] + dN2dxi * coords[2][1] + dN3dxi * coords[3][1] + dN4dxi * coords[4][1],
+                 dN1dxi * coords[1][2] + dN2dxi * coords[2][2] + dN3dxi * coords[3][2] + dN4dxi * coords[4][2],
+                 dN1dxi * coords[1][3] + dN2dxi * coords[2][3] + dN3dxi * coords[3][3] + dN4dxi * coords[4][3] ]
+
+
+    t = @SVector[dN1deta * coords[1][1] + dN2deta * coords[2][1] + dN3deta * coords[3][1] + dN4deta * coords[4][1],
+                 dN1deta * coords[1][2] + dN2deta * coords[2][2] + dN3deta * coords[3][2] + dN4deta * coords[4][2],
+                 dN1deta * coords[1][3] + dN2deta * coords[2][3] + dN3deta * coords[3][3] + dN4deta * coords[4][3]]
+    
+    # find the normal n
+
+    return cross(s,t)
 end
 
 # compute normal vectors at 4 Gauss points of a Q4 element
@@ -319,12 +339,7 @@ function getNormals!(funcs_surface, normals_surface, weights_surface, coords, gp
 
         normals_surface[1,ip] = n[1]
         normals_surface[2,ip] = n[2]
-        normals_surface[3,ip] = n[3]
-
-        J11     = dN1dxi  * coords[1][1] + dN2dxi  * coords[2][1] + dN3dxi  * coords[3][1] + dN4dxi  * coords[4][1]
-        J12     = dN1dxi  * coords[1][2] + dN2dxi  * coords[2][2] + dN3dxi  * coords[3][2] + dN4dxi  * coords[4][2]
-        J21     = dN1deta * coords[1][1] + dN2deta * coords[2][1] + dN3deta * coords[3][1] + dN4deta * coords[4][1]
-        J22     = dN1deta * coords[1][2] + dN2deta * coords[2][2] + dN3deta * coords[3][2] + dN4deta * coords[4][2]        
+        normals_surface[3,ip] = n[3]      
     end
 end
 
@@ -742,6 +757,6 @@ function read_GMSH(sFile::String)
 	return mesh
 end
 
-export createMeshForRectangle, elements_to_dict, loadGMSH, read_GMSH, FEMesh, create_node_set_from_element_set!, getNormals!
+export createMeshForRectangle, elements_to_dict, loadGMSH, read_GMSH, FEMesh, create_node_set_from_element_set!, getNormals!,getNormals
 
 end

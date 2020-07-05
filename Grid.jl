@@ -162,10 +162,10 @@ module Grid
 
      mass      :: Vector{Float64}
      pos       :: Vector{SVector{3,Float64}}
-     momentum0 :: Vector{MVector{3,Float64}}
-     momentum  :: Vector{MVector{3,Float64}}
-     momentum2 :: Vector{MVector{3,Float64}}  # for MUSL algorithm
-     force     :: Vector{MVector{3,Float64}}
+     momentum0 :: Vector{SVector{3,Float64}}
+     momentum  :: Vector{SVector{3,Float64}}
+     momentum2 :: Vector{SVector{3,Float64}}  # for MUSL algorithm
+     force     :: Vector{SVector{3,Float64}}
 
      fixedNodes :: Array{Int64,2}
      bottomNodes:: Vector{Int64}

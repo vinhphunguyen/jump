@@ -48,11 +48,15 @@ struct ElasticMaterial <: MaterialType
 	vmStr    ::Vector{Float64}             # equivalent von Mises stress
 	dam      ::Vector{Float64}             # equivalent von Mises stress
 
+	c_dil    :: Float64
+
 	function ElasticMaterial(E,nu,density,Gf,l,parCount)
 		lambda = E*nu/(1+nu)/(1-2*nu)
 		mu     = E/2/(1+nu)
 
-        new(E,nu,density,lambda,mu,Gf,l,0.5/E,fill(0.,parCount),fill(0.,parCount))
+		c_dil  = sqrt( (lambda+2*mu)/density )
+
+        new(E,nu,density,lambda,mu,Gf,l,0.5/E,fill(0.,parCount),fill(0.,parCount),c_dil)
     end
 end
 
@@ -66,12 +70,13 @@ function update_stress!(sigma::MMatrix{2,2,Float64},mat::ElasticMaterial,
               2.0 * mat.mu * epsilon
 end
 
-function update_stress!(sigma::MMatrix{3,3,Float64},mat::ElasticMaterial,
+function update_stress!(sigma::SMatrix{3,3,Float64},mat::ElasticMaterial,
 						epsilon::SMatrix{3,3,Float64},strain_increment,F, J,ip,dtime)
-  sigma    .= mat.lambda * (epsilon[1,1]+epsilon[2,2]+epsilon[3,3]) * UniformScaling(1.) + 2.0 * mat.mu * epsilon
+  #sigma    .= mat.lambda * (epsilon[1,1]+epsilon[2,2]+epsilon[3,3]) * UniformScaling(1.) + 2.0 * mat.mu * epsilon
 
   sigma_dev     = sigma - 0.333333333 *(sigma[1,1]+sigma[2,2]+sigma[3,3]) * UniformScaling(1.); 
   mat.vmStr[ip] = sqrt(  sigma[1,1]^2 + sigma[2,2]^2 + sigma[3,3]^2 + 2*(sigma[1,2]^2+sigma[1,3]^2+sigma[2,3]^2) )
+  mat.lambda * (epsilon[1,1]+epsilon[2,2]+epsilon[3,3]) * UniformScaling(1.) + 2.0 * mat.mu * epsilon
 end
 
 function computeCrackDrivingForce(stress,mat::ElasticMaterial)
@@ -298,6 +303,8 @@ struct JohnsonCookMaterial <: MaterialType
 	sigmaTrial_dev::SMatrix{3,3,Float64,9}
 	sigmaFinal_dev::SMatrix{3,3,Float64,9}
 
+	c_dil   :: Float64
+
 	function JohnsonCookMaterial(E,nu,density,A,B,C,n,eps0dot,m,χ,Cp,cellsize,parCount)
 
 		lambda = E*nu/(1+nu)/(1-2*nu)
@@ -312,8 +319,10 @@ struct JohnsonCookMaterial <: MaterialType
 
 		delta    = χ/(density*Cp)
 
+		c_dil  = sqrt( (lambda+2*mu)/density )
+
         new(E,nu,density,A,B,C,n,eps0dot,m,χ,Cp,lambda,mu,kappa,velo,cellsize,delta,
-        	alpha,alphad,vmStr,zeros(3,3),zeros(3,3),zeros(3,3))
+        	alpha,alphad,vmStr,zeros(3,3),zeros(3,3),zeros(3,3),c_dil)
     end
 end
 
@@ -364,7 +373,6 @@ function update_stress!(sig::SMatrix{3,3,Float64},mat::JohnsonCookMaterial,
 
 	mat.alpha[ip]        = eff_plastic_strain + plastic_strain_increment
 	# be careful with .=, without it sig is not updated 
-	sig                  = sigmaFinal_dev     + mat.kappa*(eps0[1,1]+eps0[2,2]+eps0[3,3])*UniformScaling(1.)
 
 	tav = 1000 * mat.cellsize / mat.signal_velocity;
     mat.alphadot[ip] -= mat.alphadot[ip] * dtime / tav;
@@ -372,6 +380,9 @@ function update_stress!(sig::SMatrix{3,3,Float64},mat::JohnsonCookMaterial,
     mat.alphadot[ip] = max(0.0, mat.alphadot[ip]);
 
     mat.vmStr[ip] = sqrt(  sigmaFinal_dev[1,1]^2 + sigmaFinal_dev[2,2]^2 + sigmaFinal_dev[3,3]^2 + 2*(sigmaFinal_dev[1,2]^2+sigmaFinal_dev[1,3]^2+sigmaFinal_dev[2,3]^2) )
+
+    # this is sigma to return
+    sigmaFinal_dev     + mat.kappa*(eps0[1,1]+eps0[2,2]+eps0[3,3])*UniformScaling(1.)
 end   
 
 struct JohnsonCookDamage

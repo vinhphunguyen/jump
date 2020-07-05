@@ -14,12 +14,13 @@ using Mesh
 function compute_fext(solids,funcs_surface, normals_surface, weights_surface, gpCoords_surface,data,t)
  	if haskey(data, "pressure") == false return end 
 
- 	pressure_data = data["pressure"]
+ 	pressure_data = data["pressure"] ::Array{Tuple{Int64,String,Function},1}
 
     @inbounds for is = 1:length(pressure_data)
         solid_pressure_data = pressure_data[is]
         tag                 = solid_pressure_data[2]
         f                   = solid_pressure_data[3]
+        ft = f(t)::Float64
 		# only deformable solids here
 	  	solid  = solids[solid_pressure_data[1]]
 	  	XX     = solid.pos0	  	  	  
@@ -42,16 +43,17 @@ function compute_fext(solids,funcs_surface, normals_surface, weights_surface, gp
 			#println(coords)
 			getNormals!(funcs_surface, normals_surface, weights_surface , coords, gpCoords_surface, basis )
 			# loop over Gauss points
-			for ip=1:4                     
-			    ww = weights_surface[ip]   
+			for ig=1:4                     
+			    ww = weights_surface[ig]   
 			    #println(normals_surface[:,ip])       
 			    #println(ww)       
 				for i = 1:length(elemNodes)
 				   in  = elemNodes[i]; # index of node 'i'
-				   ss  = funcs_surface[i,ip]*ww*f(t)#400*exp(-10000*t)
-		           ftrac[in][1] -= normals_surface[1,ip]*ss		           
-		           ftrac[in][2] -= normals_surface[2,ip]*ss
-		           ftrac[in][3] -= normals_surface[3,ip]*ss
+				   ss  = funcs_surface[i,ig]*ww*ft#400*exp(-10000*t)
+		           # ftrac[in][1] -= normals_surface[1,ip]*ss		           
+		           # ftrac[in][2] -= normals_surface[2,ip]*ss
+		           # ftrac[in][3] -= normals_surface[3,ip]*ss
+		           ftrac[in] -= ss * normals_surface[:,ig]
 		        end
 	        end
 	   end

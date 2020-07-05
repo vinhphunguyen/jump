@@ -1,6 +1,19 @@
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
 
-# Phu Nguyen, Monash University
-# 20 March, 2020 (Coronavirus outbreak)
+# This is the collision of two sphere problem.
+# It should be the first problem to test 3D MPM 
+# When improving the code, use this test first
+
 
 push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
 # import Gadfly
@@ -9,11 +22,7 @@ using Printf
 using LinearAlgebra
 using StaticArrays   # if not yet installed, in REPL, do import Pkg and Pkd.add("StaticArrays")
 using TimerOutputs
-# pyFig_RealTime = PyPlot.figure("MPM 2Disk Real-time",
-#                                figsize=(8/2.54, 8/2.54), edgecolor="white", facecolor="white")
 
-#include("./Grid.jl")
-#include("./Problem.jl")
 
 using Fem
 using Solid
@@ -37,7 +46,7 @@ using Util
 
     # create the grid of a 1 x 1 square, with 20 x 20 cells
 	# and a basis: linear and CPDI-Q4 supported
-    grid      =  Grid3D(0,1.,0,1.,0,1., 31, 31,31)
+    grid      =  Grid3D(0,1.01,0,1.01,0,1.01, 31, 31,31)
     basis     =  LinearBasis()
 
 
@@ -56,8 +65,8 @@ using Util
     # as the mesh was created with the center of the disk at (0,0)
 	#move(solid1,SVector{2,Float64}([ 0.2+grid.dx  0.2+grid.dx]))
 	#move(solid2,SVector{2,Float64}([ 0.8-grid.dx  0.8-grid.dx]))
-	Fem.move(solid1,SVector{3,Float64}([ 0.2,   0.2,0.5]))
-	Fem.move(solid2,SVector{3,Float64}([ 0.2+0.6,0.8,0.5]))
+	Fem.move(solid1,SVector{3,Float64}([ 0.2+0.005,   0.2+0.005,0.5+0.005]))
+	Fem.move(solid2,SVector{3,Float64}([ 0.2+0.005+0.6,0.8+0.005,0.5+0.005]))
 
     solids = [solid1, solid2]
     mats   = [material,material]
@@ -79,7 +88,7 @@ using Util
     plotGrid(output2,grid,0)
     plotParticles_3D(output2,solids,mats,0)
 
-	#reset_timer!
+	reset_timer!()
     fric = 0.
 
     data                    = Dict()
@@ -89,9 +98,9 @@ using Util
     data["friction"]        = fric
 
     solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,algo1,output2,fix,data)
-    #print_timer()
+    print_timer()
 	# plotting energies
-    pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
+    pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(4, 4))
 	PyPlot.clf()
 	pyPlot01 = PyPlot.gca()
 	PyPlot.subplots_adjust(left=0.15, bottom=0.25, right=0.65)
@@ -103,7 +112,7 @@ using Util
 	pyPlot01[:set_ylabel]("energy (\$\\times 10^{-3}\$ Nm)", fontsize=8)
 	pyPlot01[:set_xticks](collect(0.0:1.0:4.0))
 	pyPlot01[:tick_params](axis="both", which="major", labelsize=8)
-	pyPlot01[:set_yticks](collect(0.0:1.0:3.0))
+	pyPlot01[:set_yticks](collect(0.0:0.2:1.0))
 	PyPlot.plot(fix.recordTime, c="blue", fix.kinEnergy, "-", label="\$ K \$", linewidth=1.0)
 	#PyPlot.hold(true)
 	PyPlot.plot(fix.recordTime, c="red", fix.strEnergy, "-", label="\$ U \$", linewidth=1.0)

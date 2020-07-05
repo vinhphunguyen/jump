@@ -53,11 +53,13 @@ using Util
     basis     =  LinearBasis()
 
 
-    material1 = ElasticMaterial(youngModulus1,poissonRatio,density)
-    material2 = ElasticMaterial(youngModulus2,poissonRatio,density)
 
     solid1   = FEM3D("ring1.msh")
     solid2   = FEM3D("ring2.msh")
+
+    material1 = ElasticMaterial(youngModulus1,poissonRatio,density,solid1.parCount)
+    material2 = ElasticMaterial(youngModulus2,poissonRatio,density,solid2.parCount)
+
     
     # as the mesh was created with the center of the disk at (0,0)
 	#move(solid1,SVector{2,Float64}([ 0.2+grid.dx  0.2+grid.dx]))
@@ -87,7 +89,7 @@ using Util
 	# data["time"]       = t
 
 	data               = Dict()
-	data["pressure"]   = [(1,"force",t ->  400*exp(-10000*t))]
+	data["pressure"]   = Array{Tuple{Int64,String,Function},1}([(1,"force",t ->  400*exp(-10000*t))])
 	data["total_time"] = Tf
 	data["dt"]         = dtime
 	data["time"]       = 0.

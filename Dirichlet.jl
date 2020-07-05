@@ -22,7 +22,7 @@ function fix_Dirichlet_grid(grid::Grid3D,data)
  		elseif bnd == "left"   grid.fixedNodes[:,grid.leftNodes]   .= fix
  		elseif bnd == "right"  grid.fixedNodes[:,grid.rightNodes]  .= fix
  		elseif bnd == "front"  grid.fixedNodes[:,grid.frontNodes]  .= fix
- 		elseif bnd == "back"   grid.fixedNodes[:,grid.bottomNodes] .= fix
+ 		elseif bnd == "back"   grid.fixedNodes[:,grid.backNodes]   .= fix
  		else  error("Not recognized grid faces!!!")
  		end
  	end

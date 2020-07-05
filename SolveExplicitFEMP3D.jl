@@ -607,7 +607,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 			N         = feFuncs[ip]
 			dNdx      = feDers[ip]
 			
-			vol[ip]   = detJ
+			
 			#println(dNdx)
 			#println(sum(dNdx, dims=2))
 			for i = 1:length(elemNodes)
@@ -632,6 +632,8 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 		   	F[ip]        = Identity + vel_gradT
 		   	J            = det(F[ip])
 
+		   	vol[ip]      = detJ*J
+
 		   	L             = Fdot*inv(F[ip])
 		   	D             = 0.5 * dtime * (L + L')
 		   	strain[ip]   += D #0.5 * (vel_grad + vel_grad' + vel_grad * vel_grad')
@@ -639,7 +641,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 		   	#println(strain[ip])
 	   	     #@timeit "3" update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
 
-	   	    update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
+	   	    stress[ip] =  update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
 
 
             P     = J*stress[ip]*inv(F[ip])'  # convert to Piola Kirchoof stress
@@ -661,9 +663,9 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
     #  update particle external forces due to traction
     # ====================================================================
 
-    t       += dtime
+    #t       += dtime
 
-#    compute_fext(solids,funcs_surface, normals_surface, weights_surface, gpCoords_surface,data,t)
+    compute_fext(solids,funcs_surface, normals_surface, weights_surface, gpCoords_surface,data,t)
 
     # checking the pressure 
  #    ftrac = solids[1].ftrac
@@ -680,7 +682,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 		compute_femp(fixes,t)
 	end
 
-    
+    t       += dtime
     counter += 1
   end # end of time loop
   #@printf("Solving done \n")

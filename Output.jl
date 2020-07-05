@@ -15,6 +15,7 @@ import Glob
 import PyPlot
 using  WriteVTK
 using  StaticArrays
+using  TimerOutputs
 
 using Solid
 using Material
@@ -366,6 +367,9 @@ end
 # 	outfiles    = vtk_save(vtkfile)
 # end
 				        
+#########################################################
+# plotParticles_2D: write VTK files, opened with Paraview				        
+#########################################################				        
 
 function plotParticles_2D(plot::VTKOutput,solids,mats,counter::Int64)
 	my_vtk_file = string(plot.dir,"particle_","$(Int(counter))")
@@ -433,6 +437,10 @@ function plotParticles_2D(plot::VTKOutput,solids,mats,counter::Int64)
 end
 
 
+#########################################################
+# plotParticles_3D: write VTK files, opened with Paraview				        
+#########################################################		
+
 function plotParticles_3D(plot::VTKOutput,solids,mats,counter::Int64)
 	my_vtk_file = string(plot.dir,"particle_","$(Int(counter))")
 	vtmfile     = vtk_multiblock(my_vtk_file)
@@ -463,8 +471,6 @@ function plotParticles_3D(plot::VTKOutput,solids,mats,counter::Int64)
         
 
 	    cc = 1
-	    cells = MeshCell[]
-	    
 	    
 		for ip=1:solid.nodeCount
 			points[1,ip] = xx[ip][1]
@@ -479,13 +485,7 @@ function plotParticles_3D(plot::VTKOutput,solids,mats,counter::Int64)
 			#cc += 1
 		end
 
-		if size(solid.elems,2) == 4 cell_type = VTKCellTypes.VTK_TETRA end
-		if size(solid.elems,2) == 8 cell_type = VTKCellTypes.VTK_HEXAHEDRON end
-
 		for e=1:solid.parCount
-			inds =elems[e,:] 
-		    c    = MeshCell(cell_type, inds)
-            push!(cells, c)
             sigma = stress[e]
             vm[e]   = get_von_mises_stress(e,mat)
             ps[e]   = getPlasticStrain(e,mat)
@@ -495,16 +495,16 @@ function plotParticles_3D(plot::VTKOutput,solids,mats,counter::Int64)
             sigyy[e] = solid.stress[e][2,2]
         end
 
-        vtkfile     = vtk_grid(vtmfile, points, cells)
+        vtkfile     = vtk_grid(vtmfile, points, solid.cells)
         # write data 
-	    vtkfile["Pressure", VTKCellData()]  = p
+	    vtkfile["Pressure",       VTKCellData()]  = p
 	    vtkfile["Plastic_Strain", VTKCellData()]  = ps
-	    vtkfile["sigma_yy", VTKCellData()]  = sigyy
-	    vtkfile["Velocity", VTKPointData()] = velo
-	    vtkfile["Displacement", VTKPointData()] = disp
-	    vtkfile["vonMises", VTKCellData()] = vm
-	    vtkfile["damage", VTKCellData()] = d
-	    vtkfile["temperature", VTKCellData()] = T
+	    vtkfile["sigma_yy",       VTKCellData()]  = sigyy
+	    vtkfile["Velocity",       VTKPointData()] = velo
+	    vtkfile["Displacement",   VTKPointData()] = disp
+	    vtkfile["vonMises",       VTKCellData()]  = vm
+	    vtkfile["damage",         VTKCellData()]  = d
+	    vtkfile["temperature",    VTKCellData()]  = T
 	end
 	outfiles    = vtk_save(vtmfile)
 end
