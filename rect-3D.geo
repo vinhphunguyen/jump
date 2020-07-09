@@ -1,12 +1,12 @@
-l  = 60.;
-w1 = 40.;
-w  = 40.;
+l  = 2.;
+w1 = 0.5;
+t  = 1.;
 
 
 h = 5.;
 
-m = 60;
-n = 40;
+m = 40;
+n = 30;
 
 Point(1) = {0,0,0,h};
 Point(2) = {l,0,0,h};
@@ -30,11 +30,11 @@ Transfinite Surface{1} = {1,2,3,4};
 
 Recombine Surface{1};
 
-Extrude {0, 0, 60} {
+Extrude {0, 0, t} {
   Surface{1}; Layers{60}; Recombine;
 }
 
 
 //Physical Surface("bottom") = {1}; // force
-//Physical Surface("left-right") = {2,4}; // force
+Physical Surface("boundary") = {21}; // force
 Physical Volume("All") = {1}; // force

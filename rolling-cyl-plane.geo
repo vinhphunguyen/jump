@@ -5,8 +5,8 @@ w  = 100;
 
 h = 5.;
 
-m = 100;
-n = 2;
+m = 60;
+n = 1;
 
 Point(1) = {0,0,0,h};
 Point(2) = {l,0,0,h};
@@ -32,5 +32,5 @@ Recombine Surface{1};
 
 
 Physical Line("boundary") = {1,2,3,4}; // force
-Physical Line("BotSurface") = {1}; // force
+//Physical Line("BotSurface") = {1}; // force
 Physical Surface("All") = {1}; // force
