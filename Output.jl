@@ -16,6 +16,8 @@ import PyPlot
 using  WriteVTK
 using  StaticArrays
 using  TimerOutputs
+using RecursiveArrayTools
+
 
 using Solid
 using Material
@@ -459,8 +461,15 @@ function plotParticles_3D(plot::VTKOutput,solids,mats,counter::Int64)
 		mat     = mats[s]
 		if ( typeof(mat) <: Union{ElasticMaterial,NeoHookeanMaterial} ) elastic = true end
 		
-		points = zeros(3,solid.nodeCount)
-	    velo   = zeros(3,solid.nodeCount)
+		VAx     = VectorOfArray(xx)
+		VAv     = VectorOfArray(ve)
+
+		points = convert(Array,VAx)
+		velo   = convert(Array,VAv)
+
+
+		#points = zeros(3,solid.nodeCount)
+	    #velo   = zeros(3,solid.nodeCount)
 	    disp   = zeros(3,solid.nodeCount)
 	    vm     = zeros(solid.parCount)
 	    p      = zeros(solid.parCount)
@@ -469,29 +478,25 @@ function plotParticles_3D(plot::VTKOutput,solids,mats,counter::Int64)
 	    d      = zeros(solid.parCount)       # damage
 	    T      = zeros(solid.parCount)       # temperature
         
-
-	    cc = 1
-	    
 		for ip=1:solid.nodeCount
-			points[1,ip] = xx[ip][1]
-			points[2,ip] = xx[ip][2]
-			points[3,ip] = xx[ip][3]
-			velo[1,ip]   = ve[ip][1]
-			velo[2,ip]   = ve[ip][2]
-			velo[3,ip]   = ve[ip][3]
+			#points[1,ip] = xx[ip][1]
+			#points[2,ip] = xx[ip][2]
+			#points[3,ip] = xx[ip][3]
+			#velo[1,ip]   = ve[ip][1]
+			#velo[2,ip]   = ve[ip][2]
+			#velo[3,ip]   = ve[ip][3]
 			disp[1,ip] = xx[ip][1] - XX[ip][1]
 			disp[2,ip] = xx[ip][2] - XX[ip][2]
 			disp[3,ip] = xx[ip][3] - XX[ip][3]
-			#cc += 1
 		end
 
 		for e=1:solid.parCount
-            sigma = stress[e]
+            sigma   = stress[e]
             vm[e]   = get_von_mises_stress(e,mat)
             ps[e]   = getPlasticStrain(e,mat)
             T[e]    = getTemperature(e,mat)
             d[e]    = getDamage(e,mat)
-            p[e]    = sigma[1,1]+sigma[2,2]                      
+            p[e]    = sigma[1,1]+sigma[2,2]  +sigma[3,3]                    
             sigyy[e] = solid.stress[e][2,2]
         end
 

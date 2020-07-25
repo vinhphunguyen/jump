@@ -44,7 +44,7 @@ struct FEM2D
 
 	deformationGradient :: Vector{SMatrix{2,2,Float64,4}}  # F, 2x2 matrix
 	strain              :: Vector{SMatrix{2,2,Float64,4}}  # stress, 2x2 matrix
-	stress              :: Vector{MMatrix{2,2,Float64,4}}  # strain
+	stress              :: Vector{SMatrix{2,2,Float64,4}}  # strain
 	
 
 	parCount            :: Int64              # same as element count in the mesh
@@ -701,8 +701,10 @@ function compute_normals!(solid::FEM3D)
 	#normal  = zeros(3)
 	if  typeof(solid.basis_S) <: Quad4 
 		N = zeros(4)
+		xieta = [0.,0.]
 	elseif  typeof(solid.basis_S) <: Tri3
 		N= zeros(3)
+		xieta = [0.3333333333333,0.3333333333333]
 	else
 		@error("only supported Quad4 and Tri3 surface elements.")
 	end
@@ -714,7 +716,7 @@ function compute_normals!(solid::FEM3D)
 		elemNodes  =  @view elems[ip,:]  		
 		elemNodes0 =        elems[ip,:]  
 		coords     =  @view xx[elemNodes]
-		detJ       = lagrange_basis!(N, basis_S, [0.3333333333333,0.3333333333333], coords)
+		detJ       = lagrange_basis!(N, basis_S, xieta, coords)
 	    if detJ < 0.
 		 #  	elemNodes[2] = elemNodes0[3]			  	
 			# elemNodes[3] = elemNodes0[2]

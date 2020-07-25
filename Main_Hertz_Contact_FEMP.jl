@@ -46,11 +46,11 @@ using BodyForce
     alumNu    = 0.3
 
 
-    p0      = 0.0625 # N/mm
+    p0      = 0.625 # N/mm
     fric    = 0.0
 
 	# grid creation
-	grid  = Grid3D(-8.4,8.4, -8.0,8.4, 0, 1.1, 72, 121, 2)
+	grid  = Grid3D(-8.4,8.4, -8.0,8.4, 0, 1.1, 141, 141, 2)
 	basis = LinearBasis()
 
     # solid1   = FEM3D("disk-half-bot.msh")
@@ -68,7 +68,7 @@ using BodyForce
     #ElastoPlasticMaterial(alumE,alumNu,alumRho,alumFy,alumK,solid2.parCount)
 
     #Fem.move(solid1,SVector{3,Float64}([ 0.5,0.16+0.5,0.25]))
- 
+    #Fem.move(solid2,SVector{3,Float64}([ 0.0,  2*grid.dy, 0.0]))
 
     #Fem.assign_velocity(solid2,[0,-500,0])
     
@@ -79,10 +79,10 @@ using BodyForce
 
     c_dil     = sqrt(alumE/alumRho)
     dt        = grid.dy/c_dil
-    dtime     = 0.2 * dt
+    dtime     = 0.8 * dt
 
 
-    Tf      = dtime
+    Tf      = 0.0002
     t0      = 0.0001  #ms
     interval= 20
     
