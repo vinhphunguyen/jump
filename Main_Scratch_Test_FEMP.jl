@@ -10,7 +10,7 @@
 #
 # -----------------------------------------------------------------------
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
+push!(LOAD_PATH,"./")
 #
 import PyPlot
 using Printf
@@ -55,7 +55,7 @@ using BodyForce
     fric    = 0.2
 
 	# grid creation
-	grid  = Grid3D(0.,2.1, 0.,1., 0, 0.51, 81, 51, 21)
+	grid  = Grid3D(0.,2.1, 0.,1., -0.025, 0.525, 81, 51, 23)
 	basis = LinearBasis()
 
     solid1   = FEM3D("sphere.msh")
@@ -82,7 +82,7 @@ using BodyForce
 
 
     Tf      = 12e-3
-    interval= 80
+    interval= 10
     
     function velo_func(t)
         if t < 0.5e-3
@@ -109,7 +109,7 @@ using BodyForce
                                ("right",(1,1,1)),
                                ]      # => fix bottom nodes on X/Y/Z     dir             
 
-    data["dirichlet_solid"] = [(2,"symmetry",(1,1,1))] # => fix  nodes of 'fix' group of solid 2 on Y dir
+    #data["dirichlet_solid"] = [(2,"symmetry",(1,1,1))] # => fix  nodes of 'fix' group of solid 2 on Y dir
 #                                                                            
     data["rigid_body_velo"] = Array{Tuple{Int64,Function},1}([(1,velo_func)])            # => solid 1 has a velo given by velo_func                             
                              

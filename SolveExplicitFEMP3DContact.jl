@@ -21,14 +21,14 @@
 ######################################################################
 function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg::TLFEM,output,fixes,data)
     Tf    = data["total_time"]:: Float64
-	dtime = data["dt"]        :: Float64    
-	t     = data["time"]      :: Float64     
-	fric  = data["friction"]  :: Float64
+    dtime = data["dt"]        :: Float64
+    t     = data["time"]      :: Float64
+    fric  = data["friction"]  :: Float64
 
     counter = 0
 
     Identity       = UniformScaling(1.)
-	solidCount     = length(solids)
+    solidCount     = length(solids)
 
     # this is body mass/momenta/forces/normals
     nodalMass      =  [copy(grid.mass)       for _ in 1:solidCount]
@@ -40,11 +40,11 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 
     # this is system mass/momenta/force
     nodalMass_S      = grid.mass
-	nodalMomentum0_S = grid.momentum0
-	nodalMomentum_S  = grid.momentum
-	nodalForce_S     = grid.force
+    nodalMomentum0_S = grid.momentum0
+    nodalMomentum_S  = grid.momentum
+    nodalForce_S     = grid.force
 
-	alpha            = alg.alpha
+    alpha            = alg.alpha
     nodeCount        = grid.nodeCount
 
     # boundary nodes (nodes surrounding the surfaces of all solids)
