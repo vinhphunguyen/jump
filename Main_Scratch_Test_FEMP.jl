@@ -54,23 +54,25 @@ using BodyForce
 
     fric    = 0.2
 
-	# grid creation
-	grid  = Grid3D(0.,2.1, 0.,1., -0.025, 0.525, 81, 51, 23)
+# grid creation: 2x1x0.5 with origin at 0,0,0 by 80x50x20 cells
+# the actual grid length in x-dir is 2.01 so that there is no FE nodes exactly locating on the grid line!!!
+    # similar for z-dir
+    # See Basis.jl, getNearestGridPoints(points,start,xp,grid::Grid3D), floor(Int64,(xp[1]-grid.xmin) * fLength_Cell_x + 1.)
+    # linear basis for the grid
+grid  =  Grid3D(0.,2.01, 0.,1., 0, 0.51, 81, 51, 21)
+    #grid  = Grid3D(0.,2.1, 0.,1., -0.025, 0.525, 81, 51, 23)
 	basis = LinearBasis()
-
     solid1   = FEM3D("sphere.msh")
     solid2   = FEM3D("SUBSTRATE1.inp")
-    #solid2   = FEM3D("SUBSTRATE2.inp") # non-conforming mesh
-    
-
+    #solid2   = FEM3D(“SUBSTRATE2.inp”) # non-conforming mesh
     material1 = RigidMaterial(alumRho)
-    material2 = JohnsonCookMaterial(alumE,alumNu,alumRho,A,B,C,n,eps0dot,m,χ,Cp,.42,solid2.parCount) 
+    material2 = JohnsonCookMaterial(alumE,alumNu,alumRho,A,B,C,n,eps0dot,m,χ,Cp,.42,solid2.parCount)
     #ElastoPlasticMaterial(alumE,alumNu,alumRho,alumFy,alumK,solid2.parCount)
-
-    Fem.move(solid1,SVector{3,Float64}([ 0.5,0.16+0.5,0.25]))
-    Fem.move(solid2,SVector{3,Float64}([ 0.05,  0., 0.0]))
-    #Fem.move(solid2,SVector{3,Float64}([ .5,  0., .5]))
-    
+    Fem.move(solid1,SVector{3,Float64}([ 0.5+0.005,0.15+0.5+1.2*grid.dy,0.25+0.005])) # 0.5 in the x to move the indenter to the correct pos: do not change
+                                                              # 0.5+0.15+ to move the indenter in the y dir: 0,5 = height of the sample, 0.15 is the indenter’s radius
+                                                              # 0.25+0.005 (0.005=0.01/2 as the z length is 0.51 slighyl larger than 0.5) is to move it to the middle (z-dir): do not change
+    Fem.move(solid2,SVector{3,Float64}([ 0.005,  0., 0.005]))
+    #Fem.move(solid2,SVector{3,Float64}([ .5,  0., .5]))    
 
     solids = [solid1, solid2]
     mats   = [material1, material2]
@@ -82,7 +84,7 @@ using BodyForce
 
 
     Tf      = 12e-3
-    interval= 10
+    interval= 50
     
     function velo_func(t)
         if t < 0.5e-3
