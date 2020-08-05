@@ -615,9 +615,9 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	    Ny = 1.0 - abs(dy) * dyI
 	    Nz = 1.0 - abs(dz) * dzI
 
-            if p==34230
-                @printf("xp3=%f, xI[3]=%f dzI=%f Nz=%f\n", xp3, xI[3], dzI, Nz)
-            end
+            #if p==34230
+            #    @printf("xp3=%f, xI[3]=%f dzI=%f Nz=%f\n", xp3, xI[3], dzI, Nz)
+            #end
 	    funcs[i]    = Nx * Ny * Nz
 	end
 	return 8

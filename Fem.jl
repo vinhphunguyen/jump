@@ -744,11 +744,11 @@ function compute_normals!(solid::FEM3D)
     for p in bnd_particles
     	normals_at_p = d[p]
     	normals[p]   = mean(normals_at_p)
-        if p == 41
-            @printf("Computing normals d[%d]=\t", p)
-            println(d[p])
-            @printf("normals[%d] = [%.3e, %.3e, %.3e]\n", p, normals[p][1], normals[p][2], normals[p][3])
-        end
+        #if p == 41
+        #    @printf("Computing normals d[%d]=\t", p)
+        #    println(d[p])
+        #    @printf("normals[%d] = [%.3e, %.3e, %.3e]\n", p, normals[p][1], normals[p][2], normals[p][3])
+        #end
     	#centroids[c] = xx[p]
     	#c += 1
     end

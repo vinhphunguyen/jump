@@ -126,9 +126,9 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
     #################################################
 
     while t < Tf
-        if counter > 1
-            break
-        end
+        #if counter > 1
+        #    break
+        #end
 
         @printf("Solving step: %d %e %f\n", counter, dtime, t)
 
@@ -242,9 +242,9 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 
                 nMomenta0[i]  /= nMass[i]
 		nMomenta[i]   /= nMass[i]
-                if i == 47488
-                    @printf("nMomenta[%d] = [%f, %f, %f]\n", i, nMomenta[i][1], nMomenta[i][2], nMomenta[i][3])
-                end
+                #if i == 47488
+                #    @printf("nMomenta[%d] = [%f, %f, %f]\n", i, nMomenta[i][1], nMomenta[i][2], nMomenta[i][3])
+                #end
 		
 
 	        # apply Dirichet boundary conditions on which solid?
@@ -305,14 +305,14 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 	                
                         nodalMomentum_S[id]   =  mi*@SVector[vex,vey,vez]
                         #x_node[id]            = grid.pos[id] + t * @SVector[vex,vey,vez]
-                        if id==47488
-                            dN = funcs[i] * normal_ip
-                            @printf("solid.surfCount=%d\n",solid.surfCount)
-                            @printf("xx[%d] = [%f, %f, %f], funcs[i]=%.3e\n", ip, xx[ip][1], xx[ip][2], xx[ip][3], funcs[i])
-                            @printf("normal_ip = [%.3e, %.3e, %.3e]\n", normal_ip[1], normal_ip[2], normal_ip[3])
-                            @printf("dN = [%.3e, %.3e, %.3e]\n", dN[1], dN[2], dN[3])
-                            @printf("normals[%d] = [%.3e, %.3e, %.3e]\n", id, normals[id][1], normals[id][2], normals[id][3])
-                        end
+                        #if id==47488
+                        #    dN = funcs[i] * normal_ip
+                        #    @printf("solid.surfCount=%d\n",solid.surfCount)
+                        #    @printf("xx[%d] = [%f, %f, %f], funcs[i]=%.3e\n", ip, xx[ip][1], xx[ip][2], xx[ip][3], funcs[i])
+                        #    @printf("normal_ip = [%.3e, %.3e, %.3e]\n", normal_ip[1], normal_ip[2], normal_ip[3])
+                        #    @printf("dN = [%.3e, %.3e, %.3e]\n", dN[1], dN[2], dN[3])
+                        #    @printf("normals[%d] = [%.3e, %.3e, %.3e]\n", id, normals[id][1], normals[id][2], normals[id][3])
+                        #end
 		    end
 		end
 		#solid.reaction_forces .= @SVector[Fx, Fy, Fz]
@@ -341,9 +341,9 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 
 	    nI_body_1 = nodalNormals[s1][i]
 	    nI_body_2 = nodalNormals[s2][i]
-            if i==47488
-                @printf("nodalNormals[%d][%d] = [%.3e, %.3e, %.3e]\n", s2, i, nodalNormals[s2][i][1], nodalNormals[s2][i][2], nodalNormals[s2][i][3])
-            end
+            #if i==47488
+            #    @printf("nodalNormals[%d][%d] = [%.3e, %.3e, %.3e]\n", s2, i, nodalNormals[s2][i][1], nodalNormals[s2][i][2], nodalNormals[s2][i][3])
+            #end
 
 	    xI_body_1 = nodalPos[s1][i] / nodalMass[s1][i]
 	    xI_body_2 = nodalPos[s2][i] / nodalMass[s2][i]
@@ -371,9 +371,9 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 		    omega    = dVxNI / C1
 		    muPrime1 = min(fric,C1/D1);
                     nodalMomentum_1[i] = velo1 - D1 * nI
-                    if i==47488
-                        @printf("nodalMomentum_1[%d] = [%f, %f, %f]\n", i, nodalMomentum_1[i][1], nodalMomentum_1[i][2], nodalMomentum_1[i][3])
-                    end
+                    #if i==47488
+                    #    @printf("nodalMomentum_1[%d] = [%f, %f, %f]\n", i, nodalMomentum_1[i][1], nodalMomentum_1[i][2], nodalMomentum_1[i][3])
+                    #end
                     #nodalMomentum_1[i] = velo1 - D1*(  nI + muPrime1*cross(nI,omega) );		        
 		    
 		    #println("approaching\n")
@@ -383,13 +383,13 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 	    elseif typeof(mats[s2]) <: RigidMaterial
 	        # first solid is deformable, second one is rigid
 	    	nI  = -nI_body_2
-                if i==47488
-                    @printf("nI = [%.3e, %.3e, %.3e]\n", nI[1], nI[2], nI[3])
-                end
+                #if i==47488
+                #    @printf("nI = [%.3e, %.3e, %.3e]\n", nI[1], nI[2], nI[3])
+                #end
 	    	nI /= norm(nI)
-                if i==47488
-                    @printf("nI = [%f, %f, %f]\n", nI[1], nI[2], nI[3])
-                end
+                #if i==47488
+                #    @printf("nI = [%f, %f, %f]\n", nI[1], nI[2], nI[3])
+                #end
 
 	    	nodalMomentum_1 = nodalMomentum[s1]			
 		velo1           = nodalMomentum_1[i];                       # body 1 velo				
@@ -403,12 +403,12 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 		    muPrime1 = min(fric,C1/D1);
 		    
                     nodalMomentum_1[i] = velo1 - D1 * nI
-                    if i==47488
-                        @printf("velo1 = [%f, %f, %f]\n", velo1[1], velo1[2], velo1[3])
-                        @printf("velocm = [%f, %f, %f]\n", velocm[1], velocm[2], velocm[3])
-                        @printf("nI = [%f, %f, %f]\n", nI[1], nI[2], nI[3])
-                        @printf("s2 nodalMomentum_1[%d] = [%f, %f, %f]\n", i, nodalMomentum_1[i][1], nodalMomentum_1[i][2], nodalMomentum_1[i][3])
-                    end
+                    #if i==47488
+                    #    @printf("velo1 = [%f, %f, %f]\n", velo1[1], velo1[2], velo1[3])
+                    #    @printf("velocm = [%f, %f, %f]\n", velocm[1], velocm[2], velocm[3])
+                    #    @printf("nI = [%f, %f, %f]\n", nI[1], nI[2], nI[3])
+                    #    @printf("s2 nodalMomentum_1[%d] = [%f, %f, %f]\n", i, nodalMomentum_1[i][1], nodalMomentum_1[i][2], nodalMomentum_1[i][3])
+                    #end
                     #nodalMomentum_1[i] = velo1 - D1*(  nI + muPrime1*cross(nI,omega) );		        
 		    
 		    #println("approaching\n")
@@ -488,23 +488,23 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 		        #vvt        += Ni * vI  => too much dissipation
 		        vvp       += Ni * (nMomentum[in] - nMomentum0[in])# * invM
                         Dvvp = Ni * (nMomentum[in] - nMomentum0[in])
-                        if ip == 34230
-                            @printf("s=%d\n", s)
-                            @printf("Dvv[%d, %d] = [%f, %f, %f], Ni=%f\n", ip, in, Dvvp[1], Dvvp[2], Dvvp[3], Ni)
-                            @printf("nMomentum[%d] = [%f, %f, %f]\n", in, nMomentum[in][1], nMomentum[in][2], nMomentum[in][3])
-                            @printf("nMomentum0[%d] = [%f, %f, %f]\n", in, nMomentum0[in][1], nMomentum0[in][2], nMomentum0[in][3])
-                            @printf("nx[%d] = [%f, %f, %f]\n", in, grid.pos[in][1], grid.pos[in][2], grid.pos[in][3])
-                        end
+                        #if ip == 34230
+                        #    @printf("s=%d\n", s)
+                        #    @printf("Dvv[%d, %d] = [%f, %f, %f], Ni=%f\n", ip, in, Dvvp[1], Dvvp[2], Dvvp[3], Ni)
+                        #    @printf("nMomentum[%d] = [%f, %f, %f]\n", in, nMomentum[in][1], nMomentum[in][2], nMomentum[in][3])
+                        #    @printf("nMomentum0[%d] = [%f, %f, %f]\n", in, nMomentum0[in][1], nMomentum0[in][2], nMomentum0[in][3])
+                        #    @printf("nx[%d] = [%f, %f, %f]\n", in, grid.pos[in][1], grid.pos[in][2], grid.pos[in][3])
+                        #end
 		        xxp       += Ni * vI * dtime
 		        dup       += Ni * vI * dtime
 	            end
 	        end
 	        vv[ip]      = vvp
 	        xx[ip]      = xxp
-                if ip == 34230
-                    @printf("v[%d] = [%f, %f, %f]\n", ip, vvp[1], vvp[2], vvp[3])
-                    @printf("x[%d] = [%f, %f, %f]\n", ip, xxp[1], xxp[2], xxp[3])
-                end
+                #if ip == 34230
+                #    @printf("v[%d] = [%f, %f, %f]\n", ip, vvp[1], vvp[2], vvp[3])
+                #    @printf("x[%d] = [%f, %f, %f]\n", ip, xxp[1], xxp[2], xxp[3])
+                #end
 	        du[ip]      = dup
 	        # Dirichlet BCs on the mesh
 	        fixed_dirs       = @view fix[:,ip]
