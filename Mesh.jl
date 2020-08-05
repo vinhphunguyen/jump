@@ -271,7 +271,8 @@ function getNormals(coords, eltype::Tri3 )
     
     # find the normal n
 
-    return cross(s,t)
+    n = cross(s,t)
+    return n/norm(n)
 end
 
 function getNormals(coords, eltype::Quad4 )
@@ -296,7 +297,8 @@ function getNormals(coords, eltype::Quad4 )
     
     # find the normal n
 
-    return cross(s,t)
+    n = cross(s,t)
+    return n/norm(n)
 end
 
 # compute normal vectors at 4 Gauss points of a Q4 element
