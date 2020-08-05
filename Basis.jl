@@ -604,19 +604,21 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	xp1 = xp[1]
 	xp2 = xp[2]
 	xp3 = xp[3]
-
 	@inbounds for i = 1:8
-		index  = nearPoints[i]
-		xI     = xi[index]
-		dx     = xp1 - xI[1]
-		dy     = xp2 - xI[2]
-		dz     = xp3 - xI[3]
+	    index  = nearPoints[i]
+	    xI     = xi[index]
+	    dx     = xp1 - xI[1]
+	    dy     = xp2 - xI[2]
+	    dz     = xp3 - xI[3]
 
-		Nx = 1.0 - abs(dx) * dxI
-		Ny = 1.0 - abs(dy) * dyI
-		Nz = 1.0 - abs(dz) * dzI
+	    Nx = 1.0 - abs(dx) * dxI
+	    Ny = 1.0 - abs(dy) * dyI
+	    Nz = 1.0 - abs(dz) * dzI
 
-		funcs[i]    = Nx * Ny * Nz
+            if p==34230
+                @printf("xp3=%f, xI[3]=%f dzI=%f Nz=%f\n", xp3, xI[3], dzI, Nz)
+            end
+	    funcs[i]    = Nx * Ny * Nz
 	end
 	return 8
 end

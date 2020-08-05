@@ -84,7 +84,7 @@ grid  =  Grid3D(0.,2.01, 0.,1., 0, 0.51, 81, 51, 21)
 
 
     Tf      = 12e-3
-    interval= 50
+    interval= 1
     
     function velo_func(t)
         if t < 0.5e-3
