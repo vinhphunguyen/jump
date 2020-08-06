@@ -19,11 +19,11 @@
 # Update Stress Last, TLFEM for internal force
 ######################################################################
 function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg::TLFEM,output,fixes,data)
-    Tf    = data["total_time"]:: Float64
-    dtime = data["dt"]        :: Float64
-    t     = data["time"]      :: Float64
-    fric  = data["friction"]  :: Float64
-
+    Tf    = data["total_time"]    :: Float64
+    dtime = data["dt"]            :: Float64
+    t     = data["time"]          :: Float64
+    fric  = data["friction"]      :: Float64
+    dt_factor = data["dt_factor"] :: Float64
     counter = 0
 
     Identity       = UniformScaling(1.)
@@ -126,9 +126,9 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
     #################################################
 
     while t < Tf
-        #if counter > 1
-        #    break
-        #end
+        if counter > 1
+            break
+        end
 
         @printf("Solving step: %d %e %f\n", counter, dtime, t)
 
@@ -644,8 +644,9 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
             cy = cy/dtime + mat.c_dil 
             cz = cz/dtime + mat.c_dil 
 
-            dtime = 0.1*min(grid.dx/cx,grid.dy/cy,grid.dz/cz)
-
+            (hx, hy, hz) = compute_characteristic_length!(solid)
+            #dtime = 0.1*min(grid.dx/cx,grid.dy/cy,grid.dz/cz)
+            dtime = dt_factor * min(hx/cx, hy/cy, hz/cz)
 	end    # end of solid loop
 
 	fix_Dirichlet_solid(solids,data,dtime)

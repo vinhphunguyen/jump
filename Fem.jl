@@ -754,7 +754,26 @@ function compute_normals!(solid::FEM3D)
     end
 end
 
-export FEM2D, FEM3D, FEMAxis, Rigid2D, move, assign_velocity, fixYNodes, fixNodes, rotate, initializeBasis, compute_normals!
+
+# compute the characteristic lengths along x,y and z of solid 3D
+function compute_characteristic_length!(solid::FEM3D)
+    hx = 1e22
+    hy = 1e22
+    hz = 1e22
+    @inbounds for ip = 1:size(solid.elems,1)
+	elemNodes  =  @view solid.elems[ip,:]
+        coords     =  @view solid.pos[elemNodes]
+        c1 = [c[1] for c in coords] #extract x coordinates of all nodes
+        c2 = [c[2] for c in coords] #extract y coordinates of all nodes
+        c3 = [c[3] for c in coords] #extract z coordinates of all nodes
+        hx = min(hx, maximum(c1) - minimum(c1))
+        hy = min(hx, maximum(c2) - minimum(c2))
+        hz = min(hx, maximum(c3) - minimum(c3))
+    end
+    return (hx, hy, hz)
+end
+
+export FEM2D, FEM3D, FEMAxis, Rigid2D, move, assign_velocity, fixYNodes, fixNodes, rotate, initializeBasis, compute_normals!,compute_characteristic_length!
 
 
 end
