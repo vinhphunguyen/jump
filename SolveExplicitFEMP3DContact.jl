@@ -126,9 +126,9 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
     #################################################
 
     while t < Tf
-        if counter > 1
-            break
-        end
+        #if counter > 10
+        #    break
+        #end
 
         @printf("Solving step: %d %e %f\n", counter, dtime, t)
 
@@ -557,7 +557,8 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 	    feJaco    = solid.detJ
 
 	    cx = cy = cz = 0.
-	    
+	    min_lambda = 1e22
+
 	    for ip=1:solid.nodeCount 
 	  	fint[ip]  = @SVector [0., 0., 0.]
 	  	fbody[ip] = @SVector [0., 0., 0.]
@@ -599,6 +600,7 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 		#dstrain      = 0.5 * (vel_grad + vel_grad' + vel_grad * vel_grad') - strain[ip]
 		Fdot          = vel_grad/dtime		   
        	        F[ip]         = Identity + vel_gradT  # no memory alloc
+                min_lambda    = min(min_lambda, minimum(real(eigvals(Array(F[ip]))))) # determine the lowest eigenvalue of F[ip]
 		J             = det(F[ip])
 
 		if ( J < 0. )
@@ -645,8 +647,9 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
             cz = cz/dtime + mat.c_dil 
 
             (hx, hy, hz) = compute_characteristic_length!(solid)
-            #dtime = 0.1*min(grid.dx/cx,grid.dy/cy,grid.dz/cz)
-            dtime = dt_factor * min(hx/cx, hy/cy, hz/cz)
+            #dtime = dt_factor*min(grid.dx/cx,grid.dy/cy,grid.dz/cz)
+            @printf("min_lambda=%.4e\t", min_lambda)
+            dtime = dt_factor * min(hx/cx, hy/cy, hz/cz) * min_lambda
 	end    # end of solid loop
 
 	fix_Dirichlet_solid(solids,data,dtime)
