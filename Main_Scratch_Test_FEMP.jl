@@ -52,7 +52,7 @@ m       = 0.
 χ       = 0.
 Cp      = 0.
 
-fric    = 0.2
+fric    = 0
 
 # grid creation: 2x1x0.5 with origin at 0,0,0 by 80x50x20 cells
 # the actual grid length in x-dir is 2.01 so that there is no FE nodes exactly locating on the grid line!!!

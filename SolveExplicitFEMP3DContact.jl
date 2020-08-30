@@ -13,8 +13,9 @@
 # This file contains functions for solving 2D explicit dynamics problems
 # USL and MUSL are provided, each function for each algorithm
 #
-
-
+push!(LOAD_PATH,"./")
+using Velocity
+using Printf
 ######################################################################
 # Update Stress Last, TLFEM for internal force
 ######################################################################
@@ -319,6 +320,58 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 	    end
 	end
 
+	if haskey(data, "rigid_body_velo_data") 
+
+	    rigid_solids = data["rigid_body_velo_data"]::Array{Tuple{Int64,VelocityData},1}
+
+	    for (s,f) in rigid_solids
+	 	solid       = solids[s]
+		xx          = solid.pos
+		surf_normals= solid.normals
+		normals     = nodalNormals[s]
+		x_node      = nodalPos[s]
+	        
+		fill!(normals,  @SVector[0.,0.,0.])
+		fill!(x_node,   @SVector[0.,0.,0.])
+		(vex,vey,vez) = f(t)::Tuple{Float64, Float64, Float64} 
+                @printf("\tve = [%4.3e, %4.3e, %4.3e]\t", vex, vey, vez)
+		#Fx = Fy = Fz = 0.
+		# loop over centroids of surface elements
+		@inbounds for ip = 1:solid.surfCount
+		    support    = getShapeFunctions(nearPoints,funcs,xx[ip],grid, basis)
+		    #println(nearPoints)
+		    normal_ip = surf_normals[ip]
+	            #			println(nearPoints)
+		    @inbounds for i = 1:8
+			id                  = nearPoints[i]; # index of node 'i'					
+                        normals[id]        += funcs[i] * normal_ip
+			mi                  = nodalMass_S[id]
+			#if (ip in bnd_particles ) push!(boundary_nodes,id) end
+			push!(contact_solids[id],s)  # add solid 's' to the set of contact solids at node 'id'
+
+                        # Fx += (mi*vex - nodalMomentum_S[id][1])/dtime
+                        # Fy += (mi*vey - nodalMomentum_S[id][2])/dtime
+                        # Fz += (mi*vez - nodalMomentum_S[id][3])/dtime
+	                
+                        nodalMomentum_S[id]   =  mi*@SVector[vex,vey,vez]
+                        #if mi != 0
+                        #    @printf("nodalMomentum_S[%d] = [%4.3e, %4.3e, %4.3e]\n", id, nodalMomentum_S[id][1], nodalMomentum_S[id][2], nodalMomentum_S[id][3])
+                        #end
+                        #x_node[id]            = grid.pos[id] + t * @SVector[vex,vey,vez]
+                        #if id==47488
+                        #    dN = funcs[i] * normal_ip
+                        #    @printf("solid.surfCount=%d\n",solid.surfCount)
+                        #    @printf("xx[%d] = [%f, %f, %f], funcs[i]=%.3e\n", ip, xx[ip][1], xx[ip][2], xx[ip][3], funcs[i])
+                        #    @printf("normal_ip = [%.3e, %.3e, %.3e]\n", normal_ip[1], normal_ip[2], normal_ip[3])
+                        #    @printf("dN = [%.3e, %.3e, %.3e]\n", dN[1], dN[2], dN[3])
+                        #    @printf("normals[%d] = [%.3e, %.3e, %.3e]\n", id, normals[id][1], normals[id][2], normals[id][3])
+                        #end
+		    end
+		end
+		#solid.reaction_forces .= @SVector[Fx, Fy, Fz]
+	    end
+	end
+
         ###########################################################################
         # contact treatments
         ###########################################################################
@@ -488,13 +541,6 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 		        #vvt        += Ni * vI  => too much dissipation
 		        vvp       += Ni * (nMomentum[in] - nMomentum0[in])# * invM
                         Dvvp = Ni * (nMomentum[in] - nMomentum0[in])
-                        #if ip == 34230
-                        #    @printf("s=%d\n", s)
-                        #    @printf("Dvv[%d, %d] = [%f, %f, %f], Ni=%f\n", ip, in, Dvvp[1], Dvvp[2], Dvvp[3], Ni)
-                        #    @printf("nMomentum[%d] = [%f, %f, %f]\n", in, nMomentum[in][1], nMomentum[in][2], nMomentum[in][3])
-                        #    @printf("nMomentum0[%d] = [%f, %f, %f]\n", in, nMomentum0[in][1], nMomentum0[in][2], nMomentum0[in][3])
-                        #    @printf("nx[%d] = [%f, %f, %f]\n", in, grid.pos[in][1], grid.pos[in][2], grid.pos[in][3])
-                        #end
 		        xxp       += Ni * vI * dtime
 		        dup       += Ni * vI * dtime
 	            end
@@ -667,13 +713,41 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 	    for (s,f) in rigid_solids
 	 	solid       = solids[s]
 		xx          = solid.pos
+                vv          = solid.velocity
 		#xc          = solid.centroids
 		(vex,vey,vez) = f(t)::Tuple{Float64, Float64, Float64} 
 
 		if (vex,vey,vez) == (0.,0.,0.) continue end
 		# update all nodes for visualization only
 		@inbounds for ip = 1:solid.nodeCount
+                    vv[ip]    = @SVector [vex, vey, vez]
 		    xx[ip]   += dtime * @SVector [vex,vey,vez]   # no memory alloc, 
+		end
+                # update the centroids of surface elems
+		#@inbounds for ip = 1:solid.surfCount
+		#  xc[ip]   += dtime * @SVector [vex,vey,vez]
+		#end
+	    end
+	end
+
+	if haskey(data, "rigid_body_velo_data")
+	    rigid_solids = data["rigid_body_velo_data"]::Array{Tuple{Int64,VelocityData},1}
+
+	    for (s,f) in rigid_solids
+	 	solid       = solids[s]
+		xx          = solid.pos
+                vv          = solid.velocity
+		#xc          = solid.centroids
+		(vex,vey,vez) = f(t)::Tuple{Float64, Float64, Float64} 
+
+		if (vex,vey,vez) == (0.,0.,0.) continue end
+		# update all nodes for visualization only
+		@inbounds for ip = 1:solid.nodeCount
+                    vv[ip]    = @SVector [vex, vey, vez]
+		    xx[ip]   += dtime * @SVector [vex,vey,vez]   # no memory alloc,
+                    if (ip==1)
+                        @printf("\txx[1] = [%4.3e, %4.3e, %4.3e]\t", xx[ip][1], xx[ip][2], xx[ip][3])
+                    end
 		end
                 # update the centroids of surface elems
 		#@inbounds for ip = 1:solid.surfCount

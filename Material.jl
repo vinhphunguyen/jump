@@ -35,15 +35,15 @@ end
 # ElasticMaterial: Hooke materials
 ###############################################################
 struct ElasticMaterial <: MaterialType
-	E      ::Float64
-	nu     ::Float64
-	density::Float64
+    E      ::Float64
+    nu     ::Float64
+    density::Float64
     # Lame's constant
     lambda ::Float64
     mu     ::Float64
-	Gf     ::Float64
-	l0     ::Float64
-	fac    ::Float64
+    Gf     ::Float64
+    l0     ::Float64
+    fac    ::Float64
 
 	vmStr    ::Vector{Float64}             # equivalent von Mises stress
 	dam      ::Vector{Float64}             # equivalent von Mises stress
@@ -327,6 +327,58 @@ struct JohnsonCookMaterial <: MaterialType
 end
 
 
+###############################################################
+# VoceMaterial: 
+###############################################################
+struct VoceMaterial <: MaterialType
+    E      ::Float64
+    nu     ::Float64
+    density::Float64
+    A      ::Float64
+    B      :: Float64
+    C      :: Float64
+    χ      :: Float64  # Taylor-Quinney coeffcient
+    Cp     :: Float64  # specific heat
+    # Lame's constant
+    lambda ::Float64
+    mu     ::Float64
+    kappa  ::Float64
+    signal_velocity::Float64
+    cellsize::Float64
+    delta::Float64
+
+
+    alpha    ::Vector{Float64}             # equivalent plastic strain
+    alphadot ::Vector{Float64}             # equivalent plastic strain rate
+    vmStr    ::Vector{Float64}             # equivalent von Mises stress
+
+    sigmaTrial    ::SMatrix{3,3,Float64,9}
+    sigmaTrial_dev::SMatrix{3,3,Float64,9}
+    sigmaFinal_dev::SMatrix{3,3,Float64,9}
+
+    c_dil   :: Float64
+
+    function VoceMaterial(E,nu,density,A,B,C,χ,Cp,cellsize,parCount)
+
+	lambda = E*nu/(1+nu)/(1-2*nu)
+	mu     = E/2/(1+nu)
+	kappa  = lambda + mu
+
+	velo   = sqrt((lambda+2*mu)/density)
+
+	alpha    = fill(0,parCount)
+	alphad   = fill(0,parCount)
+	vmStr    = fill(0,parCount)		
+
+	delta    = χ/(density*Cp)
+
+	c_dil  = sqrt( (lambda+2*mu)/density )
+
+        new(E,nu,density,A,B,C,χ,Cp,lambda,mu,kappa,velo,cellsize,delta,
+            alpha,alphad,vmStr,zeros(3,3),zeros(3,3),zeros(3,3),c_dil)
+    end
+end
+
 # 3D stress update for J2 plasticity
 function update_stress!(sig::SMatrix{3,3,Float64},mat::JohnsonCookMaterial,
 	                    eps0::SMatrix{3,3,Float64},strain_increment,F, J, ip,dtime)
@@ -384,6 +436,58 @@ function update_stress!(sig::SMatrix{3,3,Float64},mat::JohnsonCookMaterial,
     # this is sigma to return
     sigmaFinal_dev     + mat.kappa*(eps0[1,1]+eps0[2,2]+eps0[3,3])*UniformScaling(1.)
 end   
+
+
+# 3D stress update for J2 plasticity
+function update_stress!(sig::SMatrix{3,3,Float64},mat::VoceMaterial,
+	                eps0::SMatrix{3,3,Float64},strain_increment,F, J, ip,dtime)
+
+    sigmaTrial     = mat.sigmaTrial
+    sigmaTrial_dev = mat.sigmaTrial_dev
+    sigmaFinal_dev = mat.sigmaFinal_dev
+
+    eff_plastic_strain  = mat.alpha[ip]
+
+    if (eff_plastic_strain < 1.0e-10)
+      yieldStress = mat.A;
+    else
+        yieldStress = mat.A - mat.B * exp(-mat.C * eff_plastic_strain)
+    end
+
+    #damage = mat.damage[ip]
+    Gd     = mat.mu
+	# if (damage > 0)
+	# 	Gd          *= (1 - damage);
+	# 	yieldStress *= (1 - damage);
+	# end
+
+    sigmaTrial     = sig + 2.0 * Gd * strain_increment;
+    sigmaTrial_dev = sigmaTrial - 0.333333333 *(sigmaTrial[1,1]+sigmaTrial[2,2]+sigmaTrial[3,3]) * UniformScaling(1.); 
+
+    J2             = 1.224744871391589 * sqrt( sigmaTrial_dev[1,1]^2 + sigmaTrial_dev[2,2]^2 + sigmaTrial_dev[3,3]^2 +
+    	                                       2* (sigmaTrial_dev[1,2]^2+sigmaTrial_dev[1,3]^2+sigmaTrial_dev[2,3]^2) )
+    sigmaFinal_dev = sigmaTrial_dev;
+
+    if (J2 < yieldStress)
+        plastic_strain_increment = 0.0;
+    else
+        plastic_strain_increment = (J2 - yieldStress) / (3.0 * Gd);
+        sigmaFinal_dev     *= (yieldStress / J2);
+    end
+
+    mat.alpha[ip]        = eff_plastic_strain + plastic_strain_increment
+    # be careful with .=, without it sig is not updated 
+
+    tav = 1000 * mat.cellsize / mat.signal_velocity;
+    mat.alphadot[ip] -= mat.alphadot[ip] * dtime / tav;
+    mat.alphadot[ip] += plastic_strain_increment / tav;
+    mat.alphadot[ip] = max(0.0, mat.alphadot[ip]);
+
+    mat.vmStr[ip] = sqrt(  sigmaFinal_dev[1,1]^2 + sigmaFinal_dev[2,2]^2 + sigmaFinal_dev[3,3]^2 + 2*(sigmaFinal_dev[1,2]^2+sigmaFinal_dev[1,3]^2+sigmaFinal_dev[2,3]^2) )
+
+    # this is sigma to return
+    sigmaFinal_dev     + mat.kappa*(eps0[1,1]+eps0[2,2]+eps0[3,3])*UniformScaling(1.)
+end
 
 struct JohnsonCookDamage
 	d1      :: Float64
@@ -550,7 +654,7 @@ function getPlasticStrain(ip,mat::Union{ElasticMaterial,RigidMaterial,NeoHookean
 	return 0.
 end
 
-function getTemperature(ip,mat::Union{ElasticMaterial,RigidMaterial,NeoHookeanMaterial,JohnsonCookMaterial})
+function getTemperature(ip,mat::Union{ElasticMaterial,RigidMaterial,NeoHookeanMaterial,JohnsonCookMaterial,VoceMaterial})
 	return 0.
 end
 
@@ -559,7 +663,7 @@ function getTemperature(ip,mat::JohnsonCookMaterialWithDamage)
 end
 
 
-function getDamage(ip,mat::Union{NeoHookeanMaterial,RigidMaterial,JohnsonCookMaterial})
+function getDamage(ip,mat::Union{NeoHookeanMaterial,RigidMaterial,JohnsonCookMaterial, VoceMaterial})
 	return 0.
 end
 
@@ -587,7 +691,7 @@ end
 
 
 
-export MaterialType, RigidMaterial, ElasticMaterial, ElastoPlasticMaterial, NeoHookeanMaterial, JohnsonCookMaterial, JohnsonCookDamage, JohnsonCookMaterialWithDamage
+export MaterialType, RigidMaterial, ElasticMaterial, ElastoPlasticMaterial, NeoHookeanMaterial, JohnsonCookMaterial, VoceMaterial, JohnsonCookDamage, JohnsonCookMaterialWithDamage
 export update_stress!, computeCrackDrivingForce, getPlasticStrain, get_von_mises_stress,getTemperature, getDamage
 
 end

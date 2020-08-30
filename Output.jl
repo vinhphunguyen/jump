@@ -219,69 +219,68 @@ function plotParticles_2D(plot::OvitoOutput,solids,
 end
 
 function plotParticles_3D(plot::OvitoOutput,solids,
-          lims::Vector{Float64},ncells::Vector{Int64},counter::Int64) where {T<:MaterialType}
-	parCount = 0
-	for s=1:length(solids)
-		parCount += solids[s].parCount
-	end
-	fileName = string(plot.dir,"dump_p.","$(Int(counter)).LAMMPS")
-	println(fileName)
-	file = open(fileName, "a")
+                          lims::Vector{Float64},ncells::Vector{Int64},counter::Int64) where {T<:MaterialType}
+    parCount = 0
+    for s=1:length(solids)
+	parCount += solids[s].parCount
+    end
+    fileName = string(plot.dir,"dump_p.","$(Int(counter)).LAMMPS")
+    println(fileName)
+    file = open(fileName, "a")
     write(file, "ITEM: TIMESTEP \n")
     write(file, "0\n")
     write(file, "ITEM: NUMBER OF ATOMS\n")
-	write(file, "$(parCount) \n")
-	write(file, "ITEM: BOX BOUNDS sm sm sm\n")
-	write(file, "0 $(lims[1])\n")
-	write(file, "0 $(lims[2])\n")
-	write(file, "0 $(lims[3])\n")
+    write(file, "$(parCount) \n")
+    write(file, "ITEM: BOX BOUNDS sm sm sm\n")
+    write(file, "0 $(lims[1])\n")
+    write(file, "0 $(lims[2])\n")
+    write(file, "0 $(lims[3])\n")
 
-	write(file, "ITEM: ATOMS id type x y z ")
-	@inbounds for v in plot.outs
-		write(file, v)
-		write(file, " ")
-	end
-	write(file, "\n")
+    write(file, "ITEM: ATOMS id type x y z ")
+    @inbounds for v in plot.outs
+	write(file, v)
+	write(file, " ")
+    end
+    write(file, "\n")
     id = 0
-	@inbounds for s=1:length(solids)
-		x       = solids[s].pos
-		elastic = false
-		mat     = solids[s].mat
-		if ( typeof(mat) <: ElasticMaterial ) elastic = true end
-		@inbounds for p = 1:length(x)
-			id += 1
-			write(file, "$(id) $(s) $(x[p][1]) $(x[p][2]) $(x[p][3] ) ")
-			for v in plot.outs
-				if v == "pstrain"
-					if elastic
-						write(file, "0 ")
-					else
-				        write(file, "$(mat.alpha[p]) ")
-					end
-				elseif v == "vonMises"
-					if elastic
-						write(file, "0 ")
-					else
-				        write(file, "$(mat.vmStr[p]) ")
-					end
-				elseif v == "vx"
-					write(file, "$(solids[s].velocity[p][1])  ")
-				elseif v == "vy"
-					write(file, "$(solids[s].velocity[p][2])  ")
-				elseif v == "vz"
-					write(file, "$(solids[s].velocity[p][3])  ")
-				# elseif v == "surf"
-				# 	println(solids[s].color[p])
-				# 	write(file, "$(solids[s].color[p])  ")
-				elseif v == "pressure"
-					write(file, "$(solids[s].stress[p][1,1]+
-							   	   solids[s].stress[p][2,2]+solids[s].stress[p][3,3])  ")
-				end
-			end
-			write(file, "\n")
+    @inbounds for s=1:length(solids)
+	x       = solids[s].pos
+	elastic = false
+	mat     = solids[s].mat
+	if ( typeof(mat) <: ElasticMaterial ) elastic = true end
+	@inbounds for p = 1:length(x)
+	    id += 1
+	    write(file, "$(id) $(s) $(x[p][1]) $(x[p][2]) $(x[p][3] ) ")
+	    for v in plot.outs
+		if v == "pstrain"
+		    if elastic
+			write(file, "0 ")
+		    else
+			write(file, "$(mat.alpha[p]) ")
+		    end
+		elseif v == "vonMises"
+		    if elastic
+			write(file, "0 ")
+		    else
+			write(file, "$(mat.vmStr[p]) ")
+		    end
+		elseif v == "vx"
+		    write(file, "$(solids[s].velocity[p][1])  ")
+		elseif v == "vy"
+		    write(file, "$(solids[s].velocity[p][2])  ")
+		elseif v == "vz"
+		    write(file, "$(solids[s].velocity[p][3])  ")
+		    # elseif v == "surf"
+		    # 	println(solids[s].color[p])
+		    # 	write(file, "$(solids[s].color[p])  ")
+		elseif v == "pressure"
+		    write(file, "$(solids[s].stress[p][1,1]+solids[s].stress[p][2,2]+solids[s].stress[p][3,3])  ")
 		end
+	    end
+	    write(file, "\n")
 	end
-	close(file)
+    end
+    close(file)
 end
 
 function plotGrid(plot::OvitoOutput,grid::Grid2D,counter::Int64)
@@ -444,53 +443,53 @@ end
 #########################################################		
 
 function plotParticles_3D(plot::VTKOutput,solids,mats,counter::Int64)
-	my_vtk_file = string(plot.dir,"particle_","$(Int(counter))")
-	vtmfile     = vtk_multiblock(my_vtk_file)
+    my_vtk_file = string(plot.dir,"particle_","$(Int(counter))")
+    vtmfile     = vtk_multiblock(my_vtk_file)
 
 
-	for s=1:length(solids)		
-		solid = solids[s]
-		xx    = solid.pos
-		XX    = solid.pos0
-		elems = solid.elems
-		stress= solid.stress
-		ve    = solid.velocity
+    for s=1:length(solids)		
+	solid = solids[s]
+	xx    = solid.pos
+	XX    = solid.pos0
+	elems = solid.elems
+	stress= solid.stress
+	ve    = solid.velocity
 
 
         elastic = false
-		mat     = mats[s]
-		if ( typeof(mat) <: Union{ElasticMaterial,NeoHookeanMaterial} ) elastic = true end
+	mat     = mats[s]
+	if ( typeof(mat) <: Union{ElasticMaterial,NeoHookeanMaterial} ) elastic = true end
 		
-		VAx     = VectorOfArray(xx)
-		VAv     = VectorOfArray(ve)
+	VAx     = VectorOfArray(xx)
+	VAv     = VectorOfArray(ve)
 
-		points = convert(Array,VAx)
-		velo   = convert(Array,VAv)
+	points = convert(Array,VAx)
+	velo   = convert(Array,VAv)
 
 
-		#points = zeros(3,solid.nodeCount)
-	    #velo   = zeros(3,solid.nodeCount)
-	    disp   = zeros(3,solid.nodeCount)
-	    vm     = zeros(solid.parCount)
-	    p      = zeros(solid.parCount)
-	    ps     = zeros(solid.parCount)
-	    sigyy  = zeros(solid.parCount)
-	    d      = zeros(solid.parCount)       # damage
-	    T      = zeros(solid.parCount)       # temperature
+	#points = zeros(3,solid.nodeCount)
+	#velo   = zeros(3,solid.nodeCount)
+	disp   = zeros(3,solid.nodeCount)
+	vm     = zeros(solid.parCount)
+	p      = zeros(solid.parCount)
+	ps     = zeros(solid.parCount)
+	sigyy  = zeros(solid.parCount)
+	d      = zeros(solid.parCount)       # damage
+	T      = zeros(solid.parCount)       # temperature
         
-		for ip=1:solid.nodeCount
-			#points[1,ip] = xx[ip][1]
-			#points[2,ip] = xx[ip][2]
-			#points[3,ip] = xx[ip][3]
-			#velo[1,ip]   = ve[ip][1]
-			#velo[2,ip]   = ve[ip][2]
-			#velo[3,ip]   = ve[ip][3]
-			disp[1,ip] = xx[ip][1] - XX[ip][1]
-			disp[2,ip] = xx[ip][2] - XX[ip][2]
-			disp[3,ip] = xx[ip][3] - XX[ip][3]
-		end
+	for ip=1:solid.nodeCount
+	    #points[1,ip] = xx[ip][1]
+	    #points[2,ip] = xx[ip][2]
+	    #points[3,ip] = xx[ip][3]
+	    #velo[1,ip]   = ve[ip][1]
+	    #velo[2,ip]   = ve[ip][2]
+	    #velo[3,ip]   = ve[ip][3]
+	    disp[1,ip] = xx[ip][1] - XX[ip][1]
+	    disp[2,ip] = xx[ip][2] - XX[ip][2]
+	    disp[3,ip] = xx[ip][3] - XX[ip][3]
+	end
 
-		for e=1:solid.parCount
+	for e=1:solid.parCount
             sigma   = stress[e]
             vm[e]   = get_von_mises_stress(e,mat)
             ps[e]   = getPlasticStrain(e,mat)
@@ -502,16 +501,16 @@ function plotParticles_3D(plot::VTKOutput,solids,mats,counter::Int64)
 
         vtkfile     = vtk_grid(vtmfile, points, solid.cells)
         # write data 
-	    vtkfile["Pressure",       VTKCellData()]  = p
-	    vtkfile["Plastic_Strain", VTKCellData()]  = ps
-	    vtkfile["sigma_yy",       VTKCellData()]  = sigyy
-	    vtkfile["Velocity",       VTKPointData()] = velo
-	    vtkfile["Displacement",   VTKPointData()] = disp
-	    vtkfile["vonMises",       VTKCellData()]  = vm
-	    vtkfile["damage",         VTKCellData()]  = d
-	    vtkfile["temperature",    VTKCellData()]  = T
-	end
-	outfiles    = vtk_save(vtmfile)
+	vtkfile["Pressure",       VTKCellData()]  = p
+	vtkfile["Plastic_Strain", VTKCellData()]  = ps
+	vtkfile["sigma_yy",       VTKCellData()]  = sigyy
+	vtkfile["Velocity",       VTKPointData()] = velo
+	vtkfile["Displacement",   VTKPointData()] = disp
+	vtkfile["vonMises",       VTKCellData()]  = vm
+	vtkfile["damage",         VTKCellData()]  = d
+	vtkfile["temperature",    VTKCellData()]  = T
+    end
+    outfiles    = vtk_save(vtmfile)
 end
 
 
