@@ -55,7 +55,7 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
     #boundary_nodes   = Set{Int64}()
 
     # for all grid nodes, store ids of solids that are in contact
-    contact_solids   = Vector{Set{Int64}}(undef,nodeCount)
+    contact_solids   = Vector{Vector{Int64}}(undef,nodeCount)
 
     # pre_allocating arrays for temporary variable
 
@@ -140,10 +140,17 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
         @inbounds for i = 1:nodeCount
 	    nodalMass_S[i]      = 0.	  
 	    nodalMomentum_S[i]  =  @SVector [0., 0., 0.]
-	    contact_solids[i]   = Set{Int64}()
+            if counter == 0
+                contact_solids[i] = Vector{Int64}()#Set{Int64}()
+            else
+                #@inbounds for s = 1:solidCount
+                #    delete!(contact_solids[i], s)
+                #end
+                empty!(contact_solids[i])
+            end
         end
 
-        boundary_nodes   = Set{Int64}()
+        boundary_nodes = Set{Int64}()
 
         # ===========================================
         # particle to grid (deformable solids)
@@ -223,7 +230,9 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
                     normals[id]        += Ni * normal_ip
                     x_node[id]         += Ni * xp * mp
 		    #if (ip in bnd_particles ) push!(boundary_nodes,id) end
-		    push!(contact_solids[id],s)  # add solid 's' to the set of contact solids at node 'id'
+                    if !(s in contact_solids[id])
+		        push!(contact_solids[id],s)  # add solid 's' to the set of contact solids at node 'id'
+                    end
 		    push!(boundary_nodes,id) 
 		end
 	    end # end loop over centroids
@@ -298,7 +307,9 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
                         normals[id]        += funcs[i] * normal_ip
 			mi                  = nodalMass_S[id]
 			#if (ip in bnd_particles ) push!(boundary_nodes,id) end
-			push!(contact_solids[id],s)  # add solid 's' to the set of contact solids at node 'id'
+                        if !(s in contact_solids[id])
+			    push!(contact_solids[id],s)  # add solid 's' to the set of contact solids at node 'id'
+                        end
 
                         # Fx += (mi*vex - nodalMomentum_S[id][1])/dtime
                         # Fy += (mi*vey - nodalMomentum_S[id][2])/dtime
@@ -347,7 +358,9 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
                         normals[id]        += funcs[i] * normal_ip
 			mi                  = nodalMass_S[id]
 			#if (ip in bnd_particles ) push!(boundary_nodes,id) end
-			push!(contact_solids[id],s)  # add solid 's' to the set of contact solids at node 'id'
+                        if !(s in contact_solids[id])
+			    push!(contact_solids[id],s)  # add solid 's' to the set of contact solids at node 'id'
+                        end
 
                         # Fx += (mi*vex - nodalMomentum_S[id][1])/dtime
                         # Fy += (mi*vey - nodalMomentum_S[id][2])/dtime
@@ -379,16 +392,17 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
         # loop over all boundary nodes, some of them, which are contact nodes, need 
         # contact treatments
 	@inbounds for i in boundary_nodes
-	    solids_at_node_i = collect(contact_solids[i]) # to convert from set to array to access using index
+	    #solids_at_node_i = collect(contact_solids[i]) # to convert from set to array to access using index
 
 	    # skip nodes receive contribution from 1 single solid,
 	    # as they are not contact nodes
-	    if length(solids_at_node_i) == 1 continue end 
+            length_solids_at_node_i = length(contact_solids[i])
+	    if length_solids_at_node_i == 1 continue end 
 
             # special treatment of normals here, average normal of solid 1 and solid 2
             # just for 2 deformable solids
-            s1        = solids_at_node_i[1]
-            s2        = solids_at_node_i[2]
+            s1        = contact_solids[i][1]
+            s2        = contact_solids[i][2]
 
             #@printf("Contacting solids: %d %d\n", s1, s2)
 
@@ -479,8 +493,8 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 		normals    = SMatrix{3,2}( nI_common[1], nI_common[2], nI_common[3],
 		    	                   -nI_common[1],-nI_common[2],-nI_common[3])
                 #println(nI_common)
-		for is = 1 : length(solids_at_node_i)
-	    	    s               = solids_at_node_i[is]
+		for is = 1 : length_solids_at_node_i
+	    	    s               = contact_solids[i][is]
 	    	    nodalMomentum_1 = nodalMomentum[s]			
 		    velo1           = nodalMomentum_1[i];                       # body 1 velo				
 	            velocm          = nodalMomentum_S[i]/nodalMass_S[i];        # system velo
@@ -503,6 +517,7 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 	        end
 	    end
 	end            # end loop over contact nodes
+        boundary_nodes = 0
 
 
         # ====================================================================
@@ -528,8 +543,8 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
             @inbounds for ip = 1:solid.nodeCount
                 support   = getShapeFunctions(nearPoints,funcs,ip, grid, solid, basis)
 	        vvp       = vv[ip]
-	        xxp       = xx[ip]
-	        dup       = du[ip]
+	        dxxp       = zeros(3) #xx[ip]
+	        #dup       = du[ip]
 
 	        for i = 1:support
 	            in = nearPoints[i]; # index of node 'i'
@@ -541,17 +556,14 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 		        #vvt        += Ni * vI  => too much dissipation
 		        vvp       += Ni * (nMomentum[in] - nMomentum0[in])# * invM
                         Dvvp = Ni * (nMomentum[in] - nMomentum0[in])
-		        xxp       += Ni * vI * dtime
-		        dup       += Ni * vI * dtime
+		        dxxp       += Ni * vI # * dtime
+		        #dup       += Ni * vI # * dtime
 	            end
 	        end
 	        vv[ip]      = vvp
-	        xx[ip]      = xxp
-                #if ip == 34230
-                #    @printf("v[%d] = [%f, %f, %f]\n", ip, vvp[1], vvp[2], vvp[3])
-                #    @printf("x[%d] = [%f, %f, %f]\n", ip, xxp[1], xxp[2], xxp[3])
-                #end
-	        du[ip]      = dup
+	        xx[ip]      += dxxp * dtime
+                du[ip]      += dxxp * dtime
+	        #du[ip]      = dup * dtime
 	        # Dirichlet BCs on the mesh
 	        fixed_dirs       = @view fix[:,ip]
 	        if fixed_dirs[1] == 1
