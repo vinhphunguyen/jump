@@ -10,7 +10,7 @@
 #
 # -----------------------------------------------------------------------
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP/")
+push!(LOAD_PATH,"./")
 #
 import PyPlot
 using Printf
@@ -52,7 +52,7 @@ function main()
     coords1 = buildParticleForCircle([0.2; 0.2], rad, fOffset)
     coords2 = buildParticleForCircle([0.8; 0.8], rad, fOffset)
 
-    material = ElasticMaterial(youngModulus,poissonRatio,density,0,0)
+    material = ElasticMaterial(youngModulus,poissonRatio,density,0,0, length(coords1))
 
     solid1 = Solid2D(coords1,material)
     solid2 = Solid2D(coords2,material)

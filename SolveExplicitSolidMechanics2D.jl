@@ -111,13 +111,13 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 		@inbounds for i=1:grid.nodeCount
 		    nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
 	        # apply Dirichet boundary conditions
-	        if grid.fixedXNodes[i] == 1
+	        if grid.fixedNodes[1][i] == 1
 	        	#nodalMomentum0[i][1]  = 0.
 	        	#nodalMomentum[i][1]  = 0.
 		        nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
 				nodalMomentum[i]  = setindex(nodalMomentum[i],0.,1)
 	        end
-	        if grid.fixedYNodes[i] == 1
+	        if grid.fixedNodes[2][i] == 1
 	        	# nodalMomentum0[i][2]  = 0.
 	        	# nodalMomentum[i][2]  = 0.
 
@@ -343,11 +343,11 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 	@inbounds for i=1:grid.nodeCount
 		nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
         # apply Dirichet boundary conditions
-        if grid.fixedXNodes[i] == 1
+        if grid.fixedNodes[1][i] == 1
 			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
    		    nodalMomentum[i]  = setindex(nodalMomentum[i],0.,1)
         end
-        if grid.fixedYNodes[i] == 1
+        if grid.fixedNodes[2][i] == 1
 			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
 			nodalMomentum[i]  = setindex(nodalMomentum[i],0.,2)
         end

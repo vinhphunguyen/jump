@@ -380,7 +380,8 @@ function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 			else
 				Ny,dNy = quad_bspline_type3(r)
 			end
-			nearPoints[index] = index2DTo1D(id,jd,grid.nodeCountX, grid.nodeCountY)
+		    nearPoints[index] = grid.nodeCountX * (jd-1) + id
+                    
 		    funcs[index]      = Nx  * Ny
 			ders[1,index]     = dNx * dxI * Ny
 			ders[2,index]     = dNy * dyI * Nx
@@ -498,7 +499,7 @@ function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 				else
 					Nz,dNz = quad_bspline_type3(r)
 				end
-				nearPoints[index] = index3DTo1D(id,jd,kd,grid.nodeCountX, grid.nodeCountY,grid.nodeCountZ)
+			    nearPoints[index] = grid.nodeCountX *grid.nodeCountY * (kd - 1) + grid.nodeCountX * (jd-1) + id
 			    funcs[index]      = Nx  * Ny * Nz
 				ders[1,index]     = dNx * dxI * Ny * Nz
 				ders[2,index]     = dNy * dyI * Nx * Nz
