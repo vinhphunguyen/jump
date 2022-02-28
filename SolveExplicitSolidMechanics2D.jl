@@ -89,7 +89,12 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 		        fMass     = mm[ip]
 		        vp        = vv[ip]
 		        sigma     = stress[ip]
-		        P         = det(F[ip])*sigma*inv(F[ip])' # convert to 1st PK stress
+		        Fm        = F[ip]
+		        a         = Fm[1,1]
+		        b         = Fm[1,2]
+		        c         = Fm[2,1]
+		        d         = Fm[2,2]
+		        P         = sigma*SMatrix{2,2}(d, -c,-b, a) #zeros(Float64,2,2)[d -c;-b a] # convert to 1st PK stress
 				#bodyforce(body,xx[ip],t)
 					# println(nearPoints)
 					# println(support)
@@ -101,7 +106,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 					# mass, momentum, internal force and external force
 					nodalMass[id]       +=  Nim
 					nodalMomentum0[id]  +=  Nim * vp
-					nodalForce[id]     -=      fVolume * P     * dNi
+					nodalForce[id]     -=      fVolume * P * dNi # (P[1,1] * dNi[1] + P[1,2] * dNi[2], P[2,1] * dNi[1] + P[2,2] * dNi[2])
 	        #nodalForce[id] -= fVolume * @SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],sigma[2,1] * dNi[1] + sigma[2,2] * dNi[2]]
 				end
 		  	end
