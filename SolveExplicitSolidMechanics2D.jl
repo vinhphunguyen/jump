@@ -82,12 +82,14 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 			vv     = solid.velocity
 			vol    = solid.volume
 			stress = solid.stress
+			F      = solid.deformationGradient
 		  	@inbounds for ip = 1:solid.parCount
 		        support   = getShapeAndGradient(nearPoints,funcs,ders,ip, grid, solid,basis)
 		        fVolume   = vol[ip]
 		        fMass     = mm[ip]
 		        vp        = vv[ip]
 		        sigma     = stress[ip]
+		        P         = det(F[ip])*sigma*inv(F[ip])' # convert to 1st PK stress
 				#bodyforce(body,xx[ip],t)
 					# println(nearPoints)
 					# println(support)
@@ -99,8 +101,8 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 					# mass, momentum, internal force and external force
 					nodalMass[id]       +=  Nim
 					nodalMomentum0[id]  +=  Nim * vp
-	                nodalForce[id] -= fVolume * @SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],
-	                                                     sigma[2,1] * dNi[1] + sigma[2,2] * dNi[2]]
+					nodalForce[id]     -=      fVolume * P     * dNi
+	        #nodalForce[id] -= fVolume * @SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],sigma[2,1] * dNi[1] + sigma[2,2] * dNi[2]]
 				end
 		  	end
 		end
@@ -161,11 +163,12 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 	    end
 	    # # apply Dirichet boundary conditions
 	    @inbounds @simd for i = 1:grid.nodeCount
-	        if grid.fixedXNodes[i] == 1
+	      if grid.fixedNodes[1][i] == 1
 	        	#nodalMomentum2[i][1]  = 0.
-				nodalMomentum2[i] = setindex(nodalMomentum2[i],0.,1)
-	        end
-	        if grid.fixedYNodes[i] == 1
+				   nodalMomentum2[i] = setindex(nodalMomentum2[i],0.,1)
+	      end
+	      if grid.fixedNodes[2][i] == 1
+
 	        	#nodalMomentum2[i][2]  = 0.
 				nodalMomentum2[i] = setindex(nodalMomentum2[i],0.,2)
 	        end

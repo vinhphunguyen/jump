@@ -694,7 +694,7 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 
 	if     iBottomLeft_j == 1
 	  nearPointsY = @SVector[iBottomLeft_j, iBottomLeft_j + 1, iBottomLeft_j + 2]
-    elseif iBottomLeft_j == grid.nodeCountY-1
+       elseif iBottomLeft_j == grid.nodeCountY-1
 	  nearPointsY = @SVector[iBottomLeft_j - 1, iBottomLeft_j, iBottomLeft_j + 1]
 	else
 	  if remy < 0.5
@@ -704,7 +704,7 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	  end
 	end
 
-    index = 1
+       index = 1
 	for i = 1:3
 		id     = nearPointsX[i]
 		r      = (xp - grid.pos[id][1]) * dxI
@@ -729,8 +729,8 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 			else
 				Ny,dNy = quad_bspline_type3(r)
 			end
-			nearPoints[index] = index2DTo1D(id,jd,grid.nodeCountX, grid.nodeCountY)
-		    funcs[index]      = Nx  * Ny
+			nearPoints[index] = to_1D_index(id,jd,grid)
+		       funcs[index]      = Nx  * Ny
 			index += 1
 		end
     end

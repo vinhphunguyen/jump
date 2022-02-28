@@ -40,10 +40,12 @@ function main()
 	poissonRatio  = 0.3
 
 
-    # create the grid of a 1 x 1 square, with 20 x 20 cells
-    grid  =  Grid2D(0.0,1.0,0.0,1.0,11, 11)
+    # create the grid of a 1 x 1 square, with noX x noY cells
+    noX   = 21
+    noY   = 21
+    grid  =  Grid2D(0.0,1.0,0.0,1.0,noX, noY)
     basis = LinearBasis()
-    basis = QuadBsplineBasis()
+    #basis = QuadBsplineBasis()
 
     rad     = 0.2
 	ppc     = 8
@@ -97,7 +99,7 @@ function main()
 	# @time solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
     # print_timer()
     
-    solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
 
     # plotting energies
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
