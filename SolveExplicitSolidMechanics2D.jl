@@ -118,21 +118,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 		@inbounds for i=1:grid.nodeCount
 		    nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
 	        # apply Dirichet boundary conditions
-<<<<<<< Updated upstream
-	        if grid.fixedNodes[1][i] == 1
-	        	#nodalMomentum0[i][1]  = 0.
-	        	#nodalMomentum[i][1]  = 0.
-		        nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
-				nodalMomentum[i]  = setindex(nodalMomentum[i],0.,1)
-	        end
-	        if grid.fixedNodes[2][i] == 1
-	        	# nodalMomentum0[i][2]  = 0.
-	        	# nodalMomentum[i][2]  = 0.
-
-				nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
-				nodalMomentum[i]  = setindex(nodalMomentum[i],0.,2)
-	        end
-=======
+	       
         fixed_dirs       = @view grid.fixedNodes[:,i]
         if fixed_dirs[1] == 1
 			    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
@@ -142,7 +128,6 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 			    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
 			    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
         end
->>>>>>> Stashed changes
 		end
 	    # ===========================================
 	    # grid to particle 1: particle vel update only
@@ -180,17 +165,6 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 	    end
 	    # # apply Dirichet boundary conditions
 	    @inbounds @simd for i = 1:grid.nodeCount
-<<<<<<< Updated upstream
-	      if grid.fixedNodes[1][i] == 1
-	        	#nodalMomentum2[i][1]  = 0.
-				   nodalMomentum2[i] = setindex(nodalMomentum2[i],0.,1)
-	      end
-	      if grid.fixedNodes[2][i] == 1
-
-	        	#nodalMomentum2[i][2]  = 0.
-				nodalMomentum2[i] = setindex(nodalMomentum2[i],0.,2)
-	        end
-=======
 	       # apply Dirichet boundary conditions
         fixed_dirs       = @view grid.fixedNodes[:,i]
         if fixed_dirs[1] == 1
@@ -201,7 +175,6 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
         end
 
 	     
->>>>>>> Stashed changes
 	    end
 
 	    # ===========================================
@@ -376,21 +349,13 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 	@inbounds for i=1:grid.nodeCount
 		nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
         # apply Dirichet boundary conditions
-<<<<<<< Updated upstream
-        if grid.fixedNodes[1][i] == 1
-=======
           # apply Dirichet boundary conditions
         fixed_dirs       = @view grid.fixedNodes[:,i]
         if fixed_dirs[1] == 1
->>>>>>> Stashed changes
 			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
    		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
         end
-<<<<<<< Updated upstream
-        if grid.fixedNodes[2][i] == 1
-=======
         if fixed_dirs[2] == 1
->>>>>>> Stashed changes
 			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
 			nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
         end
