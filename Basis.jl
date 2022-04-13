@@ -82,7 +82,7 @@ function getNearestGridPoints(points,start,xp,grid::Grid2D)
 	# 	@printf("xp[2]: %e \n", xp[2])
 	# end
 
-	iIndex   = to_1D_index(iBottomLeft_i, iBottomLeft_j, grid)
+	iIndex          = to_1D_index(iBottomLeft_i, iBottomLeft_j, grid)
 	points[start]   = iIndex
 	points[start+1] = iIndex+1
 	points[start+2] = iIndex+grid.nodeCountX

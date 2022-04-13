@@ -40,21 +40,30 @@ function main()
 	poissonRatio  = 0.3
 
 
+<<<<<<< Updated upstream
     # create the grid of a 1 x 1 square, with noX x noY cells
     noX   = 21
     noY   = 21
     grid  =  Grid2D(0.0,1.0,0.0,1.0,noX, noY)
+=======
+    # create the grid of a 1 x 1 square, with 20 x 20 cells
+    grid  =  Grid2D(0.0,1.0,0.0,1.0,41, 41)
+>>>>>>> Stashed changes
     basis = LinearBasis()
     #basis = QuadBsplineBasis()
 
     rad     = 0.2
-	ppc     = 8
+	ppc     = 2
     fOffset = grid.dx/ppc
     dx      = fOffset
     coords1 = buildParticleForCircle([0.2; 0.2], rad, fOffset)
     coords2 = buildParticleForCircle([0.8; 0.8], rad, fOffset)
 
+<<<<<<< Updated upstream
     material = ElasticMaterial(youngModulus,poissonRatio,density,0,0, length(coords1))
+=======
+    material = ElasticMaterial(youngModulus,poissonRatio,density,0)
+>>>>>>> Stashed changes
 
     solid1 = Solid2D(coords1,material)
     solid2 = Solid2D(coords2,material)
@@ -82,7 +91,7 @@ function main()
     @printf("Vol0 : %+.6e \n", sum(solid1.volumeInitial)+sum(solid2.volumeInitial))
 
     Tf       = 3.5 #3.5e-0
-    interval = 200
+    interval = 500000000
 	dtime    = 1e-3
 
 	output1  = PyPlotOutput(interval,"results/","Two Disks Collision",(4., 4.))
@@ -91,36 +100,40 @@ function main()
 
     #problem = ExplicitSolidMechanics2D(grid,solids,basis,Tf,output2,fix)
     algo1    = USL(1e-9)
-    algo2    = MUSL(0.999999)
+    algo2    = MUSL(1.)
 
-    #@code_warntype solve_explicit_dynamics_2D(grid,solids,basis,algo1,output,Tf,dtime)
+    @code_warntype solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
 
-    # reset_timer!()
-	# @time solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
-    # print_timer()
+    reset_timer!()
+	@time solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
+    print_timer()
     
+<<<<<<< Updated upstream
     solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
+=======
+    #solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
+>>>>>>> Stashed changes
 
     # plotting energies
-    pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
-	PyPlot.clf()
-	pyPlot01 = PyPlot.gca()
-	PyPlot.subplots_adjust(left=0.15, bottom=0.25, right=0.65)
-	pyPlot01[:grid](b=true, which="both", color="gray", linestyle="-", linewidth=0.5)
-	pyPlot01[:set_axisbelow](true)
-	pyPlot01[:set_xlim](0.0, 4.0)
-	pyPlot01[:set_ylim](0.0, 3.0)
-	pyPlot01[:set_xlabel]("time (s)", fontsize=8)
-	pyPlot01[:set_ylabel]("energy (\$\\times 10^{-3}\$ Nm)", fontsize=8)
-	pyPlot01[:set_xticks](collect(0.0:1.0:4.0))
-	pyPlot01[:tick_params](axis="both", which="major", labelsize=8)
-	pyPlot01[:set_yticks](collect(0.0:1.0:3.0))
-	PyPlot.plot(fix.recordTime, c="blue", fix.kinEnergy, "-", label="\$ K \$", linewidth=1.0)
-	#PyPlot.hold(true)
-	PyPlot.plot(fix.recordTime, c="red", fix.strEnergy, "-", label="\$ U \$", linewidth=1.0)
-	PyPlot.plot(fix.recordTime, c="green", fix.kinEnergy + fix.strEnergy, "-", label="\$ K+U \$", linewidth=1.0)
-	PyPlot.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., fontsize=8)
-	PyPlot.savefig("plot_2Disk_Julia.pdf")
+ #    pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
+	# PyPlot.clf()
+	# pyPlot01 = PyPlot.gca()
+	# PyPlot.subplots_adjust(left=0.15, bottom=0.25, right=0.65)
+	# pyPlot01[:grid](b=true, which="both", color="gray", linestyle="-", linewidth=0.5)
+	# pyPlot01[:set_axisbelow](true)
+	# pyPlot01[:set_xlim](0.0, 4.0)
+	# pyPlot01[:set_ylim](0.0, 3.0)
+	# pyPlot01[:set_xlabel]("time (s)", fontsize=8)
+	# pyPlot01[:set_ylabel]("energy (\$\\times 10^{-3}\$ Nm)", fontsize=8)
+	# pyPlot01[:set_xticks](collect(0.0:1.0:4.0))
+	# pyPlot01[:tick_params](axis="both", which="major", labelsize=8)
+	# pyPlot01[:set_yticks](collect(0.0:1.0:3.0))
+	# PyPlot.plot(fix.recordTime, c="blue", fix.kinEnergy, "-", label="\$ K \$", linewidth=1.0)
+	# #PyPlot.hold(true)
+	# PyPlot.plot(fix.recordTime, c="red", fix.strEnergy, "-", label="\$ U \$", linewidth=1.0)
+	# PyPlot.plot(fix.recordTime, c="green", fix.kinEnergy + fix.strEnergy, "-", label="\$ K+U \$", linewidth=1.0)
+	# PyPlot.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., fontsize=8)
+	# PyPlot.savefig("plot_2Disk_Julia.pdf")
 
 end
 

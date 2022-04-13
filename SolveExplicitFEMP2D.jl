@@ -303,9 +303,13 @@ end # end solve()
 ######################################################################
 # Update Stress Last, TLFEM for internal force
 ######################################################################
-function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,output,fixes,Tf,dtime)
-    t       = 0.
+function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,output,fixes,data)
+
+    Tf    = data["total_time"]::Float64
+	dtime = data["dt"]        ::Float64     
+	t     = data["time"]      ::Float64
     counter = 0
+  
 
     Identity       = UniformScaling(1.)
 	solidCount     = length(solids)
@@ -413,6 +417,10 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,
 	  	end
     end
 
+      # time-independent Dirichlet boundary conditions on grid/solids
+    fix_Dirichlet_grid(grid,data)
+    fix_Dirichlet_solid(solids,data)
+
   while t < Tf
 
     @printf("Solving step: %d %f \n", counter, t)
@@ -478,15 +486,18 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,
 	    body(g,grid.pos[i],t)  
 	     nodalForce[i] += nodalMass[i]*g
 		nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
-        # apply Dirichet boundary conditions
-        if grid.fixedXNodes[i] == 1
+      
+         # apply Dirichet boundary conditions
+        fixed_dirs       = @view grid.fixedNodes[:,i]
+        if fixed_dirs[1] == 1
 			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
    		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
         end
-        if grid.fixedYNodes[i] == 1
+        if fixed_dirs[2] == 1
 			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
 			nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
         end
+
 	end
 
 	# ===========================================
@@ -540,9 +551,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,
 	  	mm    = solid.mass
 	  	vv    = solid.velocity
 	  	du    = solid.dU
-	    fixX  = solid.fixedNodesX
-	  	fixY  = solid.fixedNodesY
-	  	
+	  	fix   = solid.fixedNodes
 	  	
 	  	@inbounds for ip = 1:solid.nodeCount
 			support   = getShapeFunctions(nearPoints,funcs,ip, grid, solid, basis)	        
@@ -572,18 +581,19 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,
 			vv[ip] = setindex(vv[ip],alpha*vp0[2] + vy,2)
 			xx[ip]      = xxp	
 			du[ip]      = dup
-		    # Dirichlet BCs on the mesh
-			if fixX[ip] == 1 
+
+			# Dirichlet BCs on the mesh
+			fixed_dirs       = @view fix[:,ip]
+	        if fixed_dirs[1] == 1
 				vv[ip] = setindex(vv[ip],0.,1)
 				du[ip] = setindex(du[ip],0.,1)
 				xx[ip] = setindex(xx[ip],solid.pos0[ip][1],1)
-			end
-				# Dirichlet BCs on the mesh
-			if fixY[ip] == 1 
+	        end
+	        if fixed_dirs[2] == 1
 				vv[ip] = setindex(vv[ip],0.,2)
 				du[ip] = setindex(du[ip],0.,2)
 				xx[ip] = setindex(xx[ip],solid.pos0[ip][2],2)
-			end
+	        end
 	    end
 	end
 
@@ -591,7 +601,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,
     # ====================================================================
     #  update particle internal forces
     # ====================================================================
-t       += dtime
+    t       += dtime
     @inbounds for s = 1:solidCount
 		# only deformable solids here
 	  	solid = solids[s]
@@ -665,7 +675,7 @@ t       += dtime
 			end
 		   	#println(strain[ip])
 	   	     #@timeit "3" update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
-	   	    update_stress!(stress[ip],mat,strain[ip],strain[ip] ,F[ip],J,ip,dtime)
+	   	    stress[ip] =  update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
 
             #body(g,@SVector[xcenter,ycenter],t)  
             sigma = stress[ip]
@@ -861,7 +871,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEMF
 				#nodalForce[in]     += Ni  * fb
 			end
 			#du[ip] = @SVector [0., 0.]
-	  	end
+	  end
 	end
 
 	# ===========================================

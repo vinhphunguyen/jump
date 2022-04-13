@@ -19,7 +19,9 @@ module Grid
      lx        :: Float64              # length
      dx        :: Float64              # cell size in y dir
      dxI       :: Float64              # inverse of cell size in x dir
-     nodeCount :: Int64                # number of grid nodes
+
+
+      nodeCount :: Int64                # number of grid nodes
 
      mass      :: Vector{Float64}
      pos       :: Vector{Float64}
@@ -108,21 +110,21 @@ module Grid
          tNodes       = Vector{Int64}(undef,iN_x)
          lNodes       = Vector{Int64}(undef,iN_y)
          rNodes       = Vector{Int64}(undef,iN_y)
- 
+
          fixedNodes   = Array{Int64}(undef, 2, nodeCount)
          fixedNodes  .= 0
 
-        
+
         @inbounds for i=1:iN_x
-            ii         = i                
+            ii         = i
             jj         = i + iN_x*(iN_y-1)
-            bNodes[i]  = ii 
-            tNodes[i]  = jj                       
+            bNodes[i]  = ii
+            tNodes[i]  = jj
         end
 
         for i=1:iN_y
-            rNodes[i] = iN_x*i       
-            lNodes[i] = iN_x*(i-1)+1           
+            rNodes[i] = iN_x*i
+            lNodes[i] = iN_x*(i-1)+1
         end
 
 
@@ -200,7 +202,7 @@ module Grid
         rNodes       = Vector{Int64}(undef,iN_y*iN_z)
         fNodes       = Vector{Int64}(undef,iN_x*iN_y)
         baNodes      = Vector{Int64}(undef,iN_x*iN_y)
- 
+
 
         fixedNodes   = Array{Int64}(undef, 3, nodeCount)
         fixedNodes  .= 0
@@ -208,28 +210,28 @@ module Grid
         c = 1
         for k=1:iN_z
           @inbounds for i=1:iN_x
-            ii         = i                 + (k-1)*iN_x*iN_y 
-            jj         = i + iN_x*(iN_y-1) + (k-1)*iN_x*iN_y              
-            bNodes[c]  = ii  
+            ii         = i                 + (k-1)*iN_x*iN_y
+            jj         = i + iN_x*(iN_y-1) + (k-1)*iN_x*iN_y
+            bNodes[c]  = ii
             tNodes[c]  = jj
-            c         += 1    
+            c         += 1
           end
         end
 
         c = 1
         for k=1:iN_z
           for i=1:iN_y
-            rNodes[c] = iN_x*i       + (k-1)*iN_x*iN_y  
-            lNodes[c] = iN_x*(i-1)+1 + (k-1)*iN_x*iN_y 
-            c         += 1    
+            rNodes[c] = iN_x*i       + (k-1)*iN_x*iN_y
+            lNodes[c] = iN_x*(i-1)+1 + (k-1)*iN_x*iN_y
+            c         += 1
           end
         end
 
-       @inbounds for i=1:iN_x*iN_y  
+       @inbounds for i=1:iN_x*iN_y
           fNodes[i]  = i
-          baNodes[i] = i+(iN_z-1)*iN_x*iN_y 
+          baNodes[i] = i+(iN_z-1)*iN_x*iN_y
         end
-  
+
 
         # build grid node coords
         for k=1:iN_z
@@ -355,7 +357,7 @@ module Grid
     xnodes[grid.nodeCount] = 1
   end
 
-  
+
 
   # find the neighbors of a given element "elemId"
   # in a structured grid of numx x numy elements

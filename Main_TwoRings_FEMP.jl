@@ -63,8 +63,8 @@ using BodyForce
 	dtime     = 0.2 * dt
 
 
-    solid1   = FEM2D("ring.msh",material)
-    solid2   = FEM2D("ring.msh",material)
+    solid1   = FEM2D("ring.msh")
+    solid2   = FEM2D("ring.msh")
 
     v0 = SVector{2,Float64}([vel  0.0])
 
@@ -76,9 +76,19 @@ using BodyForce
     Fem.move(solid2,SVector{2,Float64}([ 0.75*l,  0.5*w]))
 
     solids = [solid1, solid2]
+    mats   = [material material]
 
-    fixXForLeft(grid)
-    fixXForRight(grid)
+
+
+    Tf      = 3.5#5e-3 #3.5e-0
+    interval= 10
+
+    data               = Dict()
+    data["total_time"] = Tf
+    data["dt"]         = dtime
+    data["time"]       = 0.
+    data["dirichlet_grid"] = [("left",(1,0)),
+                              ("right",(1,0))] # => fix left nodes on x dir
 
     @printf("Total number of material points: %d \n", solid1.parCount+solid2.parCount)
     @printf("Total number of grid points:     %d\n", grid.nodeCount)
@@ -86,17 +96,15 @@ using BodyForce
     @printf("dt        : %+.6e \n", dtime)
     println(typeof(basis))
 
-    Tf      = 3.5#5e-3 #3.5e-0
-    interval= 10
 
 	output2  = VTKOutput(interval,"rings-femp-results/",["vx","sigmaxx"])
 	fix      = EnergiesFix(solids,"rings-femp-results/energies.txt")
     algo1    = USL(0.)
-    algo2    = TLFEM(0.)
+    algo2    = TLFEM(0.,0.99)
     bodyforce = ConstantBodyForce2D([0.,0.])
 
 	plotGrid(output2,grid)
-    solve_explicit_dynamics_femp_2D(grid,solids,basis,bodyforce,algo2,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,bodyforce,algo2,output2,fix,data)
 
 
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))

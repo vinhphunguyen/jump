@@ -315,9 +315,9 @@ end # end solve()
 
 
 function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,output,fixes,data)
-    Tf    = data["total_time"]
-	dtime = data["dt"]         
-	t     = data["time"]      
+    Tf    = data["total_time"]::Float64
+	dtime = data["dt"]        ::Float64     
+	t     = data["time"]      ::Float64
 
     counter = 0
 
@@ -338,6 +338,11 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 		# wgt       = .166666667
 		# weights   = [0.166666667]   # this is so dangerous!!! all books ay weight =1
 		# gpCoords  = [0.25,0.25,0.25]
+		
+        weights_surface   = ones(3)
+        normals_surface   = zeros(3, 1)
+        funcs_surface     = zeros(3,1)
+        gpCoords_surface  = zeros(2,1)
 	end
 	if nodePerElem == 8 		
 		# wgt       = 8.0
@@ -359,7 +364,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
     vel_grad  = SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
     D         = SMatrix{3,3}(0,0,0,0,0,0,0,0,0) #zeros(Float64,2,2)
     g         = [0.,0.,0.]
-    Fdot      = zeros(3,3)
+    Fdot      = SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
    
 
     # compute nodal mass (only once)
@@ -432,9 +437,9 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 				Ni    = funcs[i]				
 				Nim   = Ni * fMass
 				# mass, momentum, internal force and external force
-		@timeit "1"			nodalMass[in]      += Nim
+		        nodalMass[in]      += Nim
 				nodalMomentum0[in] += Nim * vp 
-		@timeit "2"			nodalForce[in]     -= Ni  * fp
+		        nodalForce[in]     -= Ni  * fp
 				nodalForce[in]     += Ni  * fb
 				nodalForce[in]     += Ni  * ft
 			end
@@ -470,13 +475,13 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 
 	if haskey(data, "rigid_body_velo") 
 
-	    rigid_solids = data["rigid_body_velo"]
+	    rigid_solids = data["rigid_body_velo"]::Array{Tuple{Int64,Function},1}
 
 	 	for (s,f) in rigid_solids
 	 		solid       = solids[s]
 			xx          = solid.pos
 		
-			vex,vey,vez = f(t)
+			vex,vey,vez = f(t)::Tuple{Float64,Float64,Float64}
 			
 			@inbounds for ip = 1:solid.nodeCount
 				getAdjacentGridPoints(nearPoints,xx[ip],grid,basis)
@@ -486,14 +491,9 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 					id                  = nearPoints[i]; # index of node 'i'
 					mi                  = nodalMass[id]
 	
-				    nodalMomentum[id]   = setindex(nodalMomentum[id],  mi*vex,1)
-				    nodalMomentum[id]   = setindex(nodalMomentum0[id], mi*vey,2)
-				    nodalMomentum[id]   = setindex(nodalMomentum[id],  mi*vez,3)	
+				    nodalMomentum0[id]  = mi *@SVector[vex,vey,vez]	
+				    nodalMomentum[id]   = mi *@SVector[vex,vey,vez]	
 
-
-				    nodalMomentum0[id]   = setindex(nodalMomentum0[id], mi*vex,1)
-				    nodalMomentum0[id]   = setindex(nodalMomentum0[id], mi*vey,2)
-				    nodalMomentum0[id]   = setindex(nodalMomentum0[id], mi*vez,3)				    
 				end
 			end
 			#solid.reaction_forces .= @SVector[Fx, Fy, Fz]
@@ -626,7 +626,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 		   	
 			#dstrain      = 0.5 * (vel_grad + vel_grad' + vel_grad * vel_grad') - strain[ip] 
 			
-			Fdot         .= vel_grad/dtime
+			Fdot         = vel_grad/dtime
 
 		   	
 		   	F[ip]        = Identity + vel_gradT
@@ -674,6 +674,29 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
  #      sss += sqrt(ftrac[ip][1]^2+ftrac[ip][2]^2+ftrac[ip][3]^2)
 	# end
 	# println(sss)
+
+    if haskey(data, "rigid_body_velo") 
+	    
+	    rigid_solids = data["rigid_body_velo"]::Array{Tuple{Int64,Function},1}
+
+	 	for (s,f) in rigid_solids
+	 		solid       = solids[s]
+			xx          = solid.pos
+			#xc          = solid.centroids
+			(vex,vey,vez) = f(t)::Tuple{Float64, Float64, Float64} 
+
+			if (vex,vey,vez) == (0.,0.,0.) continue end
+			# update all nodes for visualization only
+			@inbounds for ip = 1:solid.nodeCount
+		      xx[ip]   += dtime * @SVector [vex,vey,vez]   # no memory alloc, 
+		    end
+            # update the centroids of surface elems
+		    #@inbounds for ip = 1:solid.surfCount
+		    #  xc[ip]   += dtime * @SVector [vex,vey,vez]
+		    #end
+		end
+	end
+
 
 	if (counter%output.interval == 0)
 		#println("haha\n")

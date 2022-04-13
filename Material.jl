@@ -115,7 +115,7 @@ end
  # do not update solid.stress!!!
  function update_stress!(sigma,mat::NeoHookeanMaterial,
 	                     epsilon, strain_increment, F, J, ip,dtime)
-   sigma    .= (1.0/J)*( mat.mu*(F*F'-UniformScaling(1.)) + mat.lambda*log(J)*UniformScaling(1.) )
+   return (1.0/J)*( mat.mu*(F*F'-UniformScaling(1.)) + mat.lambda*log(J)*UniformScaling(1.) )
  end
 
 
