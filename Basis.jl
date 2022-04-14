@@ -22,15 +22,23 @@ using  TimerOutputs
 
 include("Bsplines.jl")
 
-export BasisType,LinearBasis, QuadBsplineBasis, CPDIQ4Basis
+export BasisType,LinearBasis, QuadBsplineBasis, CubicBsplineBasis, CPDIQ4Basis
 export getShapeAndGradient, getShapeAndGradientTL, getShapeFunctions, getShapeFuncs, initialise
-export getAdjacentGridPoints, quad_bspline_type1, quad_bspline_type2,
-       quad_bspline_type3, quad_bspline_type4
+export getAdjacentGridPoints
+
+export quad_bspline_type1, quad_bspline_type2, quad_bspline_type3, quad_bspline_type4
+export cubic_bspline_type1, cubic_bspline_type2, cubic_bspline_type3, cubic_bspline_type4
+
+
+#---------------------------------------------------------
+# Type definitions       
+#---------------------------------------------------------
 
 abstract type BasisType end
 
-struct LinearBasis      <: BasisType      end
-struct QuadBsplineBasis <: BasisType      end
+struct LinearBasis       <: BasisType      end
+struct QuadBsplineBasis  <: BasisType      end
+struct CubicBsplineBasis <: BasisType      end
 
 struct CPDIQ4Basis      <: BasisType
 	allNeighbors::Vector{Int64}
@@ -44,7 +52,7 @@ end
 # get indices of points adjacent to point 'xp'
 # indices : one dimensional indices
 function getAdjacentGridPoints(nearPts,xp,grid::Grid1D, basis::LinearBasis)
-	iBottomLeft_i  = floor(Int64,xp * grid.dxI + 1.)
+	iBottomLeft_i  = floor(Int64,xp * grid.dxI + 1.)     # see Equation F.1 in the book
 	nearPts       .= [iBottomLeft_i, iBottomLeft_i + 1]
 	#println(thisAdjacentGridPoints)
 end
@@ -122,7 +130,8 @@ function getAdjacentGridPoints(nearPts,xp,grid::Grid3D, basis::LinearBasis)
 
 
 	nearPts .= @SVector [iIndex, iIndex+1, iIndex+grid.nodeCountX, iIndex+grid.nodeCountX+1,
-	                     iIndex+grid.nodeCountXY, iIndex+1+grid.nodeCountXY, iIndex+grid.nodeCountX+grid.nodeCountXY, iIndex+grid.nodeCountX+1+grid.nodeCountXY]
+	                     iIndex+grid.nodeCountXY, iIndex+1+grid.nodeCountXY, iIndex+grid.nodeCountX+grid.nodeCountXY, 
+	                     iIndex+grid.nodeCountX+1+grid.nodeCountXY]
     # println(nearPoints)	                     
     # println(xp)
 end
@@ -130,23 +139,46 @@ end
 # getAdjacentGridPoints: 1D, quadratic bsplines
 # get indices of points adjacent to point 'xp'
 # indices : one dimensional indices
+
 function getAdjacentGridPoints(nearPts,xp,grid::Grid1D, basis::QuadBsplineBasis)
 	iBottomLeft_i  = floor(Int64,xp * grid.dxI + 1.)
-	num            = xp * grid.dxI
-	whole          = floor(num)
-	rem            = num - whole
+	# num            = xp * grid.dxI
+	# whole          = floor(num)
+	# rem            = num - whole
 	#println(iBottomLeft_i)
 	if     iBottomLeft_i == 1
 	  nearPts .= @SVector[iBottomLeft_i, iBottomLeft_i + 1, iBottomLeft_i + 2]
-    elseif iBottomLeft_i == grid.nodeCount-1
+       elseif iBottomLeft_i == grid.nodeCount-1
 	  nearPts .= @SVector[iBottomLeft_i - 1, iBottomLeft_i, iBottomLeft_i + 1]
 	else
+	num            = xp * grid.dxI
+	whole          = floor(num)
+	rem            = num - whole		
 	  if rem < 0.5
 	     nearPts .= @SVector[iBottomLeft_i-1, iBottomLeft_i, iBottomLeft_i+1]
-      else
+         else
 	     nearPts .= @SVector[iBottomLeft_i, iBottomLeft_i+1, iBottomLeft_i+2]
-      end
+         end
     end
+	#println(nearPts)
+end
+
+#################################################################
+# getAdjacentGridPoints: 1D, cubic bsplines
+# get indices of points adjacent to point 'xp'
+# indices : one dimensional indices
+
+function getAdjacentGridPoints(nearPts,xp,grid::Grid1D, basis::CubicBsplineBasis)
+	iBottomLeft_i  = floor(Int64,xp * grid.dxI + 1.)
+	# num            = xp * grid.dxI
+	# whole          = floor(num)
+	# rem            = num - whole
+	#println(iBottomLeft_i)
+       if iBottomLeft_i == grid.nodeCount-1
+	  nearPts .= @SVector[iBottomLeft_i - 2, iBottomLeft_i - 1, iBottomLeft_i, iBottomLeft_i + 1]
+	else
+	  nearPts .= @SVector[iBottomLeft_i, iBottomLeft_i + 1, iBottomLeft_i + 2, iBottomLeft_i + 3]
+       end
 	#println(nearPts)
 end
 
@@ -308,8 +340,14 @@ end
 #################################################################
 # getShapeAndGradient: 2D, modified quadratic bspline basis
 # outputs: nearPoints, funcs and and ders
-function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
-						 ders::Matrix{Float64},p::Int64, grid::Grid2D, solid,basis::QuadBsplineBasis)
+function getShapeAndGradient(nearPoints::Vector{Int64}, 
+	                      funcs::Vector{Float64},
+				 ders::Matrix{Float64},
+				 p::Int64, 
+				 grid::Grid2D, 
+				 solid,
+				 basis::QuadBsplineBasis)
+
 	xp          = solid.pos[p][1]
 	yp          = solid.pos[p][2]
 
@@ -333,7 +371,7 @@ function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	#println(iBottomLeft_i)
 	if     iBottomLeft_i == 1
 	  nearPointsX = @SVector [iBottomLeft_i, iBottomLeft_i + 1, iBottomLeft_i + 2]
-    elseif iBottomLeft_i == grid.nodeCountX-1
+       elseif iBottomLeft_i == grid.nodeCountX-1
 	  nearPointsX = @SVector [iBottomLeft_i - 1, iBottomLeft_i, iBottomLeft_i + 1]
 	else
 	  if remx < 0.5
@@ -345,7 +383,7 @@ function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 
 	if     iBottomLeft_j == 1
 	  nearPointsY = @SVector [iBottomLeft_j, iBottomLeft_j + 1, iBottomLeft_j + 2]
-    elseif iBottomLeft_j == grid.nodeCountY-1
+       elseif iBottomLeft_j == grid.nodeCountY-1
 	  nearPointsY = @SVector [iBottomLeft_j - 1, iBottomLeft_j, iBottomLeft_j + 1]
 	else
 	  if remy < 0.5
@@ -355,7 +393,7 @@ function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	  end
 	end
 
-    index = 1
+       index = 1
 	for i = 1:3
 		id     = nearPointsX[i]
 		r      = (xp - grid.pos[id][1]) * dxI
@@ -513,12 +551,134 @@ function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	return 27
 end
 
+#################################################################
+# getShapeAndGradient: 1D, modified cubic bspline basis
+# outputs: nearPoints, funcs and and ders
+function getShapeAndGradient(nearPoints::Vector{Int64}, 
+	                      funcs::Vector{Float64},
+			        ders::Vector{Float64},
+			        p::Int64, 
+			        grid::Grid1D, 
+			        solid, 
+			        basis::CubicBsplineBasis)
+
+	xp          = solid.pos[p]
+	getAdjacentGridPoints(nearPoints,xp,grid,basis)
+
+	dxI = grid.dxI
+
+	@inbounds for i = 1:4
+		index      = nearPoints[i]
+		r          = (xp - grid.pos[index]) * dxI
+
+		if     index == 1 | index == grid.nodeCount
+			N,dN = quad_bspline_type1(r)
+		elseif index == 2
+			N,dN = quad_bspline_type2(r)
+		elseif index == grid.nodeCount - 1
+			N,dN = quad_bspline_type4(r)
+		else
+			N,dN = quad_bspline_type3(r)
+		end
+	    funcs[i] = N
+		ders[i]  = dN * dxI
+	end
+	println(sum(funcs))
+	println(sum(ders))
+	return 4
+end
+
+#################################################################
+# getShapeAndGradient: 2D, modified cubic bspline basis
+# outputs: nearPoints, funcs and and ders
+function getShapeAndGradient(nearPoints::Vector{Int64}, 
+	                      funcs::Vector{Float64},
+			        ders::Matrix{Float64},
+			        p::Int64, 
+			        grid::Grid2D, 
+			        solid,
+			        basis::CubicBsplineBasis)
+
+       # coords of the particle 'p'
+	xp          = solid.pos[p][1]
+	yp          = solid.pos[p][2]
+
+       # inverse of grid spacing
+	dxI = grid.dxI
+	dyI = grid.dyI
+
+
+	numy            = (yp - grid.ymin) * grid.dyI
+	numx            = (xp - grid.xmin) * grid.dxI
+	wholex          = floor(numx)
+	wholey          = floor(numy)
+	remx            = numx - wholex
+	remy            = numy - wholey
+
+
+	iBottomLeft_i  = floor(Int64,numx + 1.)
+	iBottomLeft_j  = floor(Int64,numy + 1.)
+
+	#println(iBottomLeft_i)
+	if iBottomLeft_i == grid.nodeCountX-1
+	  nearPointsX = @SVector[iBottomLeft_i - 2, iBottomLeft_i - 1, iBottomLeft_i, iBottomLeft_i + 1]
+	else
+	  nearPointsX = @SVector[iBottomLeft_i, iBottomLeft_i + 1, iBottomLeft_i + 2, iBottomLeft_i + 3]
+       end
+
+ 	if iBottomLeft_j == grid.nodeCountY-1
+	  nearPointsY = @SVector[iBottomLeft_j - 2, iBottomLeft_j - 1, iBottomLeft_j, iBottomLeft_j + 1]
+	else
+	  nearPointsY = @SVector[iBottomLeft_j, iBottomLeft_j + 1, iBottomLeft_j + 2, iBottomLeft_j + 3]
+       end
+
+       index = 1
+	for i = 1:4
+		id     = nearPointsX[i]
+		r      = (xp - grid.pos[id][1]) * dxI
+              if     id == 1 | id == grid.nodeCountX
+			Nx,dNx = quad_bspline_type1(r)
+		elseif id == 2
+			Nx,dNx = quad_bspline_type2(r)
+		elseif id == grid.nodeCountX - 1
+			Nx,dNx = quad_bspline_type4(r)
+		else
+			Nx,dNx = quad_bspline_type3(r)
+		end
+		for j = 1:4
+			jd     = nearPointsY[j]
+			r      = (yp - (jd-1)*grid.dy) * dyI
+			if     jd == 1 | jd == grid.nodeCountY
+				Ny,dNy = quad_bspline_type1(r)
+			elseif jd == 2
+				Ny,dNy = quad_bspline_type2(r)
+			elseif jd == grid.nodeCountY - 1
+				Ny,dNy = quad_bspline_type4(r)
+			else
+				Ny,dNy = quad_bspline_type3(r)
+			end
+		    nearPoints[index] = grid.nodeCountX * (jd-1) + id
+                    
+		    funcs[index]        = Nx  * Ny
+			ders[1,index]     = dNx * dxI * Ny
+			ders[2,index]     = dNy * dyI * Nx
+			index += 1
+		end
+    end
+	println(sum(funcs))
+	println(sum(ders))
+	return 16
+end
 
 #################################################################
 # getShapeFunctions: 1D,  LinearBasis
 # outputs: nearPoints, funcs and and ders
-function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
-                       p::Int64, grid::Grid1D, solid,basis::LinearBasis)
+function getShapeFunctions(nearPoints::Vector{Int64}, 
+	                    funcs::Vector{Float64},
+                           p::Int64, 
+                           grid::Grid1D, 
+                           solid,
+                           basis::LinearBasis)
 	xp = solid.pos[p]
 	getAdjacentGridPoints(nearPoints,xp,grid,basis)
 
@@ -540,8 +700,12 @@ end
 #################################################################
 # getShapeFunctions: 2D,  LinearBasis
 # outputs: nearPoints, funcs and and ders
-function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
-                           p::Int64, grid::Grid2D, solid,basis::LinearBasis)
+function getShapeFunctions(nearPoints::Vector{Int64}, 
+	                    funcs::Vector{Float64},
+                           p::Int64, 
+                           grid::Grid2D, 
+                           solid,
+                           basis::LinearBasis)
 	xp  = solid.pos[p]
 	xp1 = xp[1]
 	xp2 = xp[2]
@@ -564,8 +728,11 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	return 4
 end
 
-function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
-                           xp, grid::Grid2D,basis::LinearBasis)	
+function getShapeFunctions(nearPoints::Vector{Int64}, 
+	                    funcs::Vector{Float64},
+                           xp, 
+                           grid::Grid2D,
+                           basis::LinearBasis)	
 	xp1 = xp[1]
 	xp2 = xp[2]
 	getAdjacentGridPoints(nearPoints,xp,grid,basis)
@@ -591,8 +758,11 @@ end
 # getShapeFunctions: 3D, linear basis
 # outputs: nearPoints, funcs
 
-function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
-                          p::Int64, grid::Grid3D, solid,basis::LinearBasis)
+function getShapeFunctions(nearPoints::Vector{Int64}, 
+	                    funcs::Vector{Float64},
+                           p::Int64, 
+                           grid::Grid3D, 
+                           solid,basis::LinearBasis)
 	xp = solid.pos[p]
 	getAdjacentGridPoints(nearPoints,xp,grid,basis)
     #println(nearPoints)
@@ -624,8 +794,12 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	return 8
 end
 
-function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
-                          xp, grid::Grid3D,basis::LinearBasis)
+function getShapeFunctions(nearPoints::Vector{Int64}, 
+	                    funcs::Vector{Float64},
+                           xp, 
+                           grid::Grid3D,
+                           basis::LinearBasis)
+
 	getAdjacentGridPoints(nearPoints,xp,grid,basis)
     #println(nearPoints)
 	
@@ -657,8 +831,13 @@ end
 #################################################################
 # getShapeFunctions: 2D, modified quadratic bspline basis
 # outputs: nearPoints, funcs and and ders
-function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
-						   p::Int64, grid::Grid2D, solid,basis::QuadBsplineBasis)
+function getShapeFunctions(nearPoints::Vector{Int64}, 
+	                    funcs::Vector{Float64},
+			      p::Int64, 
+			      grid::Grid2D, 
+			      solid,
+			      basis::QuadBsplineBasis)
+
 	xp          = solid.pos[p][1]
 	yp          = solid.pos[p][2]
 
@@ -682,15 +861,15 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	#println(iBottomLeft_i)
 	if     iBottomLeft_i == 1
 	  nearPointsX = @SVector[iBottomLeft_i, iBottomLeft_i + 1, iBottomLeft_i + 2]
-    elseif iBottomLeft_i == grid.nodeCountX-1
+       elseif iBottomLeft_i == grid.nodeCountX-1
 	  nearPointsX = @SVector[iBottomLeft_i - 1, iBottomLeft_i, iBottomLeft_i + 1]
 	else
 	  if remx < 0.5
 	     nearPointsX = @SVector[iBottomLeft_i-1, iBottomLeft_i, iBottomLeft_i+1]
-      else
+         else
 	     nearPointsX = @SVector[iBottomLeft_i, iBottomLeft_i+1, iBottomLeft_i+2]
-      end
-    end
+         end
+       end
 
 	if     iBottomLeft_j == 1
 	  nearPointsY = @SVector[iBottomLeft_j, iBottomLeft_j + 1, iBottomLeft_j + 2]
@@ -743,8 +922,13 @@ end
 #################################################################
 # getShapeFunctions: 3D, modified quadratic bspline basis
 # outputs: nearPoints, funcs and and ders
-function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
-						   p::Int64, grid::Grid3D, solid,basis::QuadBsplineBasis)
+function getShapeFunctions(nearPoints::Vector{Int64}, 
+	                    funcs::Vector{Float64},
+			      p::Int64, 
+			      grid::Grid3D, 
+			      solid,
+			      basis::QuadBsplineBasis)
+
 	xp          = solid.pos[p][1]
 	yp          = solid.pos[p][2]
 	zp          = solid.pos[p][3]
@@ -774,7 +958,7 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	#println(iBottomLeft_i)
 	if     iBottomLeft_i == 1
 	  nearPointsX = @SVector[iBottomLeft_i, iBottomLeft_i + 1, iBottomLeft_i + 2]
-    elseif iBottomLeft_i == grid.nodeCountX-1
+       elseif iBottomLeft_i == grid.nodeCountX-1
 	  nearPointsX = @SVector[iBottomLeft_i - 1, iBottomLeft_i, iBottomLeft_i + 1]
 	else
 	  if remx < 0.5
@@ -786,7 +970,7 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 
 	if     iBottomLeft_j == 1
 	  nearPointsY = @SVector[iBottomLeft_j, iBottomLeft_j + 1, iBottomLeft_j + 2]
-    elseif iBottomLeft_j == grid.nodeCountY-1
+       elseif iBottomLeft_j == grid.nodeCountY-1
 	  nearPointsY = @SVector[iBottomLeft_j - 1, iBottomLeft_j, iBottomLeft_j + 1]
 	else
 	  if remy < 0.5
@@ -798,7 +982,7 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 
 	if     iBottomLeft_k == 1
 	  nearPointsZ = @SVector[iBottomLeft_k, iBottomLeft_k + 1, iBottomLeft_k + 2]
-    elseif iBottomLeft_k == grid.nodeCountZ-1
+       elseif iBottomLeft_k == grid.nodeCountZ-1
 	  nearPointsZ = @SVector[iBottomLeft_k - 1, iBottomLeft_k, iBottomLeft_k + 1]
 	else
 	  if remz < 0.5
@@ -808,7 +992,7 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	  end
 	end
 
-    index = 1
+       index = 1
 	for i = 1:3
 		id     = nearPointsX[i]
 		r      = (xp - grid.pos[id][1]) * dxI
@@ -901,8 +1085,14 @@ end
 # getShapeAndGradient: 2D, CPDI-Q4
 # outputs: nearPoints, funcs and and ders
 
-function getShapeAndGradient(nearPoints::Vector{Int64}, funcs::Vector{Float64},
-                         ders::Matrix{Float64},p::Int64, grid::Grid2D, solid,basis::CPDIQ4Basis)
+function getShapeAndGradient(nearPoints::Vector{Int64}, 
+	                      funcs::Vector{Float64},
+                             ders::Matrix{Float64},
+                             p::Int64, 
+                             grid::Grid2D, 
+                             solid,
+                             basis::CPDIQ4Basis)
+
 	 nodeIds = @view solid.elems[p,:]
 	 nodes   = solid.nodes
 
@@ -985,8 +1175,13 @@ end
 #################################################################
 # getShapeFunctions: 2D, CPDI-Q4
 # outputs: nearPoints, funcs and and ders
-function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
-                         p::Int64, grid::Grid2D, solid,basis::CPDIQ4Basis)
+function getShapeFunctions(nearPoints::Vector{Int64}, 
+	                    funcs::Vector{Float64},
+                           p::Int64, 
+                           grid::Grid2D, 
+                           solid,
+                           basis::CPDIQ4Basis)
+
 	 nodeIds = @view solid.elems[p,:]
 	 nodes   = solid.nodes
 
@@ -1048,6 +1243,10 @@ function getShapeFunctions(nearPoints::Vector{Int64}, funcs::Vector{Float64},
 	 return nodeCount
 end
 
+#-------------------------------------------------------------
+# initialise functions
+#-------------------------------------------------------------
+
 function initialise(grid::Grid1D,basis::LinearBasis)
 	nearPoints = [0,0]
 	funcs      = [0.,0.]
@@ -1087,6 +1286,20 @@ function initialise(grid::Grid3D,basis::QuadBsplineBasis)
 	nearPoints = repeat(0:0, inner=27)
 	funcs      = zeros(27)
 	ders       = zeros(3,27)
+	return (nearPoints, funcs, ders)
+end
+
+function initialise(grid::Grid1D,basis::CubicBsplineBasis)
+	nearPoints = [0,0,0,0]
+	funcs      = zeros(4)
+	ders       = zeros(4)
+	return (nearPoints, funcs, ders)
+end
+
+function initialise(grid::Grid2D,basis::CubicBsplineBasis)
+	nearPoints = repeat(0:0, inner=16)
+	funcs      = zeros(16)
+	ders       = zeros(2,16)
 	return (nearPoints, funcs, ders)
 end
 

@@ -159,6 +159,7 @@ include("SolveExplicitDynamicsTL2D.jl")
 
 include("SolveExplicitDynamicsPFM2D.jl")
 
+export solve_explicit_dynamics_1D
 export solve_explicit_dynamics_2D
 export solve_explicit_dynamics_3D
 export solve_explicit_dynamics_PFM_2D

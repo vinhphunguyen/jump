@@ -1,8 +1,24 @@
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
+
+# This file contains functions for solving 1D explicit dynamics problems
+# USL and MUSL are provided, each function for each algorithm
+#
+
 using Fix
 
 function solve_explicit_dynamics_1D(grid,solids,basis,alg::MUSL,interval,Tf,dtime)
 	t       = 0.
-    counter = 0
+  counter = 0
 
 	solidCount     = length(solids)
 	nodalMass      = grid.mass
@@ -12,10 +28,10 @@ function solve_explicit_dynamics_1D(grid,solids,basis,alg::MUSL,interval,Tf,dtim
 	#interval      = problem.output.interval
 
 	# allocate memory for grid basis and grads once
-	nearPoints, funcs, ders = initialise(basis, grid)
+	nearPoints, funcs, ders = initialise(grid, basis)
 
 
-	while t < problem.Tf
+	while t < Tf
         t       += dtime
         counter += 1
 
@@ -169,7 +185,7 @@ function solve_explicit_dynamics_1D(grid,solids,basis,alg::USL,interval,Tf,dtime
 	nodalMomentum = grid.momentum
 	nodalForce    = grid.force
 
-	nearPoints, funcs, ders = initialise(basis,grid)
+	nearPoints, funcs, ders = initialise(grid,basis)
 
 
   while t < Tf

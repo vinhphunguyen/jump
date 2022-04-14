@@ -45,10 +45,11 @@ function main()
     noY   = 21
     grid  =  Grid2D(0.0,1.0,0.0,1.0,noX, noY)
     #basis = LinearBasis()
-    basis = QuadBsplineBasis()
+    #basis = QuadBsplineBasis()
+    basis = CubicBsplineBasis()
 
     rad     = 0.2
-	ppc     = 2
+	 ppc     = 2
     fOffset = grid.dx/ppc
     dx      = fOffset
     coords1 = buildParticleForCircle([0.2; 0.2], rad, fOffset)
@@ -82,13 +83,13 @@ function main()
     @printf("Vol  : %+.6e \n", sum(solid1.volume)+sum(solid2.volume))
     @printf("Vol0 : %+.6e \n", sum(solid1.volumeInitial)+sum(solid2.volumeInitial))
 
-    Tf       = 3.5 #3.5e-0
+    Tf       = 1e-3#3.5 #3.5e-0
     interval = 5
-	dtime    = 1e-3
+	 dtime    = 1e-3
 
-	output1  = PyPlotOutput(interval,"results/","Two Disks Collision",(4., 4.))
-	output2  = OvitoOutput(interval,"results/",["pressure"])
-	fix      = EnergiesFix(solids,"results/energies.txt")
+	 output1  = PyPlotOutput(interval,"results/","Two Disks Collision",(4., 4.))
+	 output2  = OvitoOutput(interval,"results/",["pressure"])
+	 fix      = EnergiesFix(solids,"results/energies.txt")
 
     #problem = ExplicitSolidMechanics2D(grid,solids,basis,Tf,output2,fix)
     algo1    = USL(1e-9)

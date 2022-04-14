@@ -1,7 +1,7 @@
 # Phu Nguyen, Monash University
 # 20 March, 2020 (Coronavirus outbreak)
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/jMPM/src")
+push!(LOAD_PATH,"./")
 # import Gadfly
 import PyPlot
 using Printf
@@ -70,9 +70,10 @@ using Mesh
 
 	#output1  = PyPlotOutput(interval,"impact-results/","Impact",(4., 4.))
 	#output2  = OvitoOutput(interval,"vibratingbeam-cpdi-results/",[])
-    problem   = ExplicitSolidMechanics1D(grid,solids,basis,Tf,bodyforce,[])
-    algo      =  MUSL()
-    solve(problem, algo, interval, dtime)
+    
+    algo      =  MUSL(1.)
+    solve_explicit_dynamics_1D(grid,solids,basis,algo,interval,Tf,dtime)
+
     ############################################################
     # plot solutions
 	############################################################

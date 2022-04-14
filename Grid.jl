@@ -15,13 +15,15 @@ module Grid
   using Printf
 
   # ----------------------------------------------------------------------
+  #     1D Grid
+  # ----------------------------------------------------------------------
   struct Grid1D
      lx        :: Float64              # length
-     dx        :: Float64              # cell size in y dir
+     dx        :: Float64              # cell size in x dir
      dxI       :: Float64              # inverse of cell size in x dir
 
 
-      nodeCount :: Int64                # number of grid nodes
+     nodeCount :: Int64                # number of grid nodes
 
      mass      :: Vector{Float64}
      pos       :: Vector{Float64}
@@ -51,12 +53,12 @@ module Grid
            pos0[i]=  x;
         end
 
-       return (fGL_x, dx,dxI, iN_x, mass, pos, pos0, momentum,
+       return new(fGL_x, dx,dxI, iN_x, mass, pos, pos0, momentum,
                      momentum2, force,idx)
      end
   end
   # ----------------------------------------------------------------------
-
+  #              2D Grid
   # ----------------------------------------------------------------------
   #grid container
    struct Grid2D
