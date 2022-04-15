@@ -69,6 +69,8 @@ module Solid
 		volumeInitial       :: Vector{Float64}
 		volume              :: Vector{Float64}
 
+		temp                :: Vector{Float64}             # temperature
+
 		pos0                :: Vector{SVector{2,Float64}}  # position
 		pos                 :: Vector{SVector{2,Float64}}  # position
 		velocity            :: Vector{SVector{2,Float64}}  # velocity
@@ -79,7 +81,7 @@ module Solid
 		gradVelo            :: Vector{MMatrix{2,2,Float64,4}}  # velocity gradient
 		Cmat                :: Vector{MMatrix{2,2,Float64,4}}  # APIC BpDp
 
-		parCount            :: Int64
+		parCount            :: Int64                       # number of total particle in the solid
 
 		mat                 :: T
 
@@ -118,7 +120,7 @@ module Solid
 			if ( typeof(mat) <: RigidMaterial )
 				rigid = true
 			end
-			return new{T}(m,vol,vol0,copy(coords),coords,velo,F,strain,stress,gradVel,
+			return new{T}(m,vol,vol0,copy(vol0), copy(coords),coords,velo,F,strain,stress,gradVel,
 			    Cmat,parCount,mat,fill(zeros(2),1),0, rigid,col, dam, copy(velo), copy(dam))
         end
 

@@ -16,7 +16,7 @@
 
 using Fix
 
-function solve_explicit_dynamics_1D(grid,solids,basis,alg::MUSL,interval,Tf,dtime)
+function solve_explicit_dynamics_1D(grid,solids,basis,alg::MUSL,interval,Tf,dtime,bodyforce)
 	t       = 0.
   counter = 0
 
@@ -62,7 +62,7 @@ function solve_explicit_dynamics_1D(grid,solids,basis,alg::MUSL,interval,Tf,dtim
 		        fMass     = mm[ip]
 		        vp        = vv[ip]
 		        sigma     = stress[ip]
-				body      = problem.bodyforce(xx[ip],t)
+				    body      = bodyforce(xx[ip],t)
 				@inbounds for i = 1:support
 					in    = nearPoints[i]; # index of node ‘i’
 					Ni    = funcs[i]
@@ -176,7 +176,7 @@ function solve_explicit_dynamics_1D(grid,solids,basis,alg::MUSL,interval,Tf,dtim
     end
 end
 
-function solve_explicit_dynamics_1D(grid,solids,basis,alg::USL,interval,Tf,dtime)
+function solve_explicit_dynamics_1D(grid,solids,basis,alg::USL,interval,Tf,dtime,bodyforce)
     t       = 0.
     counter = 0
 
@@ -224,7 +224,7 @@ function solve_explicit_dynamics_1D(grid,solids,basis,alg::USL,interval,Tf,dtime
 	        vp        = vv[ip]
 	        sigma     = stress[ip]
 			#vgrad     = gradVe[ip]
-			body      = problem.bodyforce(xx[ip],t)
+			    body      = bodyforce(xx[ip],t)
 			#println(nearPoints)
 			@inbounds for i = 1:support
 				in    = nearPoints[i]; # index of node 'i'

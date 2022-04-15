@@ -41,8 +41,8 @@ function main()
 
 
     # create the grid of a 1 x 1 square, with noX x noY cells
-    noX   = 21
-    noY   = 21
+    noX   = 41
+    noY   = 41
     grid  =  Grid2D(0.0,1.0,0.0,1.0,noX, noY)
     #basis = LinearBasis()
     #basis = QuadBsplineBasis()
@@ -83,8 +83,8 @@ function main()
     @printf("Vol  : %+.6e \n", sum(solid1.volume)+sum(solid2.volume))
     @printf("Vol0 : %+.6e \n", sum(solid1.volumeInitial)+sum(solid2.volumeInitial))
 
-    Tf       = 1e-3#3.5 #3.5e-0
-    interval = 5
+    Tf       = 3.5 #3.5e-0
+    interval = 50
 	 dtime    = 1e-3
 
 	 output1  = PyPlotOutput(interval,"results/","Two Disks Collision",(4., 4.))
