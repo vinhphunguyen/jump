@@ -67,7 +67,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
   fix_Dirichlet_grid(grid,data)
 
 	while t < Tf
-	    #@printf(“Solving step: %f \n”, t)
+	    @printf("Solving step: %f \n", t)
 	    # ===========================================
 	    # reset grid data
 	    # ===========================================
@@ -305,7 +305,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,data
 
   while t < Tf
 
-    #@printf("Solving step: %d%f \n", counter, t)
+    @printf("Solving step: %d%f \n", counter, t)
 
     # ===========================================
     # reset grid data

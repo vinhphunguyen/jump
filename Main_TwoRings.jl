@@ -10,6 +10,13 @@
 #
 # -----------------------------------------------------------------------
 
+
+# Input file for the two rings collision problem, made of hyperleastic material.
+# Solved with the standard MPM method, that is ULMPM with either hat functions, quadratic
+# b-splines or cubic b-splines
+# Output in folder "rings-ulmpm-results/", with lammps dump files and energies.txt
+# Status: negative Jacobian even with cubic splines
+
 push!(LOAD_PATH,"./")
 #
 import PyPlot
@@ -50,12 +57,15 @@ function main()
 	vel           = 30 # mm/s
 
 
-    # create the grid of a 1 x 1 square, with 20 x 20 cells
-    grid  =  Grid2D(0, l, 0, w, 201, 101)
-    basis = QuadBsplineBasis()
+    # create the grid  with nx x ny cells
+    nx    = 251
+    ny    = 251
+    grid  =  Grid2D(0, l, 0, w, nx , ny)
+    #basis = QuadBsplineBasis()
+    basis = CubicBsplineBasis()
     #basis = LinearBasis()
 
-	ppc     = 2
+	ppc     = 3
     fOffset = grid.dx/ppc
     dx      = fOffset
     coords1 = buildParticleForRing([l/4; w/2], rin, rout, fOffset)
@@ -66,7 +76,7 @@ function main()
 
 	c_dil     = sqrt((material.lambda + 2*material.mu)/material.density)
 	dt        = grid.dx/c_dil
-	dtime     = 0.1 * dt
+	dtime     = 0.6 * dt
 
 
     solid1   = Solid2D(coords1,material)
@@ -98,18 +108,27 @@ function main()
     println(typeof(basis))
 
     Tf      = 3.5
-    interval= 20
+    interval= 100
+
+
+    data               = Dict()
+    data["total_time"] = Tf
+    data["dt"]         = dtime
+    data["time"]       = 0.
 
     bodyforce = ConstantBodyForce2D([0,0])
 
 	output2  = OvitoOutput(interval,"rings-ulmpm-results/",["vx","sigmaxx"])
 	fix      = EnergiesFix(solids,"rings-ulmpm-results/energies.txt")
-    algo1    = USL(1e-10)
-    algo2    = MUSL(0.99)
+    algo1    = USL(1e-18)
+    algo2    = MUSL(0.99) # 0.99 is the mixing beta PIC-FLIP parameter
     
 	plotGrid(output2,grid,0)
-    solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
 
+	# start solving
+    solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,data)
+
+    # post-processing: plotting energies in time
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
 	PyPlot.clf()
 	pyPlot01 = PyPlot.gca()

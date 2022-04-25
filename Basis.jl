@@ -1098,7 +1098,7 @@ function getShapeFunctions(nearPoints::Vector{Int64},
 				Ny,dNy = quad_bspline_type3(r)
 			end
 			nearPoints[index] = to_1D_index(id,jd,grid)
-		       funcs[index]      = Nx  * Ny
+		    funcs[index]      = Nx  * Ny
 			index += 1
 		end
     end
@@ -1265,6 +1265,84 @@ function getShapeFunctions(  nearPoints::Vector{Int64},
 	return 4
 end
 
+#################################################################
+# getShapeFunctions: 2D, modified cubic bspline basis
+# outputs: nearPoints, funcs and and ders
+function getShapeFunctions(nearPoints::Vector{Int64}, 
+	                      funcs::Vector{Float64},
+			        p::Int64, 
+			        grid::Grid2D, 
+			        solid,
+			        basis::CubicBsplineBasis)
+
+       # coords of the particle 'p'
+	xp          = solid.pos[p][1]
+	yp          = solid.pos[p][2]
+
+       # inverse of grid spacing
+	dxI = grid.dxI
+	dyI = grid.dyI
+
+	numx            = (xp - grid.xmin) * grid.dxI
+	numy            = (yp - grid.ymin) * grid.dyI
+
+	iBottomLeft_i  = floor(Int64,numx + 1.)
+	iBottomLeft_j  = floor(Int64,numy + 1.)
+
+	#println(iBottomLeft_i)
+
+    if iBottomLeft_i == 1
+	  nearPointsX = @SVector[1, 2, 3, 4]
+       elseif iBottomLeft_i == grid.nodeCountX-1
+	  nearPointsX = @SVector[iBottomLeft_i - 2, iBottomLeft_i - 1, iBottomLeft_i, iBottomLeft_i + 1]	  
+	else
+	  nearPointsX = @SVector[iBottomLeft_i-1, iBottomLeft_i, iBottomLeft_i + 1, iBottomLeft_i + 2]
+    end
+
+    if iBottomLeft_j == 1
+	      nearPointsY = @SVector[1, 2, 3, 4]
+    elseif iBottomLeft_j == grid.nodeCountY-1
+	      nearPointsY = @SVector[iBottomLeft_j - 2, iBottomLeft_j - 1, iBottomLeft_j, iBottomLeft_j + 1]	  
+	else
+	      nearPointsY = @SVector[iBottomLeft_j-1, iBottomLeft_j, iBottomLeft_j + 1, iBottomLeft_j + 2]
+    end
+
+    index = 1
+	for i = 1:4
+		id     = nearPointsX[i]
+		r      = (xp - grid.pos[id][1]) * dxI
+        if     id == 1 || id == grid.nodeCountX
+			Nx,dNx = cubic_bspline_type1(r)
+		elseif id == 2
+			Nx,dNx = cubic_bspline_type2(r)
+		elseif id == grid.nodeCountX - 1
+			Nx,dNx = cubic_bspline_type4(r)
+		else
+			Nx,dNx = cubic_bspline_type3(r)
+		end
+		for j = 1:4
+			jd     = nearPointsY[j]
+			r      = (yp - (jd-1)*grid.dy) * dyI
+			if     jd == 1 || jd == grid.nodeCountY
+				Ny,dNy = cubic_bspline_type1(r)
+			elseif jd == 2
+				Ny,dNy = cubic_bspline_type2(r)
+			elseif jd == grid.nodeCountY - 1
+				Ny,dNy = cubic_bspline_type4(r)
+			else
+				Ny,dNy = cubic_bspline_type3(r)
+			end
+
+			nearPoints[index] = grid.nodeCountX * (jd-1) + id
+			funcs[index]      = Nx  * Ny 
+
+			index += 1
+		end
+    end
+	#@printf("	funcs: %f \n", sum(funcs))
+	#@printf("	ders : %f \n", sum(ders))
+	return 16
+end
 
 #################################################################
 # getShapeFunctions: 3D, modified cubic bspline basis
