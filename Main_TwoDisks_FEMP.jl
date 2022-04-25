@@ -1,8 +1,20 @@
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
 
-# Phu Nguyen, Monash University
-# 20 March, 2020 (Coronavirus outbreak)
+# Input file for the two disk collision problem proposed by Sulsky
+# Solved with the GPIC--generalized particle method, Nguyen et al CMAME 2020
+# Output in folder "twodisks-femp/", with vtu files and energies.txt
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
+push!(LOAD_PATH,"./")
 # import Gadfly
 import PyPlot
 using Printf
@@ -40,11 +52,11 @@ using Util
     grid      =  Grid2D(0,1.05, 0,1.05, 21, 21)
     basis     =  LinearBasis()
 
-    material = ElasticMaterial(youngModulus,poissonRatio,density,0,0)
+    material = ElasticMaterial(youngModulus,poissonRatio,density,0,0,1)
     #material = NeoHookeanMaterial(youngModulus,poissonRatio,density)
 
-    solid1   = FEM2D("disk.msh",material)
-    solid2   = FEM2D("disk.msh",material)
+    solid1   = FEM2D("disk.msh")
+    solid2   = FEM2D("disk.msh")
 
     v0 = SVector{2,Float64}([ 0.1  0.1])
 
@@ -57,19 +69,25 @@ using Util
 	Fem.move(solid1,SVector{2,Float64}([ 0.2+0.05,   0.2+0.05]))
 	Fem.move(solid2,SVector{2,Float64}([ 0.2+.6,0.2+.6]))
 
-    solids = [solid1 solid2]
+    solids = [solid1, solid2]
+    mats   = [material material]
 
     Tf       = 3.5 #3.5e-0
     interval = 100
 	dtime    = 1e-3
 
+	data               = Dict()
+    data["total_time"] = Tf
+    data["dt"]         = dtime
+    data["time"]       = 0.
+
 	#output1  = PyPlotOutput(interval,"twodisks-results/","Two Disks Collision",(4., 4.))
 	output2  = VTKOutput(interval,"twodisks-femp/",["pressure"])
 	fix      = EnergiesFix(solids,"twodisks-femp/energies.txt")
 
-    algo2    = USL(1e-9)
-    algo1    = TLFEM(1e-9)
-    body     = ConstantBodyForce2D([0.,0.])
+    algo2     = USL(1e-9)
+    algo1     = TLFEM(0.,0.99)
+    bodyforce = ConstantBodyForce2D([0.,0.])
 
 	report(grid,solids,dtime)
 
@@ -77,7 +95,8 @@ using Util
     #plotParticles_2D(output2,solids,0)
 
 	#reset_timer!
-    solve_explicit_dynamics_femp_2D(grid,solids,basis,body,algo1,output2,fix,Tf,dtime)
+    
+    solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,bodyforce,algo1,output2,fix,data)
     #print_timer()
 	# plotting energies
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))

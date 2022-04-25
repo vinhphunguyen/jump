@@ -63,10 +63,11 @@ end
 # outer constructor to simplify 
 ElasticMaterial(E,nu,rho,parCount)=ElasticMaterial(E,nu,rho,0.,0.,parCount)
 
+
 # do not update solid.stress!!!
-function update_stress!(sigma::MMatrix{2,2,Float64},mat::ElasticMaterial,
+function update_stress!(sigma,mat::ElasticMaterial,
 	                    epsilon::SMatrix{2,2,Float64},strain_increment,F, J,ip,dtime)
-  sigma    .= mat.lambda * (epsilon[1,1]+epsilon[2,2]) * UniformScaling(1.) +
+  return mat.lambda * (epsilon[1,1]+epsilon[2,2]) * UniformScaling(1.) +
               2.0 * mat.mu * epsilon
 end
 

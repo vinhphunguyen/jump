@@ -21,10 +21,14 @@ using Fix
 ######################################################################
 # Modified Update Stress Last
 ######################################################################
-function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,dtime)
-	t             = 0.   # not t = 0 => type instability issue
-    counter       = 0
-    Identity      = UniformScaling(1.)
+
+function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,data)
+	Tf            = data["total_time"]::Float64
+	dtime         = data["dt"]        ::Float64     
+	t             = data["time"]      ::Float64
+
+  counter       = 0
+  Identity      = UniformScaling(1.)
 	solidCount    = length(solids)
 
 	nodalMass      = grid.mass
@@ -58,6 +62,9 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 	#   pyFig_RealTime = PyPlot.figure(problem.output.figTitle,
     #                            figsize=problem.output.figSize, edgecolor="white", facecolor="white")
     # end
+
+  # time-independent Dirichlet boundary conditions on grid/solids
+  fix_Dirichlet_grid(grid,data)
 
 	while t < Tf
 	    #@printf(“Solving step: %f \n”, t)
@@ -210,8 +217,8 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 				    end
 				end
 				xx[ip]      = xxp
-	            D           = 0.5 * (vel_grad + vel_grad')
-	            strain[ip]  += dtime * D
+	      D           = 0.5 * (vel_grad + vel_grad')
+	      strain[ip]  += dtime * D
 				F[ip]       *= (Identity + vel_grad*dtime)
 				J            = det(F[ip])
 				if ( J < 0. )
@@ -221,7 +228,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 				end
 				vol[ip]     = J * vol0[ip]
 				#@timeit "3"  update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
-				update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
+				stress[ip] = update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
 		  	end
 		end
 
@@ -265,18 +272,22 @@ end
 ######################################################################
 # Update Stress Last
 ######################################################################
-function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,dtime)
-    t       = 0.
-    counter = 0
 
-    Identity       = UniformScaling(1.)
+function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,data)
+    
+  Tf    = data["total_time"]::Float64
+	dtime = data["dt"]        ::Float64     
+	t     = data["time"]      ::Float64  
+  counter = 0
+
+  Identity       = UniformScaling(1.)
 	solidCount     = length(solids)
 	nodalMass      = grid.mass
 	nodalMomentum0 = grid.momentum0
 	nodalMomentum  = grid.momentum
 	nodalForce     = grid.force
 
-    D              = SMatrix{2,2}(0., 0., 0., 0.) #zeros(Float64,2,2)
+  D              = SMatrix{2,2}(0., 0., 0., 0.) #zeros(Float64,2,2)
 	linBasis       = LinearBasis()
 	nearPointsLin  = [0,0,0,0]
 
@@ -289,6 +300,8 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 		funcsLin         = [0., 0., 0., 0.]
 	end
 
+  # time-independent Dirichlet boundary conditions on grid/solids
+  fix_Dirichlet_grid(grid,data)
 
   while t < Tf
 
@@ -449,7 +462,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 		   	 # end
 	   	 vol[ip]     = J * vol0[ip]
 	   	 #@timeit "3" update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
-	   	 update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
+	   	 stress[ip] = update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
 	 end
 	end
 

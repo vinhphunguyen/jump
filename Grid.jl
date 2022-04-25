@@ -254,6 +254,10 @@ module Grid
   end
 # ----------------------------------------------------------------------
 
+  # ----------------------------------------------------------------------
+  #    to_1D_index function  
+  # ----------------------------------------------------------------------
+
   function to_1D_index(i::Int64, j::Int64, grid::Grid2D)
     index = grid.nodeCountX*(j-1) + i
 
@@ -271,6 +275,26 @@ module Grid
 
      #return(Int(index))
   end
+
+
+  # ----------------------------------------------------------------------
+  #    fix boundary functions for 1D Grid
+  # ----------------------------------------------------------------------
+
+  function fixXForLeft(grid::Grid1D;ghostcell=false)
+    xnodes    = grid.fixedNodes
+    xnodes[1] = 1
+  end
+
+  function fixXForRight(grid::Grid1D;ghostcell=false)
+    xnodes                 = grid.fixedNodes
+    xnodes[grid.nodeCount] = 1
+  end
+
+
+  # ----------------------------------------------------------------------
+  #    fix boundary functions for 2D Grid (2 functions for 1 boundary)
+  # ----------------------------------------------------------------------
 
   function fixXForBottom(grid::Grid2D)
     xnodes = grid.fixedXNodes
@@ -349,15 +373,7 @@ module Grid
     end
   end
 
-  function fixXForLeft(grid::Grid1D;ghostcell=false)
-    xnodes    = grid.fixedNodes
-    xnodes[1] = 1
-  end
 
-  function fixXForRight(grid::Grid1D;ghostcell=false)
-    xnodes                 = grid.fixedNodes
-    xnodes[grid.nodeCount] = 1
-  end
 
 
 

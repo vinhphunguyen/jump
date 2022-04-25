@@ -10,7 +10,7 @@
 #
 # -----------------------------------------------------------------------
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
+push!(LOAD_PATH,"./")
 #
 import PyPlot
 using Printf

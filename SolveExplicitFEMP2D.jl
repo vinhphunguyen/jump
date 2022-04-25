@@ -17,8 +17,9 @@
 
 
 ######################################################################
-# Update Stress Last
+# Update Stress Last (this one not working, see the next one TL form)
 ######################################################################
+
 function solve_explicit_dynamics_femp_2D(grid,solids,basis,bodyforce,alg::USL,output,fixes,Tf,dtime)
     t       = 0.
     counter = 0
@@ -303,15 +304,16 @@ end # end solve()
 ######################################################################
 # Update Stress Last, TLFEM for internal force
 ######################################################################
+
 function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,output,fixes,data)
 
-    Tf    = data["total_time"]::Float64
+  Tf    = data["total_time"]::Float64
 	dtime = data["dt"]        ::Float64     
 	t     = data["time"]      ::Float64
-    counter = 0
+  counter = 0
   
 
-    Identity       = UniformScaling(1.)
+  Identity       = UniformScaling(1.)
 	solidCount     = length(solids)
 	nodalMass      = grid.mass
 	nodalMomentum0 = grid.momentum0
@@ -321,7 +323,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,
 	alpha          = alg.alpha
 
 
-    # pre_allocating arrays for temporary variable
+  # pre_allocating arrays for temporary variable
    
 	nearPoints,funcs, ders = initialise(grid,basis)
 
@@ -483,19 +485,19 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,
 	# ===========================================
 
 	@inbounds for i=1:grid.nodeCount
-	    body(g,grid.pos[i],t)  
+	     body(g,grid.pos[i],t)  
 	     nodalForce[i] += nodalMass[i]*g
-		nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
+		   nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
       
          # apply Dirichet boundary conditions
         fixed_dirs       = @view grid.fixedNodes[:,i]
         if fixed_dirs[1] == 1
-			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
+			    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
    		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
         end
         if fixed_dirs[2] == 1
-			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
-			nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
+			    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
+			    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
         end
 
 	end
@@ -641,7 +643,7 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,
 			xcenter = ycenter = 0.
 			for i = 1:length(elemNodes)
 				in         = elemNodes[i]; # index of node 'i'
-			    dNi        = @view dNdx[:,i]			
+			  dNi        = @view dNdx[:,i]			
 				vI         = du[in]
 				vIt        = xx[in] - XX[in]
 				#vI         = velo[in]
@@ -650,9 +652,9 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,
 				vel_gradT += SMatrix{2,2}(dNi[1]*vIt[1], dNi[1]*vIt[2],
    										  dNi[2]*vIt[1], dNi[2]*vIt[2])
 
-                xcenter   += N[i] * coords[i][1]			
-                ycenter   += N[i] * coords[i][2]			
-		   	end
+        xcenter   += N[i] * coords[i][1]			
+        ycenter   += N[i] * coords[i][2]			
+		   end
 			   	
 		   	
 		   	#F[ip]        += dtime * vel_grad

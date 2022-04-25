@@ -1,8 +1,20 @@
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
 
-# Phu Nguyen, Monash University
-# 20 March, 2020 (Coronavirus outbreak)
+# Input file for the Taylor bar problem: a metal bar impacting a rigid wall
+# Solved with the standard material point method
+# Output in folder "TaylorBar3D/", with vtu files and energies.txt
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
+push!(LOAD_PATH,"./")
 # import Gadfly
 import PyPlot
 using Printf
@@ -28,26 +40,29 @@ using Fix
 #function main()
 
     # problem parameters
-    E   = 115
-    nu  = 0.31
+    E       = 115
+    nu      = 0.31
     density = 8.94e-06
 
-    A  = 0.065
+    A       = 0.065
     B       = 0.356
     C       = 0#0.013
     n       = 0.37
     eps0dot = 1e-3
     Tm      = 1600
+    m       = 0.
+    χ       = 0.
+    Cp      = 0.
 
-    vel           = 190 # mm/s
+    vel     = 190 # mm/s
 
 
-	l0    = 25.4 #mm
-	r0    = 3.8 #mm
+	l0      = 25.4 #mm
+	r0      = 3.8 #mm
 
 
     vel     = 190# mm/s
-    vel     = 750# mm/s
+    #vel     = 750# mm/s
 
     if vel == 190 
         # create the grid of a 1 x 1 square, with 20 x 20 cells
@@ -68,8 +83,8 @@ using Fix
 	                                   l0/2, fOffset, fOffset)
 
     
-    material  = JohnsonCookMaterial(E,nu,density,A,B,C,n,eps0dot,grid.dy,length(coords1))
-    solid1   = Solid3D(coords1,material)
+    material  = JohnsonCookMaterial(E,nu,density,A,B,C,n,eps0dot,m,χ,Cp,.42,length(coords1))
+    solid1    = Solid3D(coords1,material)
 
     solid1.mass          .*= fOffset * fOffset * fOffset
     solid1.volume        .=  fOffset * fOffset * fOffset
@@ -88,18 +103,19 @@ using Fix
     @printf("Vol  : %+.6e \n", sum(solid1.volume))
 
 
-	#fixXForBottom(grid)
-	fixYForBottom(grid)
-	#fixZForBottom(grid)
-
-
     Tf      = 63e-3
     interval= 50
 
+    
     c_dil     = sqrt(E/density)
     dt        = grid.dy/c_dil
     dtime     = 0.1 * dt
 
+    data               = Dict()
+    data["total_time"] = Tf
+    data["dt"]         = dtime
+    data["time"]       = 0.
+    data["dirichlet_grid"] = [("bottom",(0,1,0))] # => fix bottom nodes on Y dir
 
     output2  = OvitoOutput(interval,"TaylorBar3D/",["pressure", "vonMises", "pstrain"])
     fix      = EmptyFix()
@@ -111,7 +127,7 @@ using Fix
     plotParticles_3D(output2,solids,[grid.lx, grid.ly, grid.lz],
                         [grid.nodeCountX, grid.nodeCountY, grid.nodeCount],0)
 
-    solve_explicit_dynamics_3D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_3D(grid,solids,basis,algo2,output2,fix,data)
 
 # end
 

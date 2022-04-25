@@ -10,6 +10,11 @@
 #
 # -----------------------------------------------------------------------
 
+# Input file for the two disk collision problem proposed by Sulsky
+# Solved with the standard MPM method, that is ULMPM with either hat functions, quadratic
+# b-splines or cubic b-splines
+# Output in folder "twodisks-mpm/", with lammps dump files and energies.txt
+
 push!(LOAD_PATH,"./")
 #
 import PyPlot
@@ -87,11 +92,17 @@ function main()
     interval = 50
 	 dtime    = 1e-3
 
-	 output1  = PyPlotOutput(interval,"results/","Two Disks Collision",(4., 4.))
-	 output2  = OvitoOutput(interval,"results/",["pressure"])
-	 fix      = EnergiesFix(solids,"results/energies.txt")
 
-    #problem = ExplicitSolidMechanics2D(grid,solids,basis,Tf,output2,fix)
+    data               = Dict()
+    data["total_time"] = Tf
+    data["dt"]         = dtime
+    data["time"]       = 0.
+    #data["dirichlet_grid"] = [("bottom",(0,1,0))] # => fix bottom nodes on Y dir
+
+	 output1  = PyPlotOutput(interval,"twodisk-mpm/","Two Disks Collision",(4., 4.))
+	 output2  = OvitoOutput(interval,"twodisks-mpm/",["pressure"])
+	 fix      = EnergiesFix(solids,"twodisks-mpm/energies.txt")
+
     algo1    = USL(1e-9)
     algo2    = MUSL(1.)
 
@@ -101,11 +112,11 @@ function main()
 	# @time solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
  #    print_timer()
     
-    solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,data)
     #solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
 
-    # plotting energies
-    pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
+   # plotting energies
+   pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
 	PyPlot.clf()
 	pyPlot01 = PyPlot.gca()
 	PyPlot.subplots_adjust(left=0.15, bottom=0.25, right=0.65)

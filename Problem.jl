@@ -28,6 +28,7 @@ using Output
 using Algorithm
 using Fix
 using BodyForce
+using Dirichlet
 
 # #########################################################
 # #  1D problem

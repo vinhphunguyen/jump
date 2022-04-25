@@ -14,7 +14,7 @@
 # This file is for the Taylor anvil test presented in
 # paper 'A generalized particle in cell metghod for explicit solid dynamics', V.P. Nguyen et all 2020.
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
+push!(LOAD_PATH,"./")
 #
 import PyPlot
 using Printf

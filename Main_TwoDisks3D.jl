@@ -1,8 +1,23 @@
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
 
-# Phu Nguyen, Monash University
-# 20 March, 2020 (Coronavirus outbreak)
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
+# Input file for the  3D two sphere collision problem
+# Solved with the standard MPM method, that is ULMPM with either hat functions, quadratic
+# b-splines or cubic b-splines
+# Output in folder "twodisks-mpm/", with lammps dump files and energies.txt
+
+push!(LOAD_PATH,"./")
+
 # import Gadfly
 import PyPlot
 using Printf
@@ -35,9 +50,11 @@ function main()
 
 
     # create the grid of a 1 x 1 x 1 square, with 10 x 10 x 1 cells
-    grid  =  Grid3D(0,1.0, 0,1.0, 0,1.0, 11, 11, 6)
-    basis = LinearBasis()
-    basis = QuadBsplineBasis()
+    grid   =  Grid3D(0,1.0, 0,1.0, 0,1.0, 11, 11, 6)
+    # basis, choose one of them
+    basis1 = LinearBasis()
+    basis2 = QuadBsplineBasis()
+    basis3 = CubicBsplineBasis()
 
     fOffset = 0.2/8 # there are 8 material points over the radius (16 MPs)
     # how to calculate fOffset:
@@ -49,7 +66,7 @@ function main()
     coords1 = buildParticleForSphere([0.2; 0.2; 0.5], 0.2, fOffset)
     coords2 = buildParticleForSphere([0.8; 0.8; 0.5], 0.2, fOffset)
 
-    material = ElasticMaterial(youngModulus,poissonRatio,density)
+    material = ElasticMaterial(youngModulus,poissonRatio,density,10000)
 
     solid1   = Solid3D(coords1,material)
     solid2   = Solid3D(coords2,material)
@@ -80,14 +97,22 @@ function main()
     interval= 120
 	dtime   = 1e-3
 
-	output2  = OvitoOutput(interval,"results3D/",["pressure", "vx", "vz"])
-	fix      = EnergiesFix(solids,"results3D/energies.txt")
+
+    data               = Dict()
+    data["total_time"] = Tf
+    data["dt"]         = dtime
+    data["time"]       = 0.
+
+	output2  = OvitoOutput(interval,"twodisks-3D-mpm/",["pressure", "vx", "vz"])
+	fix      = EnergiesFix(solids,"twodisks-3D-mpm/energies.txt")
 
 
     algo2    = MUSL(1.)
 
-    solve_explicit_dynamics_3D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
+    # start solving 
+    solve_explicit_dynamics_3D(grid,solids,basis3,algo2,output2,fix,data)
 
+    # post-processing: energies plot
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
 	PyPlot.clf()
 	pyPlot01 = PyPlot.gca()

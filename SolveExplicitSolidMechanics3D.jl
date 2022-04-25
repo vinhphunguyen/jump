@@ -1,7 +1,23 @@
-function solve_explicit_dynamics_3D(grid,solids,basis,alg::MUSL,output,fixes,Tf,dtime)
-	t        = 0.
-    counter  = 0
-    Identity = UniformScaling(1.)
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
+
+
+function solve_explicit_dynamics_3D(grid,solids,basis,alg::MUSL,output,fixes,data)
+  Tf    = data["total_time"]::Float64
+	dtime = data["dt"]        ::Float64     
+	t     = data["time"]      ::Float64
+
+  counter  = 0
+  Identity = UniformScaling(1.)
 
 	solidCount    = length(solids)
 	alpha         = alg.alpha
@@ -18,6 +34,9 @@ function solve_explicit_dynamics_3D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 	D        = SMatrix{3,3}(0.,0.,0.,0.,0.,0.,0.,0.,0.) #zeros(Float64,2,2)
 
 	nearPoints,funcs, ders = initialise(grid,basis)
+
+	# time-independent Dirichlet boundary conditions on grid/solids
+  fix_Dirichlet_grid(grid,data)
 
 	while t < Tf
 	    #@printf(“Solving step: %f \n”, t)
@@ -69,19 +88,20 @@ function solve_explicit_dynamics_3D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 		# ===========================================
 		@inbounds for i=1:grid.nodeCount
 			nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
-	        # apply Dirichet boundary conditions
-			if grid.fixedXNodes[i] == 1
-    			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
-       		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
-            end
-            if grid.fixedYNodes[i] == 1
-    			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
-    			nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
-            end
-	        if grid.fixedZNodes[i] == 1
-				nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,3)
-				nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,3)
-	        end
+
+			fixed_dirs       = @view grid.fixedNodes[:,i]
+      if fixed_dirs[1] == 1
+		    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
+ 		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
+      end
+      if fixed_dirs[2] == 1
+		    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
+		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
+      end
+      if fixed_dirs[3] == 1
+		    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,3)
+		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,3)
+      end
 		end
 	    # ===========================================
 	    # grid to particle 1: particle vel update only
@@ -120,15 +140,19 @@ function solve_explicit_dynamics_3D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 	    end
 	    # # apply Dirichet boundary conditions
 	    @inbounds for i = 1:grid.nodeCount
-	        if grid.fixedXNodes[i] == 1
-				nodalMomentum2[i] = setindex(nodalMomentum2[i],0.,1)
-	        end
-	        if grid.fixedYNodes[i] == 1
-	        	nodalMomentum2[i] = setindex(nodalMomentum2[i],0.,2)
-	        end
-			if grid.fixedZNodes[i] == 1
-			    nodalMomentum2[i] = setindex(nodalMomentum2[i],0.,3)
-		   end
+				fixed_dirs       = @view grid.fixedNodes[:,i]
+	      if fixed_dirs[1] == 1
+			    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
+	 		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
+	      end
+	      if fixed_dirs[2] == 1
+			    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
+			    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
+	      end
+	      if fixed_dirs[3] == 1
+			    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,3)
+			    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,3)
+	      end
 	    end
 
 	    # ===========================================
@@ -168,8 +192,8 @@ function solve_explicit_dynamics_3D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 				    end
 				end
 				xx[ip]      = xxp
-	            D           = 0.5 * (vel_grad + vel_grad')
-	            strain[ip]  += dtime * D
+	      D           = 0.5 * (vel_grad + vel_grad')
+	      strain[ip]  += dtime * D
 				F[ip]       *= (Identity + vel_grad*dtime)
 				J            = det(F[ip])
 				vol[ip]      = J * vol0[ip]
@@ -179,9 +203,10 @@ function solve_explicit_dynamics_3D(grid,solids,basis,alg::MUSL,output,fixes,Tf,
 					println(F[ip])
 					closeFile(fixes)
 					@error("J is negative\n")
-			    end
+			  end
 
-				update_stress!(stress[ip],mat,strain[ip],dtime*D,F[ip],J,ip,dtime)
+				stress[ip] = update_stress!(stress[ip],mat,strain[ip],dtime*D,F[ip],J,ip,dtime)
+
 		  	end
 		end
 
@@ -202,11 +227,12 @@ end
 ######################################################################
 
 
-function solve_explicit_dynamics_3D(grid,solids,basis,alg::USL,output,fixes,Tf,dtime)
-    t       = 0.
-    counter = 0
+function solve_explicit_dynamics_3D(grid,solids,basis,alg::USL,output,fixes,data)
+  Tf    = data["total_time"]::Float64
+	dtime = data["dt"]        ::Float64     
+	t     = data["time"]      ::Float64
 
-    Identity = SMatrix{3,3}(1., 0., 0., 0., 1., 0., 0., 0., 1.)
+  Identity = SMatrix{3,3}(1., 0., 0., 0., 1., 0., 0., 0., 1.)
 
 	solidCount    = length(solids)
 	nodalMass     = grid.mass
@@ -221,6 +247,9 @@ function solve_explicit_dynamics_3D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 	D             = zeros(Float64,3,3)
 
 	nearPoints,funcs, ders = initialise(grid,basis)
+
+	# time-independent Dirichlet boundary conditions on grid/solids
+  fix_Dirichlet_grid(grid,data)
 
   while t < Tf
 
@@ -273,20 +302,21 @@ function solve_explicit_dynamics_3D(grid,solids,basis,alg::USL,output,fixes,Tf,d
 
 	@inbounds  for i=1:grid.nodeCount
 
-		nodalMomentum[i] += nodalForce[i] * dtime
-        # apply Dirichet boundary conditions
-        if grid.fixedXNodes[i] == 1
-        	nodalMomentum[i][1]  = 0.
-        	nodalForce[i][1] = 0
-        end
-        if grid.fixedYNodes[i] == 1
-        	nodalMomentum[i][2]  = 0.
-        	nodalForce[i][2] = 0
-        end
-		if grid.fixedZNodes[i] == 1
-			nodalMomentum[i][3]  = 0.
-			nodalForce[i][3] = 0
-		end
+		  nodalMomentum[i] += nodalForce[i] * dtime
+  
+   		fixed_dirs       = @view grid.fixedNodes[:,i]
+      if fixed_dirs[1] == 1
+		    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
+ 		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
+      end
+      if fixed_dirs[2] == 1
+		    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
+		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
+      end
+      if fixed_dirs[3] == 1
+		    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,3)
+		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,3)
+      end
 	end
     #println("HEHEHE")
     # ===========================================
@@ -330,7 +360,7 @@ function solve_explicit_dynamics_3D(grid,solids,basis,alg::USL,output,fixes,Tf,d
             J           =  det(F[ip])
 			vol[ip]     = J * vol0[ip]
 			
-			update_stress!(stress[ip],mat,strain[ip],dtime*D,F[ip],J,ip,dtime)
+			stress[ip] = update_stress!(stress[ip],mat,strain[ip],dtime*D,F[ip],J,ip,dtime)
 			#stress[ip] .= update_stress(mat,strain[ip]) #mat.lambda * (strain[ip][1,1]+strain[ip][2,2]) * Identity + 2.0 * mat.mu * strain[ip]
 	  	end
 	end

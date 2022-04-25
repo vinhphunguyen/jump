@@ -77,7 +77,7 @@ module Solid
 
         deformationGradient :: Vector{SMatrix{2,2,Float64,4}}  # F, 2x2 matrix
 		strain              :: Vector{SMatrix{2,2,Float64,4}}  # stress, 2x2 matrix
-		stress              :: Vector{MMatrix{2,2,Float64,4}}  # strain
+		stress              :: Vector{SMatrix{2,2,Float64,4}}  # strain
 		gradVelo            :: Vector{MMatrix{2,2,Float64,4}}  # velocity gradient
 		Cmat                :: Vector{MMatrix{2,2,Float64,4}}  # APIC BpDp
 
@@ -275,7 +275,7 @@ module Solid
 
 	   deformationGradient :: Vector{SMatrix{3,3,Float64,9}}  # F, 3x3 matrix
 	   strain              :: Vector{SMatrix{3,3,Float64,9}}  # strain, 3x3 matrix
-	   stress              :: Vector{MMatrix{3,3,Float64,9}}  # stress
+	   stress              :: Vector{SMatrix{3,3,Float64,9}}  # stress
 
 	   parCount            :: Int64
 

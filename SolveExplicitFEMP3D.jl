@@ -10,7 +10,8 @@
 #
 # -----------------------------------------------------------------------
 
-# This file contains functions for solving 2D explicit dynamics problems
+# This file contains functions for solving 3D explicit dynamics problems
+# using the Generalized Particle in Cell (GPIC) method
 # USL and MUSL are provided, each function for each algorithm
 #
 
@@ -19,6 +20,7 @@
 ######################################################################
 # Update Stress Last
 ######################################################################
+
 function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,fixes,Tf,dtime)
     t       = 0.
     counter = 0
@@ -315,13 +317,13 @@ end # end solve()
 
 
 function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,output,fixes,data)
-    Tf    = data["total_time"]::Float64
+  Tf    = data["total_time"]::Float64
 	dtime = data["dt"]        ::Float64     
 	t     = data["time"]      ::Float64
 
-    counter = 0
+  counter = 0
 
-    Identity       = UniformScaling(1.)
+  Identity       = UniformScaling(1.)
 	solidCount     = length(solids)
 	nodalMass      = grid.mass
 	nodalMomentum0 = grid.momentum0
@@ -332,7 +334,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
    
 	nearPoints,funcs, ders = initialise(grid,basis)
 
-    nodePerElem = size(solids[1].elems,2)
+  nodePerElem = size(solids[1].elems,2)
 
 	if nodePerElem == 4 		
 		# wgt       = .166666667

@@ -500,7 +500,6 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 	            velocm          = nodalMomentum_S[i]/nodalMass_S[i];        # system velo
 	            deltaVe1        = velo1 - velocm;		
 	            nI              = @view normals[:,is]	    
-<<<<<<< Updated upstream
 		    D1              = dot(deltaVe1,  nI);			    
 		    
 		    if ( D1 > 0. && dxI < grid.dy/40 ) 
@@ -509,16 +508,6 @@ function solve_explicit_dynamics_femp_3D_Contact(grid,solids,mats,basis,body,alg
 			omega    = dVxNI / C1
 			muPrime1 = min(fric,C1/D1);        
 
-=======
-			    D1              = dot(deltaVe1,  nI);			    
-			    
-			    if ( D1 > 0. ) #&& dxI < grid.dy/40 ) 
-				    dVxNI    = cross(deltaVe1,  nI);			    
-				    C1       = norm(dVxNI)		    
-				    omega    = dVxNI / C1
-				    muPrime1 = min(fric,C1/D1);
-			        
->>>>>>> Stashed changes
 	                nodalMomentum_1[i] = velo1 - D1 * nI
 	                #nodalMomentum_1[i] = velo1 - D1*(  nI + muPrime1*cross(nI,omega) );		        
 			#println("approaching\n")

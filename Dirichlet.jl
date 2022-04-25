@@ -1,6 +1,18 @@
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
+
 module Dirichlet
 
-# This module implements functions for applying Dirichlet boundary conditions on the Eulerian grid
+# This module implements functions for applying Dirichlet boundary conditions on a Eulerian grid
 # data["dirichlet_grid"] = [("bottom",(0,1,0)),      # => fix bottom nodes on Y dir
 #                           ("top",(1,0,0)),      # => fix top nodes on X dir
 #                          ]
