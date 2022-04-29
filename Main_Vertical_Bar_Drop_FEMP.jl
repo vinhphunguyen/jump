@@ -1,8 +1,22 @@
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
 
-# Phu Nguyen, Monash University
-# 20 March, 2020 (Coronavirus outbreak)
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
+# Input file for the problem of a rubber block impacting a rigid wall
+# Solved with the GPIC "Generalized in Cell" Method
+# Output in folder "vertical-bar-drop-femp", with  vtk files and energies.txt
+
+push!(LOAD_PATH,"./")
+
 # import Gadfly
 import PyPlot
 using Printf
@@ -35,17 +49,18 @@ function main()
 	youngModulus  = 1.0
 	poissonRatio  = 0.3
 
-	vel      = 50e3
 
-    # create the grid of a 1 x 1 square, with 20 x 20 cells
-	# and a basis: linear and CPDI-Q4 supported
-    grid      =  Grid3D(0,2000,0,2000,0,2000,15,15,15)
+	vel           = 50e3
+
+    # create the grid of a 2x2x2 m3, with 15 x 15 x 15 cells
+	# and a basis: linear 
+    grid      =  Grid3D(0,2500,0,2500,0,2000,15,15,15)
     basis     =  LinearBasis()
 
 
-    material = NeoHookeanMaterial(youngModulus,poissonRatio,density)
+    solid1    = FEM3D("bar8000.msh")
+    material  = NeoHookeanMaterial(youngModulus,poissonRatio,density,solid1.parCount)
 
-    solid1   = FEM3D("bar.msh",material)
     
     # as the mesh was created with the center of the disk at (0,0)
 	#move(solid1,SVector{2,Float64}([ 0.2+grid.dx  0.2+grid.dx]))
@@ -54,26 +69,11 @@ function main()
 
     Fem.assign_velocity(solid1, SVector{3,Float64}([0. -vel 0.0 ]))
 
-	fixYForTop(grid)
-	fixYForBottom(grid)
-	fixXForLeft(grid)
-	fixYForLeft(grid)
-	fixZForLeft(grid)
-	fixXForRight(grid)
-	fixYForRight(grid)
-	fixZForRight(grid)
-	fixXForFront(grid)
-	fixYForFront(grid)
-	fixZForFront(grid)
-	fixXForBack(grid)
-	fixYForBack(grid)
-	fixZForBack(grid)
-
-	
 
     solids = [solid1]
+    mats   = [material]
 
-    Tf       = 0.5 #3.5e-0
+    Tf       = 0.08 #3.5e-0
     interval = 2
 	dtime    = 0.1*grid.dx/sqrt(youngModulus/density)
 
@@ -82,9 +82,24 @@ function main()
 	fix      = DisplacementFemFix(solid1,"vertical-bar-drop-femp/",3)
 
     algo1    = USL(0.)
-    algo2    = TLFEM(0.)
+    algo2    = TLFEM(0.,1.)
+    algo3    = TLFEMFull(0.)
 
     body     = ConstantBodyForce3D(@SVector[0.,-g,0.])
+
+
+    data                    = Dict()
+    data["total_time"]      = Tf
+    data["dt"]              = dtime
+    data["time"]            = 0.
+    data["dirichlet_grid"]  = [("bottom",(0,1,0)),
+                               ("left",(1,1,1)),
+                               ("right",(1,1,1)),
+                               ("front",(1,1,1)),
+                               ("back",(1,1,1)),
+                              ] # 
+    #data["dirichlet_solid"] = [(1,"TopSurface",(0,1,0))] # => fix  nodes of 'TopSurface' group of solid 1 on Y dir
+               
 
 	report(grid,solids,dtime)
 
@@ -92,7 +107,7 @@ function main()
     #plotParticles_3D(output2,solids,0)
 
 	#reset_timer!
-    solve_explicit_dynamics_femp_3D(grid,solids,basis,body,algo1,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,algo3,output2,fix,data)
     #print_timer()
 
 	# #PyPlot.savefig("plot_2Disk_Julia.pdf")

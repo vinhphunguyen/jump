@@ -105,12 +105,14 @@ end
  	lambda ::Float64
  	mu     ::Float64
 
- 	function NeoHookeanMaterial(E,nu,density)
+ 	vmStr  ::Vector{Float64}             # equivalent von Mises stress
+
+ 	function NeoHookeanMaterial(E,nu,density,parCount)
 
  		lambda = E*nu/(1+nu)/(1-2*nu)
  		mu     = E/2/(1+nu)
 
- 		new(E,nu,density,lambda,mu)
+ 		new(E,nu,density,lambda,mu,fill(0.,parCount))
  	end
  end
  # do not update solid.stress!!!

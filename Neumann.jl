@@ -1,3 +1,15 @@
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
+
 module Neumann
 
 # This module implements functions for calculating external forces at nodes of the 
@@ -43,7 +55,7 @@ function compute_fext(solids,funcs_surface, normals_surface, weights_surface, gp
 			#println(coords)
 			getNormals!(funcs_surface, normals_surface, weights_surface , coords, gpCoords_surface, basis )
 			# loop over Gauss points
-			for ig=1:4                     
+			for ig=1:length(weights_surface)                    
 			    ww = weights_surface[ig]   
 			    #println(normals_surface[:,ip])       
 			    #println(ww)       

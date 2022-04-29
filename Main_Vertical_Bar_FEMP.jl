@@ -1,8 +1,22 @@
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
 
-# Phu Nguyen, Monash University
-# 20 March, 2020 (Coronavirus outbreak)
+# Input file for the two disk collision problem proposed by Sulsky
+# Solved with the standard MPM method, that is ULMPM with either hat functions, quadratic
+# b-splines or cubic b-splines
+# Output in folder "twodisks-mpm/", with lammps dump files and energies.txt
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
+push!(LOAD_PATH,"./")
+
 # import Gadfly
 import PyPlot
 using Printf
@@ -27,7 +41,7 @@ using Basis
 using Fix
 using Util
 
-#function main()
+function main()
 
     # problem parameters
 	g             = 1e6
@@ -41,11 +55,12 @@ using Util
     basis     =  LinearBasis()
 
 
-    material = NeoHookeanMaterial(youngModulus,poissonRatio,density)
+    solid1   = FEM3D("bar1000.msh")
+    #solid1   = FEM3D("bar640.msh")
+    #solid1   = FEM3D("bar8000.msh")
 
-    #solid1   = FEM3D("bar1000.msh",material)
-    solid1   = FEM3D("bar640.msh")
-    #solid1   = FEM3D("bar8000.msh",material)
+    material = NeoHookeanMaterial(youngModulus,poissonRatio,density,solid1.parCount)
+
     
     # as the mesh was created with the center of the disk at (0,0)
 	#move(solid1,SVector{2,Float64}([ 0.2+grid.dx  0.2+grid.dx]))
@@ -55,22 +70,22 @@ using Util
     #Fem.assign_velocity(solid1, SVector{3,Float64}([0. -50000. 0.0 ]))
 
 	#fixYForTop(grid)
-	fixYForBottom(grid)
-	fixXForLeft(grid)
-	fixYForLeft(grid)
-	fixZForLeft(grid)
-	fixXForRight(grid)
-	fixYForRight(grid)
-	fixZForRight(grid)
-	fixXForFront(grid)
-	fixYForFront(grid)
-	fixZForFront(grid)
-	fixXForBack(grid)
-	fixYForBack(grid)
-	fixZForBack(grid)
+	# fixYForBottom(grid)
+	# fixXForLeft(grid)
+	# fixYForLeft(grid)
+	# fixZForLeft(grid)
+	# fixXForRight(grid)
+	# fixYForRight(grid)
+	# fixZForRight(grid)
+	# fixXForFront(grid)
+	# fixYForFront(grid)
+	# fixZForFront(grid)
+	# fixXForBack(grid)
+	# fixYForBack(grid)
+	# fixZForBack(grid)
 
-	# boundary condition on the FE mesh!!!
-	fixYNodes(solid1, "TopSurface")
+	# # boundary condition on the FE mesh!!!
+	# fixYNodes(solid1, "TopSurface")
 	
 
     solids = [solid1]
@@ -89,17 +104,26 @@ using Util
 
     body     = ConstantBodyForce3D(@SVector[0.,-g,0.])
 
+    data                    = Dict()
+    data["total_time"]      = Tf
+    data["dt"]              = dtime
+    data["time"]            = 0.
+    #data["dirichlet_grid"]  = [("top",(0,1,0))] # => fix bottom nodes on Y dir
+    data["dirichlet_solid"] = [(1,"TopSurface",(0,1,0))] # => fix  nodes of 'TopSurface' group of solid 1 on Y dir
+                               
+
+
 	report(grid,solids,dtime)
 
     plotGrid(output2,grid,0)
     #plotParticles_3D(output2,solids,0)
 
 	#reset_timer!
-    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,algo2,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,algo2,output2,fix,data)
     #print_timer()
 
 	# #PyPlot.savefig("plot_2Disk_Julia.pdf")
 
-# end
+end
 
-# @time main()
+@time main()

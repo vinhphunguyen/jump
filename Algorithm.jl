@@ -1,3 +1,15 @@
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
+
 module Algorithm
 	abstract type AlgorithmType end
 
@@ -25,6 +37,7 @@ module Algorithm
 	struct MUSL <: AlgorithmType
 		alpha::Float64   # FLIP/PIC mixing param
 	end
+	
 	struct APIC <: AlgorithmType end
 
 

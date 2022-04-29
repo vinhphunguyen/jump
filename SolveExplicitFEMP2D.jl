@@ -11,61 +11,67 @@
 # -----------------------------------------------------------------------
 
 # This file contains functions for solving 2D explicit dynamics problems
-# USL and MUSL are provided, each function for each algorithm
-#
+# using GPIC. 
+# 29 April 2022: ULFEM, TLFEM with one point quad and TLFEMFull with full quadrature
 
 
 
-######################################################################
-# Update Stress Last (this one not working, see the next one TL form)
-######################################################################
+###################################################################################
+# Update Stress Last (this one not working all the time, see the next one TL form)
+# Only one point quadrature here, see TLFEMFull for full quadrature
+###################################################################################
 
-function solve_explicit_dynamics_femp_2D(grid,solids,basis,bodyforce,alg::USL,output,fixes,Tf,dtime)
-    t       = 0.
-    counter = 0
+function solve_explicit_dynamics_femp_2D(grid,solids,basis,bodyforce,alg::USL,output,fixes,data)
+    
+  Tf             = data["total_time"]::Float64
+	dtime          = data["dt"]        ::Float64     
+	t              = data["time"]      ::Float64
+  counter        = 0  
 
-    Identity       = UniformScaling(1.)
+  Identity       = UniformScaling(1.)
 	solidCount     = length(solids)
 	nodalMass      = grid.mass
 	nodalMomentum0 = grid.momentum0
 	nodalMomentum  = grid.momentum
 	nodalForce     = grid.force
 
-    D              = SMatrix{2,2}(0., 0., 0., 0.) #zeros(Float64,2,2)
+  D              = SMatrix{2,2}(0., 0., 0., 0.) #zeros(Float64,2,2)
 	linBasis       = LinearBasis()
 	nearPointsLin  = [0,0,0,0]
 
-    # pre_allocating arrays for temporary variable
+  # pre_allocating arrays for temporary variable
 
 	nearPoints,funcs, ders = initialise(grid,basis)
 
-    dNdx      = zeros(2,4)
-    vel_grad  = SMatrix{2,2}(0., 0., 0., 0.)
-    N         = zeros(4)#@SVector [0,0,0,0]
-    g         = zeros(2)#@SVector [0,0,0,0]
+  dNdx      = zeros(2,4)
+  vel_grad  = SMatrix{2,2}(0., 0., 0., 0.)
+  N         = zeros(4)#@SVector [0,0,0,0]
+  g         = zeros(2)#@SVector [0,0,0,0]
 
-    # compute nodal mass (only once)
+  # compute nodal mass (only once)
 
-     gpCoords  = zeros(2,1)
-    weights   = [4.] #ones(1)
+  # first, check the orientation of the mesh so that no negative Jacobian is there
+
+  gpCoords  = zeros(2,1)
+  weights   = [4.] #ones(1)
     # gpCoords[1,1] = -0.5773502691896257; gpCoords[2,1] = -0.5773502691896257;
     # gpCoords[1,2] =  0.5773502691896257; gpCoords[2,2] = -0.5773502691896257;
     # gpCoords[1,3] =  0.5773502691896257; gpCoords[2,3] =  0.5773502691896257;
     # gpCoords[1,4] = -0.5773502691896257; gpCoords[2,4] =  0.5773502691896257;
 
-    noGP = 1
-    gpCoords=[0.,0.]
+  noGP     = 1
+  gpCoords = [0.,0.]
 
-    @inbounds for s = 1:solidCount
+  @inbounds for s = 1:solidCount
 		solid  = solids[s]
 		xx     = solid.pos
 		elems  = solid.elems
 
-	  	@inbounds for ip = 1:solid.parCount
+  	@inbounds for ip = 1:solid.parCount
 			elemNodes  =  @view elems[ip,:]  
 			elemNodes0 =        elems[ip,:]  
 			coords     =  @view xx[elemNodes]
-	    
+    
 			@inbounds for gp = 1:noGP
 			  xieta = @view gpCoords[:,gp]
 			  detJ  = lagrange_basis!(N, Quad4(), xieta, coords)
@@ -75,10 +81,12 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,bodyforce,alg::USL,ou
 			  	#println(N)
 			  end
 			end
-	  	end
-    end
+  	end
+  end
 
-    @inbounds for s = 1:solidCount
+  # herein, the nodal mass is computed
+
+  @inbounds for s = 1:solidCount
 		solid  = solids[s]
 		xx     = solid.pos
 		mm     = solid.mass  # to be updated here
@@ -86,11 +94,11 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,bodyforce,alg::USL,ou
 		mat    = solid.mat
 		vol    = solid.volume
 
-	  	@inbounds for ip = 1:solid.parCount
+  	@inbounds for ip = 1:solid.parCount
 			elemNodes  =  @view elems[ip,:]  
 			elemNodes0 =        elems[ip,:]  
 			coords     =  @view xx[elemNodes]
-	    
+    
 			@inbounds for gp = 1:noGP
 			  xieta = @view gpCoords[:,gp]
 			  detJ  = lagrange_basis!(N, Quad4(), xieta, coords)
@@ -99,29 +107,37 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,bodyforce,alg::USL,ou
 			  	elemNodes[4] = elemNodes0[2]
 			  	println(N)
 			  end
-			  	
+		  	
 			  #println(elemNodes)	
 			  for i=1:length(elemNodes)
 			  	id      = elemNodes[i]
 			  	mm[id]  += mat.density*N[i]*detJ*weights[gp]
 			  	vol[ip] += detJ*weights[gp]
 			  end
-			end
-	  	end
-    end
+		  end
+  	end
+  end
+
+  # time-independent Dirichlet boundary conditions on grid/solids
+  fix_Dirichlet_grid(grid,data)
+  fix_Dirichlet_solid(solids,data)  
+
+  ######################################################
+  #  TIME LOOP
+  ######################################################
 
   while t < Tf
 
-    #@printf("Solving step: %d%f \n", counter, t)
+    @printf("Solving step: %d%f \n", counter, t)
 
     # ===========================================
     # reset grid data
     # ===========================================
 
     @inbounds for i = 1:grid.nodeCount
-	  nodalMass[i]      = 0.
-	  nodalMomentum0[i] =  @SVector [0., 0.]
-	  nodalForce[i]     =  @SVector [0., 0.]
+		  nodalMass[i]      = 0.
+		  nodalMomentum0[i] =  @SVector [0., 0.]
+		  nodalForce[i]     =  @SVector [0., 0.]
     end
 
     # ===========================================
@@ -139,7 +155,6 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,bodyforce,alg::USL,ou
 		du     = solid.dU
 
 	  	@inbounds for ip = 1:solid.nodeCount
-	        #getShapeAndGradient(nearPoints,funcs,ders,xx[ip], grid)
 			support   = getShapeFunctions(nearPoints,funcs,ip, grid, solid,basis)
 	        
 	        fMass     = mm[ip]
@@ -168,15 +183,16 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,bodyforce,alg::USL,ou
 
 	@inbounds for i=1:grid.nodeCount
 		nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
-        # apply Dirichet boundary conditions
-        if grid.fixedXNodes[i] == 1
-			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
-   		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
-        end
-        if grid.fixedYNodes[i] == 1
-			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
-			nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
-        end
+    # apply Dirichet boundary conditions
+    fixed_dirs       = @view grid.fixedNodes[:,i]
+    if fixed_dirs[1] == 1
+	    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
+		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
+    end
+    if fixed_dirs[2] == 1
+	    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
+	    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
+    end 
 	end
 
 	
@@ -298,19 +314,16 @@ function solve_explicit_dynamics_femp_2D(grid,solids,basis,bodyforce,alg::USL,ou
 end # end solve()
 
 
-                	
-
-
 ######################################################################
 # Update Stress Last, TLFEM for internal force
 ######################################################################
 
 function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,output,fixes,data)
 
-  Tf    = data["total_time"]::Float64
-	dtime = data["dt"]        ::Float64     
-	t     = data["time"]      ::Float64
-  counter = 0
+  Tf             = data["total_time"]::Float64
+	dtime          = data["dt"]        ::Float64     
+	t              = data["time"]      ::Float64
+  counter        = 0
   
 
   Identity       = UniformScaling(1.)
@@ -499,7 +512,6 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEM,
 			    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
 			    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
         end
-
 	end
 
 	# ===========================================
@@ -728,11 +740,14 @@ end # end solve()
 ######################################################################
 # Update Stress Last, TLFEM for internal force, full Gauss quadrature
 ######################################################################
-function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEMFull,output,fixes,Tf,dtime)
-    t       = 0.
-    counter = 0
-
-    Identity       = UniformScaling(1.)
+function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEMFull,output,fixes,data)
+  
+  Tf             = data["total_time"]::Float64
+	dtime          = data["dt"]        ::Float64     
+	t              = data["time"]      ::Float64
+  counter        = 0
+  
+  Identity       = UniformScaling(1.)
 	solidCount     = length(solids)
 	nodalMass      = grid.mass
 	nodalMomentum0 = grid.momentum0
@@ -823,6 +838,9 @@ function solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,body,alg::TLFEMF
   stress1 = zeros(2,2)
   F1      = zeros(2,2)
 
+  # time-independent Dirichlet boundary conditions on grid/solids
+  fix_Dirichlet_grid(grid,data)
+  fix_Dirichlet_solid(solids,data)
 
   while t < Tf
 

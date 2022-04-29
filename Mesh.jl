@@ -302,7 +302,7 @@ function getNormals(coords, eltype::Quad4 )
 end
 
 # compute normal vectors at 4 Gauss points of a Q4 element
-# used in pressure loads
+# used in pressure loads applied on the surface of a solid meshed with H8 hexahedron elements
 # can be improved
 function getNormals!(funcs_surface, normals_surface, weights_surface, coords, gpCoords_surface, eltype::Quad4 )
     for ip=1:4

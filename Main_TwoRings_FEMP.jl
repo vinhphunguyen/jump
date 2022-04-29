@@ -10,7 +10,12 @@
 #
 # -----------------------------------------------------------------------
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
+
+# Input file for the two rubber ring collision problem 
+# Solved with the GPIC "Generalized Particle in Cell" Method
+# Output in folder "rings-femp-results/", with  vtk files and energies.txt
+
+push!(LOAD_PATH,"./")
 #
 import PyPlot
 using Printf
@@ -33,9 +38,9 @@ using Fix
 using Basis
 using BodyForce
 
-#function main()
+function main()
 
-    # problem parameters
+  # problem parameters
 	density       = 1010e-9
 	K             = 121.7e-3         # bulk modulus
 	mu            = 26.1e-3          # shear modulus
@@ -48,66 +53,71 @@ using BodyForce
 
 	vel           = 30 # mm/ms
 
+  nx            = 81
+  ny            = 41
+  # create the grid of, with nx x ny cells
+  grid  =  Grid2D(0, l, 0, w, nx, ny)
+  #basis = QuadBsplineBasis()
+  basis = LinearBasis()
 
-    # create the grid of a 1 x 1 square, with 20 x 20 cells
-    grid  =  Grid2D(0, l, 0, w, 81, 41)
-    #basis = QuadBsplineBasis()
-    basis = LinearBasis()
 
-
-    material  = NeoHookeanMaterial(E,nu,density)
-    #material  = ElasticMaterial(E,nu,density,0,0)
+  #material  = ElasticMaterial(E,nu,density,0,0)
 
 	c_dil     = sqrt((material.lambda + 2*material.mu)/material.density)
 	dt        = grid.dx/c_dil
 	dtime     = 0.2 * dt
 
 
-    solid1   = FEM2D("ring.msh")
-    solid2   = FEM2D("ring.msh")
+  solid1   = FEM2D("ring.msh")
+  solid2   = FEM2D("ring.msh")
 
-    v0 = SVector{2,Float64}([vel  0.0])
+  material  = NeoHookeanMaterial(E,nu,density,solid1.parCount)
+  
 
-    # assign initial velocity for the particles
-    Fem.assign_velocity(solid1, v0)
-    Fem.assign_velocity(solid2,-v0)
+  v0 = SVector{2,Float64}([vel  0.0])
 
-    Fem.move(solid1,SVector{2,Float64}([ l/4,  w/2]))
-    Fem.move(solid2,SVector{2,Float64}([ 0.75*l,  0.5*w]))
+  # assign initial velocity for the particles
+  Fem.assign_velocity(solid1, v0)
+  Fem.assign_velocity(solid2,-v0)
 
-    solids = [solid1, solid2]
-    mats   = [material material]
+  Fem.move(solid1,SVector{2,Float64}([ l/4,  w/2]))
+  Fem.move(solid2,SVector{2,Float64}([ 0.75*l,  0.5*w]))
+
+  solids = [solid1, solid2]
+  mats   = [material material]
 
 
 
-    Tf      = 3.5#5e-3 #3.5e-0
-    interval= 10
+  Tf      = 4.0#5e-3 #3.5e-0
+  interval= 10
 
-    data               = Dict()
-    data["total_time"] = Tf
-    data["dt"]         = dtime
-    data["time"]       = 0.
-    data["dirichlet_grid"] = [("left",(1,0)),
-                              ("right",(1,0))] # => fix left nodes on x dir
+  data               = Dict()
+  data["total_time"] = Tf
+  data["dt"]         = dtime
+  data["time"]       = 0.
+  data["dirichlet_grid"] = [("left",(1,0)),
+                            ("right",(1,0))] # => fix left nodes on x dir
 
-    @printf("Total number of material points: %d \n", solid1.parCount+solid2.parCount)
-    @printf("Total number of grid points:     %d\n", grid.nodeCount)
-    @printf("Sound vel : %+.6e \n", c_dil)
-    @printf("dt        : %+.6e \n", dtime)
-    println(typeof(basis))
+  @printf("Total number of material points: %d \n", solid1.parCount+solid2.parCount)
+  @printf("Total number of grid points:     %d\n", grid.nodeCount)
+  @printf("Sound vel : %+.6e \n", c_dil)
+  @printf("dt        : %+.6e \n", dtime)
+  println(typeof(basis))
 
 
 	output2  = VTKOutput(interval,"rings-femp-results/",["vx","sigmaxx"])
 	fix      = EnergiesFix(solids,"rings-femp-results/energies.txt")
-    algo1    = USL(0.)
-    algo2    = TLFEM(0.,0.99)
-    bodyforce = ConstantBodyForce2D([0.,0.])
+  algo1    = USL(0.)
+  algo2    = TLFEM(0.,1.)
+  bodyforce = ConstantBodyForce2D([0.,0.])
 
 	plotGrid(output2,grid)
-    solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,bodyforce,algo2,output2,fix,data)
+  
+  # solve
+  solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,bodyforce,algo2,output2,fix,data)
 
-
-    pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
+  # post-processing
+  pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
 	PyPlot.clf()
 	pyPlot01 = PyPlot.gca()
 	PyPlot.subplots_adjust(left=0.15, bottom=0.25, right=0.65)
@@ -127,6 +137,6 @@ using BodyForce
 	PyPlot.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., fontsize=8)
 	PyPlot.savefig("plot_2Disk_Julia.pdf")
 
-# end
+end
 
-# @time main()
+@time main()

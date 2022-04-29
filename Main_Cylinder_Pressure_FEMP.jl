@@ -13,7 +13,7 @@
 # This file is for the bi-material cylinder under internal pressure presented in
 # paper 'A generalized particle in cell metghod for explicit solid dynamics', V.P. Nguyen et all 2020.
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
+push!(LOAD_PATH,"./")
 # import Gadfly
 import PyPlot
 using Printf
@@ -38,7 +38,7 @@ using Basis
 using Fix
 using Util
 
-#function main()
+function main()
 
     # problem parameters
 	g              = 0
@@ -52,10 +52,8 @@ using Util
     grid      =  Grid3D(0,310,0,310,0,20,65,65,3)
     basis     =  LinearBasis()
 
-
-
-    solid1   = FEM3D("ring1.msh")
-    solid2   = FEM3D("ring2.msh")
+    solid1    = FEM3D("ring1.msh")
+    solid2    = FEM3D("ring2.msh")
 
     material1 = ElasticMaterial(youngModulus1,poissonRatio,density,solid1.parCount)
     material2 = ElasticMaterial(youngModulus2,poissonRatio,density,solid2.parCount)
@@ -121,6 +119,6 @@ using Util
 
 	# #PyPlot.savefig("plot_2Disk_Julia.pdf")
 
-# end
+end
 
-# @time main()
+@time main()

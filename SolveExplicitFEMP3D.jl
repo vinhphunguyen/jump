@@ -12,8 +12,10 @@
 
 # This file contains functions for solving 3D explicit dynamics problems
 # using the Generalized Particle in Cell (GPIC) method
-# USL and MUSL are provided, each function for each algorithm
-#
+# 29 April 2022: 
+#  --  ULFEM, TLFEM with one point quad and TLFEMFull with full quadrature
+#  -- AxiSymmetric
+
 
 
 
@@ -21,11 +23,14 @@
 # Update Stress Last
 ######################################################################
 
-function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,fixes,Tf,dtime)
-    t       = 0.
-    counter = 0
+function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,fixes,data)
+   
+  Tf             = data["total_time"]::Float64
+	dtime          = data["dt"]        ::Float64     
+	t              = data["time"]      ::Float64
+  counter        = 0 
 
-    Identity       = UniformScaling(1.)
+  Identity       = UniformScaling(1.)
 	solidCount     = length(solids)
 	nodalMass      = grid.mass
 	nodalMomentum0 = grid.momentum0
@@ -511,7 +516,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 		# only deformable solids here
 	  	solid = solids[s]
 
-        if typeof(mats[s]) <: RigidMaterial continue end
+      if typeof(mats[s]) <: RigidMaterial continue end
 
 	  	xx    = solid.pos
 	  	mm    = solid.mass
@@ -535,7 +540,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 					xxp       += Ni * vI * dtime				
 					dup       += Ni * vI * dtime						
 		   		end
-		   	end
+		  end
 			vv[ip]      = vvp
 			xx[ip]      = xxp	
 			du[ip]      = dup
@@ -545,22 +550,22 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 
 			# Dirichlet BCs on the mesh
 			fixed_dirs       = @view fix[:,ip]
-	        if fixed_dirs[1] == 1
+	    if fixed_dirs[1] == 1
 				vv[ip] = setindex(vv[ip],0.,1)
 				du[ip] = setindex(du[ip],0.,1)
 				xx[ip] = setindex(xx[ip],solid.pos0[ip][1],1)
-	        end
-	        if fixed_dirs[2] == 1
+	    end
+	    if fixed_dirs[2] == 1
 				vv[ip] = setindex(vv[ip],0.,2)
 				du[ip] = setindex(du[ip],0.,2)
 				xx[ip] = setindex(xx[ip],solid.pos0[ip][2],2)
-	        end
-	        if fixed_dirs[3] == 1
+	    end
+	    if fixed_dirs[3] == 1
 				vv[ip] = setindex(vv[ip],0.,3)
 				du[ip] = setindex(du[ip],0.,3)
 				xx[ip] = setindex(xx[ip],solid.pos0[ip][3],3)
-	        end
 	    end
+	  end
 	end
 
     fix_Dirichlet_solid(solids,data,dtime)
@@ -681,32 +686,33 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 	    
 	    rigid_solids = data["rigid_body_velo"]::Array{Tuple{Int64,Function},1}
 
-	 	for (s,f) in rigid_solids
-	 		solid       = solids[s]
-			xx          = solid.pos
-			#xc          = solid.centroids
-			(vex,vey,vez) = f(t)::Tuple{Float64, Float64, Float64} 
+	 		for (s,f) in rigid_solids
+		 		solid       = solids[s]
+				xx          = solid.pos
+				#xc          = solid.centroids
+				(vex,vey,vez) = f(t)::Tuple{Float64, Float64, Float64} 
 
-			if (vex,vey,vez) == (0.,0.,0.) continue end
-			# update all nodes for visualization only
-			@inbounds for ip = 1:solid.nodeCount
-		      xx[ip]   += dtime * @SVector [vex,vey,vez]   # no memory alloc, 
-		    end
-            # update the centroids of surface elems
-		    #@inbounds for ip = 1:solid.surfCount
-		    #  xc[ip]   += dtime * @SVector [vex,vey,vez]
-		    #end
+				if (vex,vey,vez) == (0.,0.,0.) continue end
+				# update all nodes for visualization only
+				@inbounds for ip = 1:solid.nodeCount
+			      xx[ip]   += dtime * @SVector [vex,vey,vez]   # no memory alloc, 
+			  end
+	            # update the centroids of surface elems
+			    #@inbounds for ip = 1:solid.surfCount
+			    #  xc[ip]   += dtime * @SVector [vex,vey,vez]
+			    #end
+		  end
+	  end
+
+    # write stuff to files at intervals
+		if (counter%output.interval == 0)
+			#println("haha\n")
+			plotParticles_3D(output,solids,mats,counter)
+			#plotGrid(output,grid,counter)
+			compute_femp(fixes,t)
 		end
-	end
 
-
-	if (counter%output.interval == 0)
-		#println("haha\n")
-		plotParticles_3D(output,solids,mats,counter)
-		#plotGrid(output,grid,counter)
-		compute_femp(fixes,t)
-	end
-
+    # advance to next time step
     t       += dtime
     counter += 1
   end # end of time loop
@@ -1336,13 +1342,16 @@ end # end solve()
 
 
 ######################################################################
-# Update Stress Last, TLFEM for internal force
+# Update Stress Last, TLFEM  with full quadrature for internal force
 ######################################################################
-function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::TLFEMFull,output,fixes,Tf,dtime)
-    t       = 0.
-    counter = 0
 
-    Identity       = UniformScaling(1.)
+function solve_explicit_dynamics_femp_3D(grid,solids,mats, basis,body,alg::TLFEMFull,output,fixes,data)
+  Tf             = data["total_time"]::Float64
+	dtime          = data["dt"]        ::Float64     
+	t              = data["time"]      ::Float64
+  counter        = 0
+
+  Identity       = UniformScaling(1.)
 	solidCount     = length(solids)
 	nodalMass      = grid.mass
 	nodalMomentum0 = grid.momentum0
@@ -1414,7 +1423,8 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::TLFEMFull,o
 		xx     = solid.pos
 		mm     = solid.mass  # to be updated here
 		elems  = solid.elems
-		mat    = solid.mat
+		mat    = mats[s]
+		rho    = mats[s].density
 		vol    = solid.volume
 
 	  	@inbounds for ip = 1:solid.parCount
@@ -1433,12 +1443,16 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::TLFEMFull,o
 			  #println(elemNodes)	
 			  for i=1:length(elemNodes)
 			  	id      = elemNodes[i]
-			  	mm[id]  += mat.density*N[i]*detJ*weights[gp]
+			  	mm[id]  += rho*N[i]*detJ*weights[gp]
 			  	vol[ip] += detJ*weights[gp]
 			  end
 			end
 	  	end
     end
+
+  # time-independent Dirichlet boundary conditions on grid/solids
+  fix_Dirichlet_grid(grid,data)
+  fix_Dirichlet_solid(solids,data)
 
   while t < Tf
 
@@ -1500,19 +1514,20 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::TLFEMFull,o
 
 	@inbounds for i=1:grid.nodeCount
 		nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
-        # apply Dirichet boundary conditions
-        if grid.fixedXNodes[i] == 1
+    # apply Dirichet boundary conditions
+    fixed_dirs       = @view grid.fixedNodes[:,i]
+    if fixed_dirs[1] == 1
 			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
    		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
-        end
-        if grid.fixedYNodes[i] == 1
+    end
+    if fixed_dirs[2] == 1
 			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
 			nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
-        end
-        if grid.fixedZNodes[i] == 1
+    end
+    if fixed_dirs[3] == 1
 			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,3)
 			nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,3)
-        end
+    end    
 	end
 
 	
@@ -1520,17 +1535,17 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::TLFEMFull,o
     # grid to particle (deformable solids): update particle velocity/pos
     # ====================================================================
 
-    @inbounds for s = 1:solidCount
+  @inbounds for s = 1:solidCount
 		# only deformable solids here
 	  	solid = solids[s]
+
+      if typeof(mats[s]) <: RigidMaterial continue end
 
 	  	xx    = solid.pos
 	  	mm    = solid.mass
 	  	vv    = solid.velocity
 	  	du    = solid.dU
-	  	fixX  = solid.fixedNodesX
-	  	fixY  = solid.fixedNodesY
-	  	fixZ  = solid.fixedNodesZ
+	  	fix   = solid.fixedNodes
 	  	
 	  	@inbounds for ip = 1:solid.nodeCount
 			support   = getShapeFunctions(nearPoints,funcs,ip, grid, solid, basis)	        
@@ -1546,20 +1561,38 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::TLFEMFull,o
 					vI         = nodalMomentum[in] * invM
 					vvp       += Ni * (nodalMomentum[in] - nodalMomentum0[in]) * invM
 					xxp       += Ni * vI * dtime				
-					dup       += Ni * vI * dtime				
+					dup       += Ni * vI * dtime						
 		   		end
-		   	end
+		  end
 			vv[ip]      = vvp
 			xx[ip]      = xxp	
 			du[ip]      = dup
+
+			#du[ip] = setindex(du[ip],0.,3)
+			#vv[ip] = setindex(vv[ip],0.,3)
+
 			# Dirichlet BCs on the mesh
-			if fixY[ip] == 1 
+			fixed_dirs       = @view fix[:,ip]
+	    if fixed_dirs[1] == 1
+				vv[ip] = setindex(vv[ip],0.,1)
+				du[ip] = setindex(du[ip],0.,1)
+				xx[ip] = setindex(xx[ip],solid.pos0[ip][1],1)
+	    end
+	    if fixed_dirs[2] == 1
 				vv[ip] = setindex(vv[ip],0.,2)
 				du[ip] = setindex(du[ip],0.,2)
 				xx[ip] = setindex(xx[ip],solid.pos0[ip][2],2)
-			end
 	    end
+	    if fixed_dirs[3] == 1
+				vv[ip] = setindex(vv[ip],0.,3)
+				du[ip] = setindex(du[ip],0.,3)
+				xx[ip] = setindex(xx[ip],solid.pos0[ip][3],3)
+	    end
+	  end
 	end
+
+    fix_Dirichlet_solid(solids,data,dtime)
+	
 
 
     # ====================================================================
@@ -1574,7 +1607,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::TLFEMFull,o
 	  	mm     = solid.mass
 	  	du     = solid.dU
 	  	F      = solid.deformationGradient
-	  	mat    = solid.mat
+	  	mat    = mats[s]
 	  	stress = solid.stress
 	  	strain = solid.strain
 	  	elems  = solid.elems
@@ -1611,7 +1644,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::TLFEMFull,o
 		   	J            = det(F[ip])
 		   	#println(strain[ip])
 	   	     #@timeit "3" update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
-	   	    update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
+	   	    stress[ip] =  update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
 
             sigma = stress[ip]
             P     = J*sigma*inv(F[ip])'  # convert to Piola Kirchoof stress
@@ -1635,46 +1668,50 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::TLFEMFull,o
 
     t       += dtime
 
-    @inbounds for s = 1:solidCount
-		# only deformable solids here
-	  	solid = solids[s]
+    compute_fext(solids,funcs_surface, normals_surface, weights_surface, gpCoords_surface,data,t)
 
-	  	XX     = solid.pos0	  	  	  
-	  	elems  = solid.mesh.elements
-	  	ftrac  = solid.ftrac
-	  	for ip=1:solid.nodeCount 
-	  		ftrac[ip]  = @SVector [0., 0., 0.]	  		
-	  	end
+ #    @inbounds for s = 1:solidCount
+	# 	# only deformable solids here
+	#   	solid = solids[s]
 
-        if haskey(solid.mesh.element_sets, "force")
-	  	    surf_elems_ids = collect(solid.mesh.element_sets["force"])
-	  	else
-	  		continue
-	  	end
-        # loop over  elements of the surface tag 'force'
-	  	@inbounds for ip in surf_elems_ids
-			elemNodes =  elems[ip]  
-			coords    =  @view XX[elemNodes]
-			#println(coords)
-			getNormals!(funcs_surface, normals_surface, weights_surface , coords, gpCoords_surface, Quad4() )
-			# loop over Gauss points
-			for ip=1:4                     
-			    ww = weights_surface[ip]   
-			    #println(normals_surface[:,ip])       
-			    #println(ww)       
-				for i = 1:length(elemNodes)
-				   in  = elemNodes[i]; # index of node 'i'
-		           ftrac[in][1] -= normals_surface[1,ip]*funcs_surface[i,ip]*ww*400*exp(-10000*t)
-		           ftrac[in][2] -= normals_surface[2,ip]*funcs_surface[i,ip]*ww*400*exp(-10000*t)
-		           ftrac[in][3] -= normals_surface[3,ip]*funcs_surface[i,ip]*ww*400*exp(-10000*t)
-		        end
-	        end
-	   end
-	end
+	#   	XX     = solid.pos0	  	  	  
+	#   	elems  = solid.mesh.elements
+	#   	ftrac  = solid.ftrac
+	#   	for ip=1:solid.nodeCount 
+	#   		ftrac[ip]  = @SVector [0., 0., 0.]	  		
+	#   	end
+
+ #        if haskey(solid.mesh.element_sets, "force")
+	#   	    surf_elems_ids = collect(solid.mesh.element_sets["force"])
+	#   	else
+	#   		continue
+	#   	end
+ #        # loop over  elements of the surface tag 'force'
+	#   	@inbounds for ip in surf_elems_ids
+	# 		elemNodes =  elems[ip]  
+	# 		coords    =  @view XX[elemNodes]
+	# 		#println(coords)
+	# 		getNormals!(funcs_surface, normals_surface, weights_surface , coords, gpCoords_surface, Quad4() )
+	# 		# loop over Gauss points
+	# 		for ip=1:4                     
+	# 		    ww = weights_surface[ip]   
+	# 		    #println(normals_surface[:,ip])       
+	# 		    #println(ww)       
+	# 			for i = 1:length(elemNodes)
+	# 			   in  = elemNodes[i]; # index of node 'i'
+	# 	           ftrac[in][1] -= normals_surface[1,ip]*funcs_surface[i,ip]*ww*400*exp(-10000*t)
+	# 	           ftrac[in][2] -= normals_surface[2,ip]*funcs_surface[i,ip]*ww*400*exp(-10000*t)
+	# 	           ftrac[in][3] -= normals_surface[3,ip]*funcs_surface[i,ip]*ww*400*exp(-10000*t)
+	# 	        end
+	#         end
+	#    end
+	# end
+
 
 	if (counter%output.interval == 0)
-		plotParticles_3D(output,solids,counter)
-		plotGrid(output,grid,counter)
+		#println("haha\n")
+		plotParticles_3D(output,solids,mats,counter)
+		#plotGrid(output,grid,counter)
 		compute_femp(fixes,t)
 	end
 

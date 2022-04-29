@@ -369,14 +369,14 @@ struct FEM3D
 	    basis_S   = Tri3()  
 	    vtk_cell  = VTKCellTypes.VTK_TETRA
 	    dNdx      = fill(zeros(3,4),parCount)
-            N         = fill(zeros(4),parCount)
+        N         = fill(zeros(4),parCount)
 	end
 	if nnodePerElem == 8 
 	    basis     = Hexa8() 
 	    basis_S   = Quad4() 
 	    vtk_cell  = VTKCellTypes.VTK_HEXAHEDRON
 	    dNdx      = fill(zeros(3,8),parCount)
-            N         = fill(zeros(8),parCount)
+        N         = fill(zeros(8),parCount)
 	end
 
 	cells = Vector{MeshCell}(undef,parCount)
@@ -625,10 +625,10 @@ function initializeBasis(solid::FEM3D,density)
     nodePerElem = size(solid.elems,2)
 
     if (nodePerElem == 4)  		
-	weights   =  0.166666667  # this is so dangerous!!! all books ay weight =1
-	gpCoords  = [0.25,0.25,0.25]
-	funcs     = zeros(4)
-        ders      = zeros(3,4)
+	  weights   =  0.166666667  # this is so dangerous!!! all books ay weight =1
+	  gpCoords  = [0.25,0.25,0.25]
+	  funcs     = zeros(4)
+      ders      = zeros(3,4)
     end
 
     if (nodePerElem == 8)  	    
@@ -661,7 +661,7 @@ function initializeBasis(solid::FEM3D,density)
 	    error("Mesh with negative Jacobian!")
 	end
 
-        www       = J*weights
+    www       = J*weights
 	detJ[ip]  = www
 	N[ip]     = copy(funcs)  # be careful with this, as funcs,ders change from element to element
 	dNdx[ip]  = copy(ders)
