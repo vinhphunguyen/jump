@@ -283,15 +283,16 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,
 
             sigma = stress[ip]
             body(g,xx[ip],t)  
+            #println(g)
             # compute nodal internal force fint
 		    for i = 1:length(elemNodes)
-				in  = elemNodes[i]; # index of node 'i'
+				  in  = elemNodes[i]; # index of node 'i'
 			    dNi = @view dNdx[:,i]			
 	   	        fint[in]+= w*@SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2] + sigma[1,3] * dNi[3],
 									  sigma[1,2] * dNi[1] + sigma[2,2] * dNi[2] + sigma[2,3] * dNi[3],
 									  sigma[1,3] * dNi[1] + sigma[2,3] * dNi[2] + sigma[3,3] * dNi[3] ]
                 fbody[in] += w*N[i]*mat.density*g										  
-            end
+        end
 	   end
 	end
 
@@ -437,16 +438,14 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 	        fp        = fint[ip]
 	        fb        = fbody[ip]
 	        ft        = ftrac[ip]
-			#body      = problem.bodyforce(xx[ip],t)
-			
 			@inbounds for i = 1:support
 				in    = nearPoints[i]; # index of node 'i'
 				Ni    = funcs[i]				
 				Nim   = Ni * fMass
 				# mass, momentum, internal force and external force
-		        nodalMass[in]      += Nim
+		    nodalMass[in]      += Nim
 				nodalMomentum0[in] += Nim * vp 
-		        nodalForce[in]     -= Ni  * fp
+		    nodalForce[in]     -= Ni  * fp
 				nodalForce[in]     += Ni  * fb
 				nodalForce[in]     += Ni  * ft
 			end
@@ -653,7 +652,8 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 
             P     = J*stress[ip]*inv(F[ip])'  # convert to Piola Kirchoof stress
 
-            body(g,[0 0 0],t)  
+            body(g,xx[ip],t)  
+            #println(g)
             # compute nodal internal force fint
 		    for i = 1:length(elemNodes)
 				in  = elemNodes[i]; # index of node 'i'
@@ -722,13 +722,13 @@ end # end solve()
 
 
 function solve_explicit_dynamics_femp_eigen_erosion_3D(grid,solids,mats,basis,body,alg::TLFEM,output,fixes,data)
-    Tf    = data["total_time"]
+  Tf    = data["total_time"]
 	dtime = data["dt"]         
 	t     = data["time"]      
 
-    counter = 0
+  counter = 0
 
-    Identity       = UniformScaling(1.)
+  Identity       = UniformScaling(1.)
 	solidCount     = length(solids)
 	nodalMass      = grid.mass
 	nodalMomentum0 = grid.momentum0
@@ -1358,14 +1358,15 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats, basis,body,alg::TLFEM
 	nodalMomentum  = grid.momentum
 	nodalForce     = grid.force
 
-    D              = SMatrix{3,3}(0,0,0,0,0,0,0,0,0) #zeros(Float64,2,2)
+  D              = SMatrix{3,3}(0,0,0,0,0,0,0,0,0) #zeros(Float64,2,2)
 
     # pre_allocating arrays for temporary variable
    
 	nearPoints,funcs, ders = initialise(grid,basis)
 
-    nodePerElem = size(solids[1].elems,2)
+  nodePerElem = size(solids[1].elems,2)
 
+  # four-node Tetrahedron elements
 	if nodePerElem == 4 
 		meshBasis = Tet4()  
 		wgt       = 1.
@@ -1373,52 +1374,54 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats, basis,body,alg::TLFEM
 		gpCoords  = [0.25,0.25,0.25]
 
 
-        # for pressure load
-        weights_surface   = ones(4)
-        normals_surface   = zeros(3, 4)
-        funcs_surface     = zeros(4,4)
+    # for pressure load
+    weights_surface   = ones(4)
+    normals_surface   = zeros(3, 4)
+    funcs_surface     = zeros(4,4)
 	end
+
+	# eight-node hexahedron elements
 	if nodePerElem == 8 
 		meshBasis = Hexa8() 
-		wgt       = 8.0
-        weights   = [8.]
-        gpCoords  = [0.,0.,0.]
+		#wgt       = 8.0
+    #weights   = [8.]
+    #gpCoords  = [0.,0.,0.]
 
-        # for pressure load
-        weights_surface   = ones(4)
-        normals_surface   = zeros(3, 4)
-        funcs_surface     = zeros(4,4)
-        gpCoords_surface  = zeros(2,4)
+	  gpCoords  = zeros(3,8)
+	  weights   = ones(8)
+	  gpCoords[1,1] = -0.5773502691896257;gpCoords[2,1] = -0.5773502691896257;gpCoords[3,1] = -0.5773502691896257
+	  gpCoords[1,2] =  0.5773502691896257;gpCoords[2,2] = -0.5773502691896257;gpCoords[3,2] = -0.5773502691896257
+	  gpCoords[1,3] =  0.5773502691896257;gpCoords[2,3] =  0.5773502691896257;gpCoords[3,3] = -0.5773502691896257
+	  gpCoords[1,4] = -0.5773502691896257;gpCoords[2,4] =  0.5773502691896257;gpCoords[3,4] = -0.5773502691896257
+	  gpCoords[1,5] = -0.5773502691896257;gpCoords[2,5] =  0.5773502691896257;gpCoords[3,5] =  0.5773502691896257
+	  gpCoords[1,6] = -0.5773502691896257;gpCoords[2,6] =  0.5773502691896257;gpCoords[3,6] =  0.5773502691896257
+	  gpCoords[1,7] = -0.5773502691896257;gpCoords[2,7] =  0.5773502691896257;gpCoords[3,7] =  0.5773502691896257
+	  gpCoords[1,8] = -0.5773502691896257;gpCoords[2,8] =  0.5773502691896257;gpCoords[3,8] =  0.5773502691896257
 
-        gpCoords_surface[1,1] = -0.5773502691896257; gpCoords_surface[2,1] = -0.5773502691896257;
-        gpCoords_surface[1,2] =  0.5773502691896257; gpCoords_surface[2,2] = -0.5773502691896257;
-        gpCoords_surface[1,3] =  0.5773502691896257; gpCoords_surface[2,3] =  0.5773502691896257;
-        gpCoords_surface[1,4] = -0.5773502691896257; gpCoords_surface[2,4] =  0.5773502691896257;
+    # for pressure load
+    weights_surface   = ones(4)
+    normals_surface   = zeros(3, 4)
+    funcs_surface     = zeros(4,4)
+    gpCoords_surface  = zeros(2,4)
+
+    gpCoords_surface[1,1] = -0.5773502691896257; gpCoords_surface[2,1] = -0.5773502691896257;
+    gpCoords_surface[1,2] =  0.5773502691896257; gpCoords_surface[2,2] = -0.5773502691896257;
+    gpCoords_surface[1,3] =  0.5773502691896257; gpCoords_surface[2,3] =  0.5773502691896257;
+    gpCoords_surface[1,4] = -0.5773502691896257; gpCoords_surface[2,4] =  0.5773502691896257;
 	end
 
-    noGP      = 1
-    dNdx      = zeros(3,nodePerElem)
-    N         = zeros(nodePerElem)#@SVector [0,0,0,0]
+  noGP      = size(gpCoords,2)
+  dNdx      = zeros(3,nodePerElem)
+  N         = zeros(nodePerElem)#@SVector [0,0,0,0]
 
-    vel_grad  = SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
-    g         = [0.,0.,0.]
+  vel_grad  = SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
+  g         = [0.,0.,0.]
    
 
-    # compute nodal mass (only once)
-
-    gpCoords  = zeros(3,8)
-    weights   = ones(8)
-    gpCoords[1,1] = -0.5773502691896257;gpCoords[2,1] = -0.5773502691896257;gpCoords[3,1] = -0.5773502691896257
-    gpCoords[1,2] =  0.5773502691896257;gpCoords[2,2] = -0.5773502691896257;gpCoords[3,2] = -0.5773502691896257
-    gpCoords[1,3] =  0.5773502691896257;gpCoords[2,3] =  0.5773502691896257;gpCoords[3,3] = -0.5773502691896257
-    gpCoords[1,4] = -0.5773502691896257;gpCoords[2,4] =  0.5773502691896257;gpCoords[3,4] = -0.5773502691896257
-    gpCoords[1,5] = -0.5773502691896257;gpCoords[2,5] =  0.5773502691896257;gpCoords[3,5] =  0.5773502691896257
-    gpCoords[1,6] = -0.5773502691896257;gpCoords[2,6] =  0.5773502691896257;gpCoords[3,6] =  0.5773502691896257
-    gpCoords[1,7] = -0.5773502691896257;gpCoords[2,7] =  0.5773502691896257;gpCoords[3,7] =  0.5773502691896257
-    gpCoords[1,8] = -0.5773502691896257;gpCoords[2,8] =  0.5773502691896257;gpCoords[3,8] =  0.5773502691896257
+  # compute nodal mass (only once)
 
 
-    @inbounds for s = 1:solidCount
+  @inbounds for s = 1:solidCount
 		solid  = solids[s]
 		xx     = solid.pos
 		mm     = solid.mass  # to be updated here
@@ -1622,7 +1625,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats, basis,body,alg::TLFEM
 	  	@inbounds for ip = 1:solid.parCount
 			elemNodes =  @view elems[ip,:]  
 			coords    =  @view XX[elemNodes]
-	        vel_grad  =  SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
+	    vel_grad  =  SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
 			
 			detJ      = lagrange_basis_derivatives!(N, dNdx, meshBasis, gpCoords, coords)
 			w         = detJ * wgt

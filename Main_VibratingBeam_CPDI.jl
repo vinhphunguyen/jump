@@ -1,7 +1,21 @@
-# Phu Nguyen, Monash University
-# 20 March, 2020 (Coronavirus outbreak)
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/jMPM/src")
+# Input file for the vibrating cantilever beam proposed by Brannon et al.
+# Solved with the CPDI-Q4
+# Output in folder "vibratingbeam-cpdi-results/", with lammps dump files and energies.txt
+
+push!(LOAD_PATH,"./")
+
 # import Gadfly
 import PyPlot
 using Printf
@@ -22,24 +36,25 @@ using Fix
 using BodyForce
 using Basis
 using Mesh
+using Util
 
-#function main()
-	fGravity  = 10.0
+function main()
+	fGravity  = 1.0
 
 	steelRho  = 1050.
-    steelE    = 10.e6
+    steelE    = 1e6
     steelNu   = 0.3
 
 	c         = sqrt(steelE/steelRho)
 
 	# grid creation and basis
-	grid  = Grid2D(5.0, 10.0, 51, 101)
+	grid  = Grid2D(0,5.0, 0, 10.0, 51, 101)
 	basis = CPDIQ4Basis()
 
     # do not forget to shift the solid to the right one cell (to have ghost cell)
 	nodes,elems = createMeshForRectangle([1.1*grid.dx 4.5],[4.0+1.1*grid.dx 4.5],
 	                                     [4.0+1.1*grid.dx 5.5],[1.1*grid.dx 5.5],40,10)
-	material    = NeoHookeanMaterial(steelE,steelNu,steelRho)
+	material    = NeoHookeanMaterial(steelE,steelNu,steelRho,size(elems,1))
 	#println(nodes)
 	solid1      = Solid2D(nodes,elems,material)
 
@@ -47,21 +62,35 @@ using Mesh
 
 	@printf("	Disk,   number of material points: %d \n", solid1.parCount)
 
-    # Boundary conditions
-    fixXForLeft(grid,ghostcell=true)
-    fixYForLeft(grid,ghostcell=true)
-
     dtime   = 0.2*grid.dx/c;
     Tf      = 3.
-    interval= 200
+    interval= 1
 
-	bodyforce = ConstantBodyForce2D(fGravity)
+	bodyforce = ConstantBodyForce2D(@SVector[0.,-fGravity])
 
-	#output1  = PyPlotOutput(interval,"impact-results/","Impact",(4., 4.))
-	output2  = OvitoOutput(interval,"vibratingbeam-cpdi-results/",[])
-    problem  = ExplicitSolidMechanics2D(grid,solids,basis,Tf,bodyforce,output2,[])
-    algo     =  MUSL()
-    solve(problem, algo, dtime)
-# end
+    data               = Dict()
+    data["total_time"] = Tf
+    data["dt"]         = dtime
+    data["time"]       = 0.
+    data["dirichlet_grid"] = [("left",(1,1))] # => fix left edge of the grid
+    data["bodyforce"]  = bodyforce
+    data["ghostcell"]  = true
+
+	output2  = OvitoOutput(interval,"vibratingbeam-cpdi-results/",["sigmaxx"])
+	fix      = DisplacementFix(solids,@SVector[4.060000000000000,4.55],2)
+
+ 
+    algo1    = USL(1e-9)
+    algo2    = MUSL(1.)
+
+	report(grid,solids,dtime)
+	plotGrid(output2,grid,0)
+
+	#plotParticles(problem.output,solids,[grid.lx, grid.ly],[grid.nodeCountX, grid.nodeCountY],0)
+    #plotParticles_2D(output2,grid,0)
+
+	#reset_timer!()
+    solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,data)
+end
 #
-# @time main()
+@time main()

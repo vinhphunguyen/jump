@@ -1,8 +1,21 @@
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
 
-# Phu Nguyen, Monash University
-# 20 March, 2020 (Coronavirus outbreak)
+# Input file for the vibration of a 3D compliant cantilever beam 
+# Solved with the GPIC method, 
+# Output in folder "cantilever-box-femp/", with lammps dump files and energies.txt
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
+push!(LOAD_PATH,"./")
+
 # import Gadfly
 import PyPlot
 using Printf
@@ -27,7 +40,7 @@ using Basis
 using Fix
 using Util
 
-#function main()
+function main()
 
     # problem parameters
 	g             = 0.
@@ -35,34 +48,28 @@ using Util
 	youngModulus  = 1e6
 	poissonRatio  = 0.3
 
-    # create the grid of a 1 x 1 square, with 20 x 20 cells
+    # create the grid of a 8 x 8 x 2, with 24 x 24 x 2 cells
 	# and a basis: linear and CPDI-Q4 supported
     grid      =  Grid3D(0,8,0,8,0,2,25,25,3)
     basis     =  LinearBasis()
 
 
-    material = NeoHookeanMaterial(youngModulus,poissonRatio,density)
+    solid1   = FEM3D("box-beam.msh")
+    material = NeoHookeanMaterial(youngModulus,poissonRatio,density,solid1.parCount)
 
-    solid1   = FEM3D("box-beam.msh",material)
     
     # as the mesh was created with the center of the disk at (0,0)
 	#move(solid1,SVector{2,Float64}([ 0.2+grid.dx  0.2+grid.dx]))
 	#move(solid2,SVector{2,Float64}([ 0.8-grid.dx  0.8-grid.dx]))
-	Fem.move(solid1,SVector{3,Float64}([0.1,6.,0.5]))
+	Fem.move(solid1,SVector{3,Float64}([0.0,6.,0.5]))
 
     #Fem.assign_velocity(solid1, SVector{3,Float64}([0. -1000. 0.0 ]))
 
-	#fixYForTop(grid)
-	#fixYForBottom(grid)
-
-	# boundary condition on the FE mesh!!!
-	fixNodes(solid1, "fix")
-	
-
     solids = [solid1]
+    mats   = [material]
 
-    Tf       = 10.0 #3.5e-0
-    interval = 100
+    Tf       = 3.0 #3.5e-0
+    interval = 2
 	dtime    = 0.1*grid.dx/sqrt(youngModulus/density)
 
 	#output1  = PyPlotOutput(interval,"twodisks-results/","Two Disks Collision",(4., 4.))
@@ -70,21 +77,26 @@ using Util
 	fix      = DisplacementFemFix(solid1,"cantilever-box-femp/",2)
 
     algo1    = USL(0.)
-    algo2    = TLFEM(0.)
+    algo2    = TLFEM(0.,1.)
 
-    body     = ConstantBodyForce3D(@SVector[0.,0.,0.])
+    body     = ConstantBodyForce3D(@SVector[0.,-10.,0.])
+
+    data                    = Dict()
+    data["total_time"]      = Tf
+    data["dt"]              = dtime
+    data["time"]            = 0.
+    data["dirichlet_solid"]  = [(1,"fix",(1,1,1))] 
 
 	report(grid,solids,dtime)
 
     plotGrid(output2,grid,0)
-    plotParticles_3D(output2,solids,0)
+    plotParticles_3D(output2,solids,mats,0)
 
 	#reset_timer!
-    solve_explicit_dynamics_femp_3D(grid,solids,basis,body,algo2,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,algo2,output2,fix,data)
     #print_timer()
 
 	# #PyPlot.savefig("plot_2Disk_Julia.pdf")
+end
 
-# end
-
-# @time main()
+@time main()

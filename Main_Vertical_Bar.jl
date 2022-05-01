@@ -61,20 +61,20 @@ function main()
    coords   = buildParticleForBlock([1000.;  1000; 1000.], 1000.,1000.,1000., fOffset)
    material = NeoHookeanMaterial(youngModulus,poissonRatio,density,length(coords))
 
-    solid1   = Solid3D(coords,material)
+   solid1   = Solid3D(coords,material)
 
-    solid1.mass          .*= dx * dx
-    solid1.volume        .= dx * dx
-    solid1.volumeInitial .= dx * dx
+   solid1.mass          .*= dx * dx
+   solid1.volume        .= dx * dx
+   solid1.volumeInitial .= dx * dx
     
 
-    Solid.assign_velocity(solid1, SVector{3,Float64}([0. -vel 0.0 ]))
+   Solid.assign_velocity(solid1, SVector{3,Float64}([0. -vel 0.0 ]))
 
 
-    solids = [solid1]
+   solids = [solid1]
 
-    Tf       = 0.1 #3.5e-0
-    interval = 2
+   Tf       = 0.1 #3.5e-0
+   interval = 2
 	dtime    = 0.08*grid.dx/sqrt(youngModulus/density)
 
 	#output1  = PyPlotOutput(interval,"twodisks-results/","Two Disks Collision",(4., 4.))
@@ -105,7 +105,7 @@ function main()
 		            [grid.nodeCountX, grid.nodeCountY, grid.nodeCount],0)
 
 	#reset_timer!
-    solve_explicit_dynamics_3D(grid,solids,basis,algo2,output2,fix,data)
+   solve_explicit_dynamics_3D(grid,solids,basis,algo2,output2,fix,data)
     
     #print_timer()
 

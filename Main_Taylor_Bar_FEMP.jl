@@ -34,7 +34,7 @@ using Fix
 using Basis
 using BodyForce
 
-#function main()
+function main()
 
     # problem parameters
 	
@@ -127,6 +127,6 @@ using BodyForce
     D = abs(solid1.pos[1][1] - solid1.pos[3][1])
     L = abs(solid1.pos[2][2] - solid1.pos[6][2])
     #W = abs(solid1.pos[?][1] - solid1.pos[?][1]) # 5.08 from the bottom 
-#  end
+end
 
-# @time main()
+@time main()

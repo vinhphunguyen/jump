@@ -153,11 +153,10 @@ module Solid
 			end
 
 			for i=1:size(nodes,2)
-				nodeX[i] = @SVector [nodes[1,i], nodes[2,i]]
+				nodesX[i] = @SVector [nodes[1,i], nodes[2,i]]
 			end
 
-			new{T}(m,vol,vol0,copy(x),x,velo,F,strain,stress,gradVel,
-			    Cmat,parCount,mat,nodesX,elems)
+			new{T}(m,vol,vol0,copy(vol0), copy(x),x,velo,F,strain,stress,gradVel,Cmat,parCount,mat,nodesX,elems)
 		end
         # particles from a mesh: only Q4 for the moment
 		function Solid2D(fileName,mat::T) where {T <: MaterialType}
@@ -217,7 +216,7 @@ module Solid
 			end
 
 
-			new{T}(m,vol,vol0,copy(x),x,velo,F,strain,stress,gradVel,Cmat,parCount,mat,
+			new{T}(m,vol,vol0,copy(vol0),copy(x),x,velo,F,strain,stress,gradVel,Cmat,parCount,mat,
 			    nodesX,elems,rigid)
 		end
 

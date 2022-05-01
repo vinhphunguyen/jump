@@ -16,9 +16,9 @@ struct EmptyFix <: FixBase
 end
 
 struct DisplacementFix <: FixBase
-    solids::Vector{Solid3D}
+    solids#::Vector{Solid3D}
     file  ::IOStream
-    index ::Int64
+    index ::Matrix{Int64}
 
     function DisplacementFix(solids,point::SVector{2,Float64},dir)
         index      = [-10 -10]

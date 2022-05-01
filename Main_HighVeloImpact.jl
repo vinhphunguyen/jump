@@ -1,7 +1,22 @@
-# Phu Nguyen, Monash University
-# 20 March, 2020 (Coronavirus outbreak)
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
+# Input file for the vibrating cantilever beam proposed by Brannon et al.
+# Solved with the CPDI-Q4
+# Output in folder "vibratingbeam-cpdi-results/", with lammps dump files and energies.txt
+
+push!(LOAD_PATH,"./")
+
+
 # import Gadfly
 import PyPlot
 using Printf

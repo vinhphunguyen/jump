@@ -26,6 +26,17 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 	Tf            = data["total_time"]::Float64
 	dtime         = data["dt"]        ::Float64     
 	t             = data["time"]      ::Float64
+	
+
+	if haskey(data, "bodyforce") == true 
+		bodyforce     = data["bodyforce"]
+	end 
+
+	ghostcell = false
+	
+	if haskey(data, "ghostcell") == true 
+		ghostcell = true
+	end 
 
   counter       = 0
   Identity      = UniformScaling(1.)
@@ -64,10 +75,10 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
     # end
 
   # time-independent Dirichlet boundary conditions on grid/solids
-  fix_Dirichlet_grid(grid,data)
+  fix_Dirichlet_grid(grid,data,ghostcell=ghostcell)
 
 	while t < Tf
-	    @printf("Solving step: %f \n", t)
+	    @printf("Solving step: %d %f \n", counter, t)
 	    # ===========================================
 	    # reset grid data
 	    # ===========================================
@@ -102,9 +113,10 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 		        c         = Fm[2,1]
 		        d         = Fm[2,2]
 		        P         = sigma*SMatrix{2,2}(d, -c,-b, a) #zeros(Float64,2,2)[d -c;-b a] # convert to 1st PK stress
-				#bodyforce(body,xx[ip],t)
+			    	bodyforce(body,xx[ip],t)
 					# println(nearPoints)
 					# println(support)
+					#println(body)
 				@inbounds for i = 1:support
 					id    = nearPoints[i]; # index of node ‘i’
 					Ni    = funcs[i]
@@ -113,7 +125,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 					# mass, momentum, internal force and external force
 					nodalMass[id]       +=  Nim
 					nodalMomentum0[id]  +=  Nim * vp
-					nodalForce[id]     -=      fVolume * P * dNi # (P[1,1] * dNi[1] + P[1,2] * dNi[2], P[2,1] * dNi[1] + P[2,2] * dNi[2])
+					nodalForce[id]      +=  -fVolume * P * dNi + fMass * body * Ni # (P[1,1] * dNi[1] + P[1,2] * dNi[2], P[2,1] * dNi[1] + P[2,2] * dNi[2])
 	        #nodalForce[id] -= fVolume * @SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],sigma[2,1] * dNi[1] + sigma[2,2] * dNi[2]]
 				end
 		  	end
@@ -212,8 +224,9 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 						vI         = nodalMomentum2[in] /m
 					    #xxp       += (Ni * nodalMomentum[in]/m) * dtime	
 					    xxp       += (Ni * vI) * dtime	
-				        vel_grad  += SMatrix{2,2}(dNi[1]*vI[1], dNi[1]*vI[2],
-   										          dNi[2]*vI[1], dNi[2]*vI[2])
+					    #  SMatrix{2,2}(1,2,3,4) => the first column is 1,2; 2nd col: 3,4
+				      vel_grad  += SMatrix{2,2}(dNi[1]*vI[1], dNi[1]*vI[2],
+   										                  dNi[2]*vI[1], dNi[2]*vI[2])
 				    end
 				end
 				xx[ip]      = xxp
@@ -261,12 +274,12 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 			plotParticles_2D(output,solids,[grid.lx, grid.ly],
 			             [grid.nodeCountX, grid.nodeCountY],counter)
 			compute(fixes,t)
-	    end
+	  end
 
-        t       += dtime
-        counter += 1
+    t       += dtime
+    counter += 1
     end
-	closeFile(fixes)
+	  closeFile(fixes)
 end
 
 ######################################################################
@@ -278,6 +291,12 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,data
   Tf    = data["total_time"]::Float64
 	dtime = data["dt"]        ::Float64     
 	t     = data["time"]      ::Float64  
+  bodyforce     = data["bodyforce"]
+
+  if haskey(data, "ghostcell") == true 
+		ghostcell = true
+	end 
+
   counter = 0
 
   Identity       = UniformScaling(1.)
@@ -286,6 +305,8 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,data
 	nodalMomentum0 = grid.momentum0
 	nodalMomentum  = grid.momentum
 	nodalForce     = grid.force
+
+	body          = zeros(2)
 
   D              = SMatrix{2,2}(0., 0., 0., 0.) #zeros(Float64,2,2)
 	linBasis       = LinearBasis()
@@ -301,7 +322,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,data
 	end
 
   # time-independent Dirichlet boundary conditions on grid/solids
-  fix_Dirichlet_grid(grid,data)
+  fix_Dirichlet_grid(grid,data,ghostcell=ghostcell)
 
   while t < Tf
 
@@ -338,6 +359,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,data
 	        fMass     = mm[ip]
 	        vp        = vv[ip]
 	        sigma     = stress[ip]
+	        	bodyforce(body,xx[ip],t)
 			#body      = problem.bodyforce(xx[ip],t)
 			#println(nearPoints)
 			@inbounds for i = 1:support
@@ -348,8 +370,8 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,data
 				# mass, momentum, internal force and external force
 				nodalMass[in]      += Nim
 				nodalMomentum0[in] += Nim * vp #+ vgrad*(grid.pos[in]-xx[ip]))
-				nodalForce[in]     -= fVolume * @SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],
-													     sigma[2,1] * dNi[1] + sigma[2,2] * dNi[2]]
+				nodalForce[in]     += -fVolume * @SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],
+													     sigma[2,1] * dNi[1] + sigma[2,2] * dNi[2]] + fMass * body * Ni
 				#nodalForce[in]     +=      fMass   * body  *  Ni
 			end
 	  	end

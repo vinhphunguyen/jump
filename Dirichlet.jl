@@ -22,7 +22,10 @@ using Mesh
 using Util
 using Grid
 
-function fix_Dirichlet_grid(grid::Grid3D,data)
+# input file: data["dirichlet_grid"] = [("bottom",(0,1,0))] # => fix bottom nodes on Y dir
+# 3D grid 
+
+function fix_Dirichlet_grid(grid::Grid3D,data;ghostcell=false)
  	if haskey(data, "dirichlet_grid") == false return end 
 
     dirichlet_grid = data["dirichlet_grid"]
@@ -40,16 +43,35 @@ function fix_Dirichlet_grid(grid::Grid3D,data)
  	end
 end
 
-function fix_Dirichlet_grid(grid::Grid2D,data)
+# input file: data["dirichlet_grid"] = [("bottom",(0,1,0))] # => fix bottom nodes on Y dir
+# NOTE: ghostcell=true, only left edge is done!!!
+
+function fix_Dirichlet_grid(grid::Grid2D,data;ghostcell=false)
  	if haskey(data, "dirichlet_grid") == false return end 
 
     dirichlet_grid = data["dirichlet_grid"]
 
+    # grid.fixedNodes = a matrix of size (2,nodeCount)
  	for (bnd,fix) in dirichlet_grid
 
- 		if     bnd == "bottom" grid.fixedNodes[:,grid.bottomNodes] .= fix
- 		elseif bnd == "top"    grid.fixedNodes[:,grid.topNodes]    .= fix
- 		elseif bnd == "left"   grid.fixedNodes[:,grid.leftNodes]   .= fix
+ 		if     bnd == "bottom" 
+           if ghostcell == false
+ 			  grid.fixedNodes[:,grid.bottomNodes] .= fix
+ 		   else
+ 		   	  grid.fixedNodes[:,grid.bottomNodes] .= fix	
+ 		   end 
+ 		elseif bnd == "top"    
+ 			if ghostcell == false
+ 			   grid.fixedNodes[:,grid.topNodes]    .= fix
+ 			else
+ 			   grid.fixedNodes[:,grid.topNodes .- grid.nodeCountX]    .= fix
+ 			end
+ 		elseif bnd == "left"   
+            if ghostcell == false
+               grid.fixedNodes[:,grid.leftNodes]   .= fix
+           else  
+           	   grid.fixedNodes[:,grid.leftNodes.+1]   .= fix
+           end
  		elseif bnd == "right"  grid.fixedNodes[:,grid.rightNodes]  .= fix
  		else  error("Not recognized grid faces!!!")
  		end

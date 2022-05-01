@@ -10,7 +10,11 @@
 #
 # -----------------------------------------------------------------------
 
-push!(LOAD_PATH,"/Users/vingu/my-codes/julia-codes/juMP")
+# Input file for the two rubber rings collision problem
+# Solved with the CPDI-Q4 method, 
+# Output in folder "cantilever-box-femp/", with lammps dump files and energies.txt
+
+push!(LOAD_PATH,"./")
 #
 import PyPlot
 using Printf
@@ -31,6 +35,7 @@ using FemMPM
 using Material
 using Fix
 using Basis
+using BodyForce
 
 #function main()
 
@@ -54,12 +59,12 @@ using Basis
     #basis = LinearBasis()
 
 
-    material  = NeoHookeanMaterial(E,nu,density)
+    material  = NeoHookeanMaterial(E,nu,density,10000)
     #material  = ElasticMaterial(E,nu,density,0,0)
 
 	c_dil     = sqrt((material.lambda + 2*material.mu)/material.density)
 	dt        = grid.dx/c_dil
-	dtime     = 0.02 * dt
+	dtime     = 0.2 * dt
 
 
     solid1   = Solid2D("ring.msh",material)
@@ -85,6 +90,16 @@ using Basis
     Tf      = 0.0047#5e-3 #3.5e-0
     interval= 20
 
+    bodyforce = ConstantBodyForce2D(@SVector[0.,0.])
+
+
+    data               = Dict()
+    data["total_time"] = Tf
+    data["dt"]         = dtime
+    data["time"]       = 0.
+    data["bodyforce"]  = bodyforce
+
+
 	output2  = OvitoOutput(interval,"rings-cpdi-results/",["vx","sigmaxx"])
 	fix      = EnergiesFix(solids,"rings-cpdi-results/energies.txt")
     algo1    = USL(0.)
@@ -93,7 +108,7 @@ using Basis
 	plotGrid(output2,grid,0)
     plotParticles_2D(output2,solids,[grid.lx, grid.ly],
                          [grid.nodeCountX, grid.nodeCountY],0)
-    solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
+    solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,data)
 
 
     pyFig_RealTime = PyPlot.figure("MPM 2Disk FinalPlot", figsize=(8/2.54, 4/2.54))
