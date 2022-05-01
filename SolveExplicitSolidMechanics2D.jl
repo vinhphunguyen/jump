@@ -33,7 +33,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 	end 
 
 	ghostcell = false
-	
+
 	if haskey(data, "ghostcell") == true 
 		ghostcell = true
 	end 
@@ -62,7 +62,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 	if ( typeof(basis) <: CPDIQ4Basis )
 		nearPoints = Vector{Int64}(undef,16)
 		[nearPoints[i]=0 for i=1:16]
-	    funcs = zeros(16)
+	  funcs = zeros(16)
 		ders  = zeros(2,16)
 
 		nearPointsLin    = [0, 0, 0, 0]
@@ -107,12 +107,6 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 		        fMass     = mm[ip]
 		        vp        = vv[ip]
 		        sigma     = stress[ip]
-		        Fm        = F[ip]
-		        a         = Fm[1,1]
-		        b         = Fm[1,2]
-		        c         = Fm[2,1]
-		        d         = Fm[2,2]
-		        P         = sigma*SMatrix{2,2}(d, -c,-b, a) #zeros(Float64,2,2)[d -c;-b a] # convert to 1st PK stress
 			    	bodyforce(body,xx[ip],t)
 					# println(nearPoints)
 					# println(support)
@@ -125,8 +119,8 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 					# mass, momentum, internal force and external force
 					nodalMass[id]       +=  Nim
 					nodalMomentum0[id]  +=  Nim * vp
-					nodalForce[id]      +=  -fVolume * P * dNi + fMass * body * Ni # (P[1,1] * dNi[1] + P[1,2] * dNi[2], P[2,1] * dNi[1] + P[2,2] * dNi[2])
-	        #nodalForce[id] -= fVolume * @SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],sigma[2,1] * dNi[1] + sigma[2,2] * dNi[2]]
+	        nodalForce[id]      += -fVolume * @SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],
+													     sigma[2,1] * dNi[1] + sigma[2,2] * dNi[2]] + fMass * body * Ni
 				end
 		  	end
 		end
@@ -372,7 +366,6 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,data
 				nodalMomentum0[in] += Nim * vp #+ vgrad*(grid.pos[in]-xx[ip]))
 				nodalForce[in]     += -fVolume * @SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],
 													     sigma[2,1] * dNi[1] + sigma[2,2] * dNi[2]] + fMass * body * Ni
-				#nodalForce[in]     +=      fMass   * body  *  Ni
 			end
 	  	end
 	end

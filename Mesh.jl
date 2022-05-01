@@ -521,10 +521,10 @@ end
 
 
 function square_node_array(pt1,pt2,pt3,pt4,numnod_u,numnod_v)
-    xi_pts  = LinRange(-1.,1.,numnod_u);
-    eta_pts = LinRange(-1.,1.,numnod_v);
-    x_pts   = [pt1[1],pt2[1],pt3[1],pt4[1]];
-    y_pts   = [pt1[2],pt2[2],pt3[2],pt4[2]];
+  xi_pts  = LinRange(-1.,1.,numnod_u);
+  eta_pts = LinRange(-1.,1.,numnod_v);
+  x_pts   = [pt1[1],pt2[1],pt3[1],pt4[1]];
+  y_pts   = [pt1[2],pt2[2],pt3[2],pt4[2]];
 
     N     = zeros(4)
 	dNdxi = zeros(4,2)

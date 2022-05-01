@@ -18,6 +18,8 @@ import PyPlot
 using Printf
 using LinearAlgebra
 using StaticArrays   # if not yet installed, in REPL, do import Pkg and Pkd.add("StaticArrays")
+using DelimitedFiles
+
 
 
 #include("./Grid.jl")
@@ -35,7 +37,7 @@ using Basis
 using Mesh
 using Util
 
-function main()
+#function main()
 	fGravity  = 1000e3
 
 	steelRho  = 1050e-12
@@ -51,8 +53,8 @@ function main()
     # do not forget to shift the solid to the right one cell (to have ghost cell)
 	nodes,elems = createMeshForRectangle([0. 0.],[1000. 0.],
 	                                     [1000. 1000.],[0. 1000.],6,6)
-    nodes[1,:] .+= grid.dx
-    nodes[2,:] .+= 4*grid.dx
+    nodes[1,:] .+= 500 #grid.dx
+    nodes[2,:] .+= 3500-1000 - grid.dy
 
 	material    = NeoHookeanMaterial(steelE,steelNu,steelRho,length(nodes))
 	#println(nodes)
@@ -70,19 +72,21 @@ function main()
 
     dtime   = 0.1*grid.dx/c;
     Tf      = 0.25
-    interval= 10
+    interval= 1
 
 
     data               = Dict()
     data["total_time"] = Tf
     data["dt"]         = dtime
     data["time"]       = 0.
-    data["dirichlet_grid"] = [("top",(1,1))] # => fix left edge of the grid
+    data["dirichlet_grid"] = [("top",(0,1))] # => fix left edge of the grid
     data["bodyforce"]  = bodyforce
     data["ghostcell"]  = true
 
-	output2  = OvitoOutput(interval,"cpdi-test-results/",["sigmaxx"])
-	fix      = EmptyFix()#DisplacementFix(solids,@SVector[4.060000000000000,4.55],2)
+    dir      = "cpdi-test-results/"
+
+	output2  = OvitoOutput(interval,dir,["sigmaxx"])
+	fix      = DisplacementFix(solids,@SVector[1083.3333333333333, 2250.0],dir)
 
  
     algo1    = USL(1e-9)
@@ -95,8 +99,13 @@ function main()
     #plotParticles_2D(output2,grid,0)
 
 	#reset_timer!()
-    solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,data)
+    solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,data)
 
-end
+    v = readdlm("cpdi-test-results/recorded-position.txt")
 
-@time main()
+    PyPlot.plot(v[:, 1], v[:, 2])
+    PyPlot.plot(v[:, 1], v[:, 3])
+
+# end
+
+# @time main()

@@ -55,24 +55,27 @@ function fix_Dirichlet_grid(grid::Grid2D,data;ghostcell=false)
  	for (bnd,fix) in dirichlet_grid
 
  		if     bnd == "bottom" 
-           if ghostcell == false
- 			  grid.fixedNodes[:,grid.bottomNodes] .= fix
- 		   else
- 		   	  grid.fixedNodes[:,grid.bottomNodes] .= fix	
+ 		   grid.fixedNodes[:,grid.bottomNodes] .= fix
+
+           if ghostcell == true
+ 		   	  grid.fixedNodes[:,grid.bottomNodes .+ grid.nodeCountX] .= fix	
  		   end 
  		elseif bnd == "top"    
- 			if ghostcell == false
- 			   grid.fixedNodes[:,grid.topNodes]    .= fix
- 			else
+ 			grid.fixedNodes[:,grid.topNodes]    .= fix
+
+ 			if ghostcell == true
  			   grid.fixedNodes[:,grid.topNodes .- grid.nodeCountX]    .= fix
  			end
  		elseif bnd == "left"   
-            if ghostcell == false
-               grid.fixedNodes[:,grid.leftNodes]   .= fix
-           else  
+            grid.fixedNodes[:,grid.leftNodes]   .= fix
+            if ghostcell == true
            	   grid.fixedNodes[:,grid.leftNodes.+1]   .= fix
-           end
- 		elseif bnd == "right"  grid.fixedNodes[:,grid.rightNodes]  .= fix
+            end
+ 		elseif bnd == "right"  
+ 			grid.fixedNodes[:,grid.rightNodes]  .= fix
+ 			if ghostcell == true
+           	   grid.fixedNodes[:,grid.rightNodes.-1]   .= fix
+            end
  		else  error("Not recognized grid faces!!!")
  		end
  	end

@@ -1,3 +1,20 @@
+# ----------------------------------------------------------------------
+#
+#                    ***       JUMP       ***
+#                Material Point Method in Julia
+#
+# Copyright (2020) Vinh Phu Nguyen, phu.nguyen@monash.edu
+# Civil Engineering, Monash University
+# Clayton VIC 3800, Australia
+# This software is distributed under the GNU General Public License.
+#
+# -----------------------------------------------------------------------
+
+
+# This module defines functions to write stuff to text files
+# Stuff = displacement at a certain particle, or energies of the system
+
+
 module Fix
 
 using Printf
@@ -9,9 +26,11 @@ using Fem
 using Grid
 using Mesh
 
-
+# Abstract FixBase
 abstract type FixBase end
 
+# then all derived fixes, starting with an exmpty fix, 
+# which does nothing
 struct EmptyFix <: FixBase
 end
 
@@ -194,7 +213,7 @@ end
 
 function compute(fix::DisplacementFix,time)
     #println(fix.index)
-    x = fix.solids[fix.index[1]].pos[fix.index[2]]
+    x = fix.solids[fix.index[1]].pos[fix.index[2]] - fix.solids[fix.index[1]].pos0[fix.index[2]]
     write(fix.file, "$(time) $(x[1]) $(x[2])\n")
 end
 

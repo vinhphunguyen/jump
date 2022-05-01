@@ -23,11 +23,8 @@ using Printf
 using LinearAlgebra
 using StaticArrays   # if not yet installed, in REPL, do import Pkg and Pkd.add("StaticArrays")
 using TimerOutputs
-# pyFig_RealTime = PyPlot.figure("MPM 2Disk Real-time",
-#                                figsize=(8/2.54, 8/2.54), edgecolor="white", facecolor="white")
+using DelimitedFiles
 
-#include("./Grid.jl")
-#include("./Problem.jl")
 
 using Fem
 using Solid
@@ -69,25 +66,6 @@ function main()
 
     #Fem.assign_velocity(solid1, SVector{3,Float64}([0. -50000. 0.0 ]))
 
-	#fixYForTop(grid)
-	# fixYForBottom(grid)
-	# fixXForLeft(grid)
-	# fixYForLeft(grid)
-	# fixZForLeft(grid)
-	# fixXForRight(grid)
-	# fixYForRight(grid)
-	# fixZForRight(grid)
-	# fixXForFront(grid)
-	# fixYForFront(grid)
-	# fixZForFront(grid)
-	# fixXForBack(grid)
-	# fixYForBack(grid)
-	# fixZForBack(grid)
-
-	# # boundary condition on the FE mesh!!!
-	# fixYNodes(solid1, "TopSurface")
-	
-
     solids = [solid1]
     mats   = [material]
 
@@ -123,6 +101,11 @@ function main()
     #print_timer()
 
 	# #PyPlot.savefig("plot_2Disk_Julia.pdf")
+
+	v = readdlm("vertical-bar-femp/recorded-position.txt")
+
+    PyPlot.plot(v[:, 1], v[:, 2])
+    PyPlot.plot(v[:, 1], v[:, 3])
 
 end
 

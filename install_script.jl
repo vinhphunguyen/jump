@@ -12,4 +12,5 @@ Pkg.add(["OhMyREPL",
          "WriteVTK",
          "PyPlot",
          "BenchmarkTools",
+         "DelimitedFiles",
          "RecursiveArrayTools"])
