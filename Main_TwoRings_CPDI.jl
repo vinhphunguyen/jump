@@ -12,7 +12,7 @@
 
 # Input file for the two rubber rings collision problem
 # Solved with the CPDI-Q4 method, 
-# Output in folder "cantilever-box-femp/", with lammps dump files and energies.txt
+# Output in folder "rings-cpdi-results/", with lammps dump files and energies.txt
 
 push!(LOAD_PATH,"./")
 #

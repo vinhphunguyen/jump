@@ -21,6 +21,9 @@ import PyPlot
 using Printf
 using LinearAlgebra
 using StaticArrays   # if not yet installed, in REPL, do import Pkg and Pkd.add("StaticArrays")
+using DelimitedFiles
+
+
 
 
 #include("./Grid.jl")
@@ -39,7 +42,7 @@ using Mesh
 using Util
 
 function main()
-	fGravity  = 1.0
+	fGravity  = 10.0
 
 	steelRho  = 1050.
     steelE    = 1e6
@@ -48,7 +51,7 @@ function main()
 	c         = sqrt(steelE/steelRho)
 
 	# grid creation and basis
-	grid  = Grid2D(0,5.0, 0, 10.0, 51, 101)
+	grid  = Grid2D(0,5.0, 0, 10.0, 17, 34)
 	basis = CPDIQ4Basis()
 
     # do not forget to shift the solid to the right one cell (to have ghost cell)
@@ -77,10 +80,10 @@ function main()
     data["ghostcell"]  = true
 
 	output2  = OvitoOutput(interval,"vibratingbeam-cpdi-results/",["sigmaxx"])
-	fix      = DisplacementFix(solids,@SVector[4.060000000000000,4.55],2)
+	fix      = EmptyFix()#DisplacementFix(solids,@SVector[4.060000000000000,4.55],2)
 
  
-    algo1    = USL(1e-9)
+    algo1    = USL(1e-12)
     algo2    = MUSL(1.)
 
 	report(grid,solids,dtime)
@@ -91,6 +94,11 @@ function main()
 
 	#reset_timer!()
     solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,data)
+
+    v = readdlm("vibratingbeam-cpdi-results/recorded-position.txt")
+
+    PyPlot.plot(v[:, 1], v[:, 2])
+    PyPlot.plot(v[:, 1], v[:, 3])
 end
 #
 @time main()

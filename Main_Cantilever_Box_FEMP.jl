@@ -49,12 +49,13 @@ function main()
 	poissonRatio  = 0.3
 
     # create the grid of a 8 x 8 x 2, with 24 x 24 x 2 cells
-	# and a basis: linear and CPDI-Q4 supported
+	# and a basis: 
     grid      =  Grid3D(0,8,0,8,0,2,25,25,3)
     basis     =  LinearBasis()
 
 
-    solid1   = FEM3D("box-beam.msh")
+    #solid1   = FEM3D("box-beam.msh") # 8-node hexahedron 
+    solid1   = FEM3D("taylor-bar-ter4.msh")
     material = NeoHookeanMaterial(youngModulus,poissonRatio,density,solid1.parCount)
 
     
@@ -93,7 +94,7 @@ function main()
     plotParticles_3D(output2,solids,mats,0)
 
 	#reset_timer!
-    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,algo2,output2,fix,data)
+    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,algo1,output2,fix,data)
     #print_timer()
 
 	# #PyPlot.savefig("plot_2Disk_Julia.pdf")

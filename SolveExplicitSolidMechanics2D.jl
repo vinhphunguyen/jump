@@ -60,10 +60,10 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 	nearPoints,funcs, ders = initialise(grid,basis)
 
 	if ( typeof(basis) <: CPDIQ4Basis )
-		nearPoints = Vector{Int64}(undef,16)
-		[nearPoints[i]=0 for i=1:16]
-	  funcs = zeros(16)
-		ders  = zeros(2,16)
+		# nearPoints = Vector{Int64}(undef,16)
+		# [nearPoints[i]=0 for i=1:16]
+	 #  funcs = zeros(16)
+		# ders  = zeros(2,16)
 
 		nearPointsLin    = [0, 0, 0, 0]
 		funcsLin         = [0., 0., 0., 0.]
@@ -184,7 +184,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
    		    nodalMomentum2[i]  = setindex(nodalMomentum2[i], 0.,1)
         end
         if fixed_dirs[2] == 1
-			nodalMomentum2[i]  = setindex(nodalMomentum2[i], 0.,2)
+			    nodalMomentum2[i]  = setindex(nodalMomentum2[i], 0.,2)
         end
 
 	     

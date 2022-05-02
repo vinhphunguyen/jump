@@ -100,7 +100,7 @@ function main()
     #plotParticles_2D(output2,grid,0)
 
 	#reset_timer!()
-    solve_explicit_dynamics_2D(grid,solids,basis3,algo1,output2,fix,data)
+    solve_explicit_dynamics_2D(grid,solids,basis3,algo2,output2,fix,data)
 end
 
 @time main()

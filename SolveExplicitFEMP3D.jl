@@ -20,10 +20,10 @@
 
 
 ######################################################################
-# Update Stress Last
+# Update Stress Last, UL formulation
 ######################################################################
 
-function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,fixes,data)
+function solve_explicit_dynamics_femp_3D(grid,solids,mats, basis,body,alg::USL,output,fixes,data)
    
   Tf             = data["total_time"]::Float64
 	dtime          = data["dt"]        ::Float64     
@@ -43,25 +43,33 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,
 
 	nodePerElem = size(solids[1].elems,2)
 
-	if nodePerElem == 4 
-		meshBasis = Tet4()  
+  if nodePerElem == 4 
 		wgt       = 1.
 		weights   = [1.]
 		gpCoords  = [0.25,0.25,0.25]
 	end
+
 	if nodePerElem == 8 
-		meshBasis = Hexa8() 
 		wgt       = 8.0
-        weights   = [8.]
-        gpCoords  = [0.,0.,0.]
+    weights   = [8.]
+    gpCoords  = [0.,0.,0.]
 	end
 
-    noGP      = 1
-    dNdx      = zeros(3,nodePerElem)
-    N         = zeros(nodePerElem)#@SVector [0,0,0,0]
-    vel_grad  = SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
-    D         = SMatrix{3,3}(0,0,0,0,0,0,0,0,0) #zeros(Float64,2,2)
-    g         = [0.,0.,0.]
+  noGP      = 1
+  dNdx      = zeros(3,nodePerElem)
+  N         = zeros(nodePerElem)#@SVector [0,0,0,0]
+  vel_grad  = SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
+  D         = SMatrix{3,3}(0,0,0,0,0,0,0,0,0) #zeros(Float64,2,2)
+  g         = [0.,0.,0.]
+
+	@inbounds for s = 1:solidCount
+	    solid  = solids[s]
+      initializeBasis(solid,mats[s].density)
+  end
+
+  # time-independent Dirichlet boundary conditions on grid/solids
+  fix_Dirichlet_grid(grid,data)
+  fix_Dirichlet_solid(solids,data)
 
     # compute nodal mass (only once)
 
@@ -78,35 +86,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,
 
     # noGP = 8
 
-    @inbounds for s = 1:solidCount
-		solid  = solids[s]
-		xx     = solid.pos
-		mm     = solid.mass  # to be updated here
-		elems  = solid.elems
-		mat    = solid.mat
-		vol    = solid.volume
-
-	  	@inbounds for ip = 1:solid.parCount
-			elemNodes  =  @view elems[ip,:]  
-			elemNodes0 =   elems[ip,:]  
-			coords     =  @view xx[elemNodes]
-	    
-			@inbounds for gp = 1:noGP
-			  xieta = @view gpCoords[:,gp]
-			  detJ  = lagrange_basis!(N, meshBasis, xieta, coords)
-			  if detJ < 0.
-			  	@printf("Negative Jacobian in Gmsh mesh file!!! \n")
-			  	elemNodes[2] = elemNodes0[4]			  	
-			  	elemNodes[4] = elemNodes0[2]
-			  end
-			  for i=1:length(elemNodes)
-			  	id      = elemNodes[i]
-			  	mm[id]  += mat.density*N[i]*detJ*weights[gp]
-			  	vol[ip] += detJ*weights[gp]
-			  end
-			end
-	  	end
-    end
+  
 
   while t < Tf
 
@@ -151,7 +131,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,
 				Ni    = funcs[i]				
 				Nim   = Ni * fMass
 				# mass, momentum, internal force and external force
-			nodalMass[in]      += Nim
+			  nodalMass[in]      += Nim
 				nodalMomentum0[in] += Nim * vp 
 				nodalForce[in]     -= Ni  * fp
 				nodalForce[in]     += Ni  * fb
@@ -167,19 +147,20 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,
 
 	@inbounds for i=1:grid.nodeCount
 		nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
-        # apply Dirichet boundary conditions
-        if grid.fixedXNodes[i] == 1
-			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
-   		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
-        end
-        if grid.fixedYNodes[i] == 1
-			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
-			nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
-        end
-        if grid.fixedZNodes[i] == 1
-			nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,3)
-			nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,3)
-        end
+    # apply Dirichet boundary conditions
+    fixed_dirs       = @view grid.fixedNodes[:,i]
+    if fixed_dirs[1] == 1
+	      nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
+		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
+    end
+    if fixed_dirs[2] == 1
+	      nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
+	      nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
+    end
+    if fixed_dirs[3] == 1
+	      nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,3)
+	      nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,3)
+    end
 	end
 
 	
@@ -195,11 +176,8 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,
 	  	mm    = solid.mass
 	  	vv    = solid.velocity
 	  	du    = solid.dU
-	    fixX  = solid.fixedNodesX
-	  	fixY  = solid.fixedNodesY
-	  	fixZ  = solid.fixedNodesZ
-	  	
-	  	
+      fix   = solid.fixedNodes
+
 	  	@inbounds for ip = 1:solid.nodeCount
 			support   = getShapeFunctions(nearPoints,funcs,ip, grid, solid, basis)	        
 			vvp       = vv[ip]
@@ -216,18 +194,33 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,
 					xxp       += Ni * vI * dtime				
 					dup       += Ni * vI * dtime				
 		   		end
-		   	end
+		  end
 			vv[ip]      = vvp
 			xx[ip]      = xxp	
 			du[ip]      = dup
+
 			# Dirichlet BCs on the mesh
-			if fixY[ip] == 1 
+			fixed_dirs       = @view fix[:,ip]
+	    if fixed_dirs[1] == 1
+				vv[ip] = setindex(vv[ip],0.,1)
+				du[ip] = setindex(du[ip],0.,1)
+				xx[ip] = setindex(xx[ip],solid.pos0[ip][1],1)
+	    end
+	    if fixed_dirs[2] == 1
 				vv[ip] = setindex(vv[ip],0.,2)
 				du[ip] = setindex(du[ip],0.,2)
 				xx[ip] = setindex(xx[ip],solid.pos0[ip][2],2)
-			end
 	    end
+	    if fixed_dirs[3] == 1
+				vv[ip] = setindex(vv[ip],0.,3)
+				du[ip] = setindex(du[ip],0.,3)
+				xx[ip] = setindex(xx[ip],solid.pos0[ip][3],3)
+	    end
+
+	  end
 	end
+
+    fix_Dirichlet_solid(solids,data,dtime)
 
 
     # ====================================================================
@@ -242,13 +235,15 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,
 	  	mm     = solid.mass
 	  	du     = solid.dU
 	  	F      = solid.deformationGradient
-	  	mat    = solid.mat
+	  	mat    = mats[s]
 	  	stress = solid.stress
 	  	strain = solid.strain
 	  	elems  = solid.elems
 	  	fint   = solid.fint
 	  	fbody  = solid.fbody
 	  	vol    = solid.volume
+	  	meshBasis = solid.basis
+
 	  	for ip=1:solid.nodeCount 
 	  		fint[ip]  = @SVector [0., 0., 0.]
 	  		fbody[ip] = @SVector [0., 0., 0.]
@@ -257,7 +252,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,
 	  	@inbounds for ip = 1:solid.parCount
 			elemNodes =  @view elems[ip,:]  
 			coords    =  @view xx[elemNodes]
-	        vel_grad  =  SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
+	    vel_grad  =  SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
 			
 			detJ      = lagrange_basis_derivatives!(N, dNdx, meshBasis, gpCoords, coords)
 			w         = detJ * wgt
@@ -265,44 +260,46 @@ function solve_explicit_dynamics_femp_3D(grid,solids,basis,body,alg::USL,output,
 			#println(dNdx)
 			#println(sum(dNdx, dims=2))
 			for i = 1:length(elemNodes)
-				in         = elemNodes[i]; # index of node 'i'
-			    dNi        = @view dNdx[:,i]			
-				vI         = du[in]
+				id         = elemNodes[i]; # index of node 'i'
+			  dNi        = @view dNdx[:,i]			
+				vI         = du[id]
 				vel_grad  += SMatrix{3,3}(dNi[1]*vI[1], dNi[1]*vI[2], dNi[1]*vI[3],
    										  dNi[2]*vI[1], dNi[2]*vI[2], dNi[2]*vI[3],
    										  dNi[3]*vI[1], dNi[3]*vI[2], dNi[3]*vI[3] )
-		   	end
+		  end
 	
-		   	D           = 0.5 * (vel_grad + vel_grad')
-		   	strain[ip]   = D
-		   	F[ip]        = inv(Identity - vel_grad)
-		   	J            = det(F[ip])
+	   	D           = 0.5 * (vel_grad + vel_grad')
+	   	strain[ip]   = D
+	   	F[ip]        = inv(Identity - vel_grad)
+	   	J            = det(F[ip])
 		   	#println(strain[ip])
 	   	     #@timeit "3" update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
-	   	    update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
+	   	stress[ip] = update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
 
-            sigma = stress[ip]
-            body(g,xx[ip],t)  
-            #println(g)
-            # compute nodal internal force fint
-		    for i = 1:length(elemNodes)
-				  in  = elemNodes[i]; # index of node 'i'
-			    dNi = @view dNdx[:,i]			
-	   	        fint[in]+= w*@SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2] + sigma[1,3] * dNi[3],
-									  sigma[1,2] * dNi[1] + sigma[2,2] * dNi[2] + sigma[2,3] * dNi[3],
-									  sigma[1,3] * dNi[1] + sigma[2,3] * dNi[2] + sigma[3,3] * dNi[3] ]
-                fbody[in] += w*N[i]*mat.density*g										  
-        end
+      sigma = stress[ip]
+      # compute body force
+      body(g,xx[ip],t)  
+          #println(g)
+          # compute nodal internal force fint
+	    for i = 1:length(elemNodes)
+			  id  = elemNodes[i]; # index of node 'i'
+		    dNi = @view dNdx[:,i]			
+   	    fint[id]  += w*@SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2] + sigma[1,3] * dNi[3],
+								                sigma[1,2] * dNi[1] + sigma[2,2] * dNi[2] + sigma[2,3] * dNi[3],
+								                sigma[1,3] * dNi[1] + sigma[2,3] * dNi[2] + sigma[3,3] * dNi[3] ]
+        fbody[id] += w*N[i]*mat.density*g										  
+      end
+
 	   end
 	end
 
 	if (counter%output.interval == 0)
-		plotParticles_3D(output,solids,counter)
+    plotParticles_3D(output,solids,mats,counter)
 		compute_femp(fixes,t)
 	end
 
-    t       += dtime
-    counter += 1
+  t       += dtime
+  counter += 1
   end # end of time loop
   #@printf("Solving done \n")
   closeFile(fixes)
@@ -313,6 +310,7 @@ end # end solve()
 
 ######################################################################
 # Update Stress Last, TLFEM for internal force
+# One point quadrature, precomputed basis and derivatives
 ######################################################################
 
 # data is a dictionary: 
@@ -591,7 +589,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 	  	fint   = solid.fint
 	  	fbody  = solid.fbody
 	  	vol    = solid.volume
-	  	meshBasis = solid.basis
+	  	#meshBasis = solid.basis
 	  	feFuncs   = solid.N
 	  	feDers    = solid.dNdx
 	  	feJaco    = solid.detJ
@@ -617,10 +615,10 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 			#println(dNdx)
 			#println(sum(dNdx, dims=2))
 			for i = 1:length(elemNodes)
-				in         = elemNodes[i]; # index of node 'i'
-			    dNi        = @view dNdx[:,i]			
-				vI         = du[in]
-				vIt        = xx[in] - XX[in]
+				id         = elemNodes[i]; # index of node 'i'
+			  dNi        = @view dNdx[:,i]			
+				vI         = du[id]
+				vIt        = xx[id] - XX[id]
 				vel_grad  += SMatrix{3,3}(dNi[1]*vI[1], dNi[1]*vI[2], dNi[1]*vI[3],
    										  dNi[2]*vI[1], dNi[2]*vI[2], dNi[2]*vI[3],
    										  dNi[3]*vI[1], dNi[3]*vI[2], dNi[3]*vI[3] )
@@ -662,7 +660,7 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 										      P[2,1] * dNi[1] + P[2,2] * dNi[2] + P[2,3] * dNi[3],
 										      P[3,1] * dNi[1] + P[3,2] * dNi[2] + P[3,3] * dNi[3] ]
                 fbody[in] += detJ*mat.density*N[i]*g								        
-            end
+        end
 	   end
 	end
 
@@ -1368,7 +1366,6 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats, basis,body,alg::TLFEM
 
   # four-node Tetrahedron elements
 	if nodePerElem == 4 
-		meshBasis = Tet4()  
 		wgt       = 1.
 		weights   = [1.]
 		gpCoords  = [0.25,0.25,0.25]
@@ -1382,7 +1379,6 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats, basis,body,alg::TLFEM
 
 	# eight-node hexahedron elements
 	if nodePerElem == 8 
-		meshBasis = Hexa8() 
 		#wgt       = 8.0
     #weights   = [8.]
     #gpCoords  = [0.,0.,0.]
