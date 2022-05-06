@@ -11,7 +11,7 @@
 # -----------------------------------------------------------------------
 
 
-# Input file for the two rubber ring collision problem 
+# Input file for the two rubber ring collision problem
 # Solved with the GPIC "Generalized Particle in Cell" Method
 # Output in folder "rings-femp-results/", with  vtk files and energies.txt
 
@@ -61,7 +61,7 @@ function main()
   basis = LinearBasis()
 
 
-  #material  = ElasticMaterial(E,nu,density,0,0)
+  material = NeoHookeanMaterial(youngModulus,poissonRatio,density,1)
 
 	c_dil     = sqrt((material.lambda + 2*material.mu)/material.density)
 	dt        = grid.dx/c_dil
@@ -72,7 +72,7 @@ function main()
   solid2   = FEM2D("ring.msh")
 
   material  = NeoHookeanMaterial(E,nu,density,solid1.parCount)
-  
+
 
   v0 = SVector{2,Float64}([vel  0.0])
 
@@ -112,7 +112,7 @@ function main()
   bodyforce = ConstantBodyForce2D([0.,0.])
 
 	plotGrid(output2,grid)
-  
+
   # solve
   solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,bodyforce,algo2,output2,fix,data)
 
