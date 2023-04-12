@@ -76,6 +76,13 @@ module Grid
       cellCount :: Int64                # number of grid cells
 
       mass      :: Vector{Float64}
+      M         :: Array{Float64,2}     # full mass matrix
+      vx0       :: Vector{Float64}
+      vy0       :: Vector{Float64}
+      vx        :: Vector{Float64}
+      vy        :: Vector{Float64}
+      px0       :: Vector{Float64}
+      py0       :: Vector{Float64}
       pos       :: Vector{SVector{2,Float64}}
       momentum0 :: Vector{SVector{2,Float64}}  # momentum at the beginning of the step
       momentum  :: Vector{SVector{2,Float64}}  # momentum at the end of the step (tilde)
@@ -102,6 +109,13 @@ module Grid
 
          nodeCount    = iN_x*iN_y
          mass         = fill(0.,nodeCount)
+         vx0          = fill(0.,nodeCount)
+         vy0          = fill(0.,nodeCount)
+         vx           = fill(0.,nodeCount)
+         vy           = fill(0.,nodeCount)
+         px0          = fill(0.,nodeCount)
+         py0          = fill(0.,nodeCount)
+         M            = zeros(Float64,nodeCount,nodeCount)
          momentum0    = [@SVector [0., 0.] for _ in 1:nodeCount]
          momentum     = [@SVector [0., 0.] for _ in 1:nodeCount]
          momentum2    = [@SVector [0., 0.] for _ in 1:nodeCount]
@@ -139,7 +153,7 @@ module Grid
             end
         end
         return new(xmin, ymin, xmax-xmin, ymax-ymin,dx, dy, dxI, dyI, nodeCount,
-            iN_x, iN_y, (iN_x-1)*(iN_y-1) ,mass, pos, momentum0,
+            iN_x, iN_y, (iN_x-1)*(iN_y-1) ,mass, M, vx0, vy0, vx, vy, px0, py0, pos, momentum0,
             momentum, momentum2, force,fixedNodes,bNodes,tNodes,lNodes,rNodes,copy(mass),copy(mass),copy(mass))
       end
    end
@@ -255,7 +269,7 @@ module Grid
 # ----------------------------------------------------------------------
 
   # ----------------------------------------------------------------------
-  #    to_1D_index function  
+  #    to_1D_index function
   # ----------------------------------------------------------------------
 
   function to_1D_index(i::Int64, j::Int64, grid::Grid2D)

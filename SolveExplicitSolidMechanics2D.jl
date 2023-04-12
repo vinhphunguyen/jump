@@ -24,25 +24,32 @@ using Fix
 
 function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,data)
 	Tf            = data["total_time"]::Float64
-	dtime         = data["dt"]        ::Float64     
+	dtime         = data["dt"]        ::Float64
 	t             = data["time"]      ::Float64
-	
 
-	if haskey(data, "bodyforce") == true 
+
+	if haskey(data, "bodyforce") == true
 		bodyforce     = data["bodyforce"]
-	end 
+	end
 
 	ghostcell = false
 
-	if haskey(data, "ghostcell") == true 
+	if haskey(data, "ghostcell") == true
 		ghostcell = true
-	end 
+	end
 
-  counter       = 0
-  Identity      = UniformScaling(1.)
+    counter       = 0
+    Identity      = UniformScaling(1.)
 	solidCount    = length(solids)
 
 	nodalMass      = grid.mass
+	massMatrix     = grid.M
+	vx0            = grid.vx0
+	vy0 = grid.vy0
+	gvx = grid.vx
+	gvy  = grid.vy
+	px0 = grid.px0
+	py0 = grid.py0
 	nodalMomentum  = grid.momentum
 	nodalMomentum0 = grid.momentum0
 	nodalMomentum2 = grid.momentum2
@@ -82,8 +89,15 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 	    # ===========================================
 	    # reset grid data
 	    # ===========================================
+		 massMatrix        = zeros(Float64,grid.nodeCount,grid.nodeCount)
 	     @inbounds for i = 1:grid.nodeCount
 		  nodalMass[i]      = 0.
+		  vx0[i]   = 0.
+		  vy0[i]   = 0.
+		  gvx[i]    = 0.
+		  gvy[i]    = 0.
+		  px0[i]   = 0.
+		  py0[i]   = 0.
 		  nodalMomentum0[i] = @SVector[0., 0.]
 		  nodalMomentum2[i] = @SVector[0., 0.]
 		  nodalForce[i]     = @SVector[0., 0.]
@@ -101,6 +115,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 			vol    = solid.volume
 			stress = solid.stress
 			F      = solid.deformationGradient
+			# loop over all the particles
 		  	@inbounds for ip = 1:solid.parCount
 		        support   = getShapeAndGradient(nearPoints,funcs,ders,ip, grid, solid,basis)
 		        fVolume   = vol[ip]
@@ -111,6 +126,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 					# println(nearPoints)
 					# println(support)
 					#println(body)
+				# loop over the grid nodes in the support of the particle "ip"
 				@inbounds for i = 1:support
 					id    = nearPoints[i]; # index of node ‘i’
 					Ni    = funcs[i]
@@ -118,33 +134,68 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 					Nim   = Ni * fMass
 					# mass, momentum, internal force and external force
 					nodalMass[id]       +=  Nim
+					for j = 1:support
+						idj = nearPoints[j]
+						Nj    = funcs[j]
+						massMatrix[id,idj] += Nim * Nj
+					end
 					nodalMomentum0[id]  +=  Nim * vp
-	        nodalForce[id]      += -fVolume * @SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],
-													     sigma[2,1] * dNi[1] + sigma[2,2] * dNi[2]] + fMass * body * Ni
+					px0[id]             += Nim * vp[1]
+					py0[id]             += Nim * vp[2]
+	        		nodalForce[id]      += -fVolume * @SVector[sigma[1,1] * dNi[1] + sigma[1,2] * dNi[2],
+													           sigma[2,1] * dNi[1] + sigma[2,2] * dNi[2]] + fMass * body * Ni
 				end
 		  	end
 		end
+        ϵ = 0.1
+		bmassMat = ϵ*Diagonal(nodalMass) + (1-ϵ)*massMatrix
+
+		for i=1:grid.nodeCount
+		  if nodalMass[i] == 0.
+			  bmassMat[i,i] = 1.0
+		  end
+		end
+
+        # solving: M * vx0 = px0
+
+		vx0 = bmassMat \ px0
+		vy0 = bmassMat \ py0
+
+		fx0 = zeros(Float64,grid.nodeCount)
+		fy0 = zeros(Float64,grid.nodeCount)
+		for i=1:grid.nodeCount
+			fx0[i] = nodalForce[i][1]
+			fy0[i] = nodalForce[i][2]
+		end
+
+		# solving M * ( vx - vx0 ) = Δt*fx0
+
+		gvx = vx0 + bmassMat \ (dtime*fx0)
+		gvy = vy0 + bmassMat \ (dtime*fy0)
 
 		# ===========================================
 		# update grid
 		# ===========================================
+
 		@inbounds for i=1:grid.nodeCount
 		    nodalMomentum[i] = nodalMomentum0[i] + nodalForce[i] * dtime
 	        # apply Dirichet boundary conditions
-	       
-        fixed_dirs       = @view grid.fixedNodes[:,i]
-        if fixed_dirs[1] == 1
-			    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
-   		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
-        end
-        if fixed_dirs[2] == 1
-			    nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
+
+	        fixed_dirs       = @view grid.fixedNodes[:,i]
+	        if fixed_dirs[1] == 1
+				nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,1)
+	   		    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,1)
+	        end
+	        if fixed_dirs[2] == 1
+				nodalMomentum0[i] = setindex(nodalMomentum0[i],0.,2)
 			    nodalMomentum[i]  = setindex(nodalMomentum[i], 0.,2)
-        end
+	        end
 		end
+
 	    # ===========================================
 	    # grid to particle 1: particle vel update only
 	    # ===========================================
+
 		for s = 1:solidCount
 			  	solid = solids[s]
 			  	xx    = solid.pos
@@ -163,32 +214,32 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 						mI = nodalMass[in]
 						if ( mI > 0 )
 							mii = Ni / mI
-							vx += mii * (nodalMomentum[in][1] - alpha*nodalMomentum0[in][1])
-							vy += mii * (nodalMomentum[in][2] - alpha*nodalMomentum0[in][2])
+							#vx += mii * (nodalMomentum[in][1] - alpha*nodalMomentum0[in][1])
+							#vy += mii * (nodalMomentum[in][2] - alpha*nodalMomentum0[in][2])
+							vx += Ni * (gvx[in] - alpha*vx0[in])
+							vy += Ni * (gvy[in] - alpha*vy0[in])
 						end
 					end
 					vv[ip] = setindex(vv[ip],alpha*vp0[1] + vx,1)
 					vv[ip] = setindex(vv[ip],alpha*vp0[2] + vy,2)
 					# mapping the updated particle vel back to the node
-					for i in 1:support
-						in = nearPoints[i] # index of node ‘i’
-					    nodalMomentum2[in]  += funcs[i] * mp * vv[ip]
-					end
+					# for i in 1:support
+					# 	in = nearPoints[i] # index of node ‘i’
+					#     nodalMomentum2[in]  += funcs[i] * mp * vv[ip]
+					# end
 			  	end
 	    end
 	    # # apply Dirichet boundary conditions
-	    @inbounds @simd for i = 1:grid.nodeCount
-	       # apply Dirichet boundary conditions
-        fixed_dirs       = @view grid.fixedNodes[:,i]
-        if fixed_dirs[1] == 1
-   		    nodalMomentum2[i]  = setindex(nodalMomentum2[i], 0.,1)
-        end
-        if fixed_dirs[2] == 1
-			    nodalMomentum2[i]  = setindex(nodalMomentum2[i], 0.,2)
-        end
-
-	     
-	    end
+	    # @inbounds @simd for i = 1:grid.nodeCount
+	    #    # apply Dirichet boundary conditions
+        # fixed_dirs       = @view grid.fixedNodes[:,i]
+        # if fixed_dirs[1] == 1
+   		#     nodalMomentum2[i]  = setindex(nodalMomentum2[i], 0.,1)
+        # end
+        # if fixed_dirs[2] == 1
+		# 	    nodalMomentum2[i]  = setindex(nodalMomentum2[i], 0.,2)
+        # end
+		#end
 
 	    # ===========================================
 	    # particle to grid 2:
@@ -197,7 +248,7 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 		  	solid = solids[s]
 		  	xx    = solid.pos
 		  	mm    = solid.mass
-		  	vv    = solid.velocity
+		  	#vv    = solid.velocity
 		  	vol   = solid.volume
 		  	vol0  = solid.volumeInitial
 		  	F     = solid.deformationGradient
@@ -215,17 +266,18 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 					dNi= @view ders[:,i]
 					m  = nodalMass[in]
 					if ( m > 0.)
-						vI         = nodalMomentum2[in] /m
-					    #xxp       += (Ni * nodalMomentum[in]/m) * dtime	
-					    xxp       += (Ni * vI) * dtime	
+						#vI         = nodalMomentum2[in] /m
+						vI         = [gvx[in],gvy[in]]
+					    #xxp       += (Ni * nodalMomentum[in]/m) * dtime
+					    xxp       += (Ni * vI) * dtime
 					    #  SMatrix{2,2}(1,2,3,4) => the first column is 1,2; 2nd col: 3,4
 				      vel_grad  += SMatrix{2,2}(dNi[1]*vI[1], dNi[1]*vI[2],
    										                  dNi[2]*vI[1], dNi[2]*vI[2])
 				    end
 				end
 				xx[ip]      = xxp
-	      D           = 0.5 * (vel_grad + vel_grad')
-	      strain[ip]  += dtime * D
+	      		D           = 0.5 * (vel_grad + vel_grad')
+	      		strain[ip]  += dtime * D
 				F[ip]       *= (Identity + vel_grad*dtime)
 				J            = det(F[ip])
 				if ( J < 0. )
@@ -270,10 +322,10 @@ function solve_explicit_dynamics_2D(grid,solids,basis,alg::MUSL,output,fixes,dat
 			compute(fixes,t)
 	  end
 
-    t       += dtime
-    counter += 1
+	    t       += dtime
+	    counter += 1
     end
-	  closeFile(fixes)
+	closeFile(fixes)
 end
 
 ######################################################################
@@ -281,15 +333,15 @@ end
 ######################################################################
 
 function solve_explicit_dynamics_2D(grid,solids,basis,alg::USL,output,fixes,data)
-    
-  Tf    = data["total_time"]::Float64
-	dtime = data["dt"]        ::Float64     
-	t     = data["time"]      ::Float64  
-  bodyforce     = data["bodyforce"]
 
-  if haskey(data, "ghostcell") == true 
+  Tf    = data["total_time"]::Float64
+	dtime = data["dt"]        ::Float64
+	t     = data["time"]      ::Float64
+  bodyforce     = data["bodyforce"]
+ghostcell = false
+  if haskey(data, "ghostcell") == true
 		ghostcell = true
-	end 
+	end
 
   counter = 0
 

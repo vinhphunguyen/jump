@@ -50,8 +50,8 @@ function main()
     noY   = 41
     grid  =  Grid2D(0.0,1.0,0.0,1.0,noX, noY)
     #basis = LinearBasis()
-    #basis = QuadBsplineBasis()
-    basis = CubicBsplineBasis()
+    basis = QuadBsplineBasis()
+    #basis = CubicBsplineBasis()
 
     rad     = 0.2
 	 ppc     = 2
@@ -74,7 +74,7 @@ function main()
     solid2.volume        .= dx * dx
     solid2.volumeInitial .= dx * dx
 
-    v0 = SVector{2,Float64}([0.1  0.1])
+    v0 = SVector{2,Float64}([.1  .1])
 
     # assign initial velocity for the particles
     Solid.assign_velocity(solid1, v0)
@@ -89,7 +89,7 @@ function main()
     @printf("Vol0 : %+.6e \n", sum(solid1.volumeInitial)+sum(solid2.volumeInitial))
 
     Tf       = 3.5 #3.5e-0
-    interval = 50
+    interval = 10
 	 dtime    = 1e-3
 
 
@@ -102,7 +102,8 @@ function main()
 	 output1  = PyPlotOutput(interval,"twodisk-mpm/","Two Disks Collision",(4., 4.))
 	 output2  = OvitoOutput(interval,"twodisks-mpm/",["pressure"])
 	 fix      = EnergiesFix(solids,"twodisks-mpm/energies.txt")
-
+	 bodyforce = ConstantBodyForce2D([0.,0.])
+ 	data["bodyforce"] =  bodyforce
     algo1    = USL(1e-9)
     algo2    = MUSL(1.)
 
@@ -111,7 +112,7 @@ function main()
  #    reset_timer!()
 	# @time solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,Tf,dtime)
  #    print_timer()
-    
+
     solve_explicit_dynamics_2D(grid,solids,basis,algo1,output2,fix,data)
     #solve_explicit_dynamics_2D(grid,solids,basis,algo2,output2,fix,Tf,dtime)
 

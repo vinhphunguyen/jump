@@ -143,8 +143,11 @@ end
 # -25 25
 #ITEM: ATOMS id type x y z damage s11 s22 s33 s12 s13 s23 vx T ienergy
 #0 1 10.5401 -1.50408 -0.647102 0 -16.9889 -19.2388 -13.7454 11.4435 4.68828 -2.59562 3346.25 298 0
-function plotParticles_2D(plot::OvitoOutput,solids,
-          lims::Vector{Float64},ncells::Vector{Int64},counter::Int64)
+function plotParticles_2D(plot::OvitoOutput,
+	                      solids,
+                          lims::Vector{Float64},
+                          ncells::Vector{Int64},
+                          counter::Int64)
 	parCount = 0
 	for s=1:length(solids)
 		parCount += solids[s].parCount
@@ -218,8 +221,11 @@ function plotParticles_2D(plot::OvitoOutput,solids,
 	close(file)
 end
 
-function plotParticles_3D(plot::OvitoOutput,solids,
-                          lims::Vector{Float64},ncells::Vector{Int64},counter::Int64) where {T<:MaterialType}
+function plotParticles_3D(plot::OvitoOutput,
+	                      solids,
+                          lims::Vector{Float64},
+                          ncells::Vector{Int64},
+                          counter::Int64) where {T<:MaterialType}
     parCount = 0
     for s=1:length(solids)
 	parCount += solids[s].parCount
@@ -384,6 +390,7 @@ function plotParticles_2D(plot::VTKOutput,solids,mats,counter::Int64)
 		elems = solid.elems
 		stress= solid.stress
 		ve    = solid.velocity
+		m     = solid.mass 
 
 
         elastic = false
@@ -393,6 +400,7 @@ function plotParticles_2D(plot::VTKOutput,solids,mats,counter::Int64)
 		points = zeros(2,solid.nodeCount)
 	    velo   = zeros(2,solid.nodeCount)
 	    disp   = zeros(2,solid.nodeCount)
+	    mass   = zeros(solid.nodeCount)
 	    vm     = zeros(solid.parCount)
 	    p      = zeros(solid.parCount)
 	    pStrain= zeros(solid.parCount)
@@ -410,6 +418,8 @@ function plotParticles_2D(plot::VTKOutput,solids,mats,counter::Int64)
 			velo[2,ip]   = ve[ip][2]
 			disp[1,ip] = xx[ip][1] - XX[ip][1]
 			disp[2,ip] = xx[ip][2] - XX[ip][2]
+			mass[ip]   = m[ip]
+			
 			#cc += 1
 		end
 		for e=1:solid.parCount
@@ -431,6 +441,7 @@ function plotParticles_2D(plot::VTKOutput,solids,mats,counter::Int64)
 	    vtkfile["PlasticStrain", VTKCellData()]  = pStrain
 	    vtkfile["Velocity", VTKPointData()] = velo
 	    vtkfile["Displacement", VTKPointData()] = disp
+	    vtkfile["Mass", VTKPointData()] = mass
 	    vtkfile["vonMises", VTKCellData()] = vm
 	    vtkfile["sigmaxx", VTKCellData()] = sigmaxx
 	end
@@ -443,72 +454,84 @@ end
 #########################################################		
 
 function plotParticles_3D(plot::VTKOutput,solids,mats,counter::Int64)
+
     my_vtk_file = string(plot.dir,"particle_","$(Int(counter))")
     vtmfile     = vtk_multiblock(my_vtk_file)
 
 
     for s=1:length(solids)		
-	solid = solids[s]
-	xx    = solid.pos
-	XX    = solid.pos0
-	elems = solid.elems
-	stress= solid.stress
-	ve    = solid.velocity
+		solid = solids[s]
+		xx    = solid.pos
+		XX    = solid.pos0
+		elems = solid.elems
+		stress= solid.stress
+		ve    = solid.velocity
 
 
-        elastic = false
-	mat     = mats[s]
-	if ( typeof(mat) <: Union{ElasticMaterial,NeoHookeanMaterial} ) elastic = true end
-		
-	VAx     = VectorOfArray(xx)
-	VAv     = VectorOfArray(ve)
+	    elastic = false
+		mat     = mats[s]
+		if ( typeof(mat) <: Union{ElasticMaterial,NeoHookeanMaterial} ) elastic = true end
+			
+		VAx     = VectorOfArray(xx)
+		VAv     = VectorOfArray(ve)
 
-	points = convert(Array,VAx)
-	velo   = convert(Array,VAv)
+		points = convert(Array,VAx)
+		velo   = convert(Array,VAv)
 
 
-	#points = zeros(3,solid.nodeCount)
-	#velo   = zeros(3,solid.nodeCount)
-	disp   = zeros(3,solid.nodeCount)
-	vm     = zeros(solid.parCount)
-	p      = zeros(solid.parCount)
-	ps     = zeros(solid.parCount)
-	sigyy  = zeros(solid.parCount)
-	d      = zeros(solid.parCount)       # damage
-	T      = zeros(solid.parCount)       # temperature
+		#points = zeros(3,solid.nodeCount)
+		#velo   = zeros(3,solid.nodeCount)
+		disp   = zeros(3,solid.nodeCount)
+		vm     = zeros(solid.parCount)
+		p      = zeros(solid.parCount)
+		ps     = zeros(solid.parCount)
+		sigxx  = zeros(solid.parCount)
+		sigyy  = zeros(solid.parCount)
+		sigzz  = zeros(solid.parCount)
+		d      = zeros(solid.parCount)       # damage
+		T      = zeros(solid.parCount)       # temperature
         
-	for ip=1:solid.nodeCount
-	    #points[1,ip] = xx[ip][1]
-	    #points[2,ip] = xx[ip][2]
-	    #points[3,ip] = xx[ip][3]
-	    #velo[1,ip]   = ve[ip][1]
-	    #velo[2,ip]   = ve[ip][2]
-	    #velo[3,ip]   = ve[ip][3]
-	    disp[1,ip] = xx[ip][1] - XX[ip][1]
-	    disp[2,ip] = xx[ip][2] - XX[ip][2]
-	    disp[3,ip] = xx[ip][3] - XX[ip][3]
-	end
+		for ip=1:solid.nodeCount
+		    #points[1,ip] = xx[ip][1]
+		    #points[2,ip] = xx[ip][2]
+		    #points[3,ip] = xx[ip][3]
+		    #velo[1,ip]   = ve[ip][1]
+		    #velo[2,ip]   = ve[ip][2]
+		    #velo[3,ip]   = ve[ip][3]
+		    disp[1,ip] = xx[ip][1] - XX[ip][1]
+		    disp[2,ip] = xx[ip][2] - XX[ip][2]
+		    disp[3,ip] = xx[ip][3] - XX[ip][3]
+		end
 
-	for e=1:solid.parCount
+		for e=1:solid.parCount
             sigma   = stress[e]
             vm[e]   = get_von_mises_stress(e,mat)
             ps[e]   = getPlasticStrain(e,mat)
             T[e]    = getTemperature(e,mat)
             d[e]    = getDamage(e,mat)
-            p[e]    = sigma[1,1]+sigma[2,2]  +sigma[3,3]                    
-            sigyy[e] = solid.stress[e][2,2]
+            p[e]    = sigma[1,1]+sigma[2,2]  + sigma[3,3]                    
+            sigxx[e] = sigma[1,1]
+            sigyy[e] = sigma[2,2]
+            sigzz[e] = sigma[3,3]
         end
 
         vtkfile     = vtk_grid(vtmfile, points, solid.cells)
         # write data 
-	vtkfile["Pressure",       VTKCellData()]  = p
-	vtkfile["Plastic_Strain", VTKCellData()]  = ps
-	vtkfile["sigma_yy",       VTKCellData()]  = sigyy
-	vtkfile["Velocity",       VTKPointData()] = velo
-	vtkfile["Displacement",   VTKPointData()] = disp
-	vtkfile["vonMises",       VTKCellData()]  = vm
-	vtkfile["damage",         VTKCellData()]  = d
-	vtkfile["temperature",    VTKCellData()]  = T
+
+        for v in plot.outs
+			if     v == "pstrain"      vtkfile["Plastic_Strain", VTKCellData()]  = ps 
+			elseif v == "displacement" vtkfile["Displacement",   VTKCellData()]  = disp
+			elseif v == "velocity"     vtkfile["Velocity",       VTKCellData()]  = velo
+			elseif v == "sigmaxx"      vtkfile["Sigmaxx",        VTKCellData()]  = sigxx
+			elseif v == "sigmayy"      vtkfile["Sigmayy",        VTKCellData()]  = sigyy
+			elseif v == "sigmazz"      vtkfile["Sigmazz",        VTKCellData()]  = sigzz
+			elseif v == "pressure"     vtkfile["Pressure",       VTKCellData()]  = p
+			elseif v == "temperature"  vtkfile["Temperature",    VTKCellData()]  = T
+			elseif v == "damage"       vtkfile["Damage",         VTKCellData()]  = d
+			else 
+				error("VTKOutput: this is not yet supported!\n")
+            end 
+		end 
     end
     outfiles    = vtk_save(vtmfile)
 end

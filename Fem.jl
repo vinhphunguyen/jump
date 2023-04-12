@@ -61,64 +61,64 @@ struct FEM2D
 
     # particles from a mesh
     function FEM2D(fileName)
-	mesh      = read_GMSH(fileName)
-	nodeCount = length(mesh.nodes)                       # node count
-	parCount  = length(mesh.element_sets["All"])         # element count
-	Identity = SMatrix{2,2}(1, 0, 0, 1)
-	F        = fill(Identity,parCount)
-	strain   = fill(zeros(2,2),parCount)
-	stress   = fill(zeros(2,2),parCount)
-	vol      = fill(0.,parCount)
-	m        = fill(0.,nodeCount)
-	x        = fill(zeros(2),nodeCount)
-	nodesX   = fill(zeros(2),nodeCount)
-	centerX  = fill(0.,parCount)
-	elems    = Array{Array{Int64,1},1}(undef,0)   # element nodes
-	velo     = fill(zeros(2),nodeCount)
-	
-	#println(size(nodes,2))
-	println(parCount)
+		mesh      = read_GMSH(fileName)
+		nodeCount = length(mesh.nodes)                       # node count
+		parCount  = length(mesh.element_sets["All"])         # element count
+		Identity = SMatrix{2,2}(1, 0, 0, 1)
+		F        = fill(Identity,parCount)
+		strain   = fill(zeros(2,2),parCount)
+		stress   = fill(zeros(2,2),parCount)
+		vol      = fill(0.,parCount)
+		m        = fill(0.,nodeCount)
+		x        = fill(zeros(2),nodeCount)
+		nodesX   = fill(zeros(2),nodeCount)
+		centerX  = fill(0.,parCount)
+		elems    = Array{Array{Int64,1},1}(undef,0)   # element nodes
+		velo     = fill(zeros(2),nodeCount)
+		
+		#println(size(nodes,2))
+		println(parCount)
 
         # convert from mesh.nodes to our traditional data structure
-	for i=1:nodeCount			
-	    nodesX[i] = @view mesh.nodes[i][1:2]
-	end
+		for i=1:nodeCount			
+		    nodesX[i] = @view mesh.nodes[i][1:2]
+		end
 
-        # convert from mesh.elements to our traditional data structure
-        volumetricElems = collect(mesh.element_sets["All"])
-	for i=1:parCount			
-	    push!(elems,mesh.elements[volumetricElems[i]])
-	end
+	        # convert from mesh.elements to our traditional data structure
+	        volumetricElems = collect(mesh.element_sets["All"])
+		for i=1:parCount			
+		    push!(elems,mesh.elements[volumetricElems[i]])
+		end
 
-        
-	nnodePerElem = length(elems[1])
+	        
+		nnodePerElem = length(elems[1])
 
 
-	if      nnodePerElem == 3 
-	    basis = Tri3()  
-	    vtk_cell = VTKCellTypes.VTK_TRIANGLE
-	elseif  nnodePerElem == 4 
-	    basis = Quad4() 
-	    vtk_cell = VTKCellTypes.VTK_QUAD
-	else
-	    @printf("Number of nodes per element: %d \n", nnodePerElem)
-	    error("Unsupported element types: only Tri3 and Quad4 now!\n")
-	end
+		if      nnodePerElem == 3 
+		    basis = Tri3()  
+		    vtk_cell = VTKCellTypes.VTK_TRIANGLE
+		elseif  nnodePerElem == 4 
+		    basis = Quad4() 
+		    vtk_cell = VTKCellTypes.VTK_QUAD
+		else
+		    @printf("Number of nodes per element: %d \n", nnodePerElem)
+		    error("Unsupported element types: only Tri3 and Quad4 now!\n")
+		end
 
-	# if nodePerElem == 4 
-	# 	meshBasis = Tet4()  
-	# 	wgt       = .166666667
-	# 	weights   = [0.166666667]   # this is so dangerous!!! all books ay weight =1
-	# 	gpCoords  = [0.25,0.25,0.25]
-	#    end
+		# if nodePerElem == 4 
+		# 	meshBasis = Tet4()  
+		# 	wgt       = .166666667
+		# 	weights   = [0.166666667]   # this is so dangerous!!! all books ay weight =1
+		# 	gpCoords  = [0.25,0.25,0.25]
+		#    end
 
-        fixedNodes   = Array{Int64}(undef, 2, nodeCount)
-        fixedNodes  .= 0
+	    fixedNodes   = Array{Int64}(undef, 2, nodeCount)
+	    fixedNodes  .= 0
 
-	if (haskey(mesh.element_sets,"boundary")) Mesh.create_node_set_from_element_set!(mesh, "boundary") end
+		if (haskey(mesh.element_sets,"boundary")) Mesh.create_node_set_from_element_set!(mesh, "boundary") end
 	
 
-	new(m,vol,centerX,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
+		new(m,vol,centerX,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
 	    strain,stress,parCount,nodeCount,vcat(map(x->x', elems)...),mesh, fixedNodes, basis, vtk_cell)
     end
 end
@@ -355,12 +355,16 @@ struct FEM3D
 
 	x         = fill(zeros(3),nodeCount)
 	velo      = fill(zeros(3),nodeCount)
+	dU        = fill(zeros(3),nodeCount)
+	fint      = fill(zeros(3),nodeCount)
+	fbody     = fill(zeros(3),nodeCount)
+
+
 	#println(size(nodes,2))
 	#println(parCount)
 
-        fixedNodes   = Array{Int64}(undef, 3, nodeCount)
-        fixedNodes  .= 0
-
+    fixedNodes   = Array{Int64}(undef, 3, nodeCount)
+    fixedNodes  .= 0
 
 	nnodePerElem = length(elems[1])
 
@@ -387,7 +391,7 @@ struct FEM3D
             cells[e] = c
         end
 
-	new(m,vol,nodesX,copy(nodesX),velo,copy(velo),copy(velo),copy(velo),copy(velo),F,
+	new(m,vol,nodesX,copy(nodesX),velo,dU,fint,fbody,copy(velo),F,
 	    strain,stress,parCount,nodeCount,surfCount,vcat(map(x->x', elems)...), mesh, 
 	    fixedNodes,basis,basis_S,vtk_cell,detJ,dNdx,N,zeros(3),neighbours,em,
 	    copy(nodesX),vcat(map(x->x', surface_elems)...), cells )

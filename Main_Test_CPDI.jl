@@ -22,9 +22,6 @@ using DelimitedFiles
 
 
 
-#include("./Grid.jl")
-#include("./Problem.jl")
-
 using Material
 using Algorithm
 using Solid

@@ -88,14 +88,14 @@ using Util
     algo2     = USL(1e-9)
     algo1     = TLFEM(0.,0.99)
     bodyforce = ConstantBodyForce2D([0.,0.])
-
+    data["bodyforce"] =  bodyforce
 	report(grid,solids,dtime)
 
     plotGrid(output2,grid)
     #plotParticles_2D(output2,solids,0)
 
 	#reset_timer!
-    
+
     solve_explicit_dynamics_femp_2D(grid,solids,mats,basis,bodyforce,algo1,output2,fix,data)
     #print_timer()
 	# plotting energies

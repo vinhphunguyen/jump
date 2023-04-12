@@ -40,22 +40,22 @@ using Basis
 using Fix
 using Util
 
-function main()
+#function main()
 
     # problem parameters
-	g             = 0.
+	g             = 10.
 	density       = 1050
 	youngModulus  = 1e6
 	poissonRatio  = 0.3
 
     # create the grid of a 8 x 8 x 2, with 24 x 24 x 2 cells
 	# and a basis: 
-    grid      =  Grid3D(0,8,0,8,0,2,25,25,3)
+    grid      =  Grid3D(0,8,0,8,0,2,25,25,7)
     basis     =  LinearBasis()
 
 
     #solid1   = FEM3D("box-beam.msh") # 8-node hexahedron 
-    solid1   = FEM3D("taylor-bar-ter4.msh")
+    solid1   = FEM3D("box-beam-tet4.msh")
     material = NeoHookeanMaterial(youngModulus,poissonRatio,density,solid1.parCount)
 
     
@@ -70,17 +70,18 @@ function main()
     mats   = [material]
 
     Tf       = 3.0 #3.5e-0
-    interval = 2
+    interval = 20
 	dtime    = 0.1*grid.dx/sqrt(youngModulus/density)
+    dtime    = 1e-5 #0.2*0.08/sqrt(youngModulus/density)
 
 	#output1  = PyPlotOutput(interval,"twodisks-results/","Two Disks Collision",(4., 4.))
-	output2  = VTKOutput(interval,"cantilever-box-femp/",["pressure"])
+	output2  = VTKOutput(interval,"cantilever-box-femp/",["pressure","sigmaxx"])
 	fix      = DisplacementFemFix(solid1,"cantilever-box-femp/",2)
 
     algo1    = USL(0.)
     algo2    = TLFEM(0.,1.)
 
-    body     = ConstantBodyForce3D(@SVector[0.,-10.,0.])
+    body     = ConstantBodyForce3D(@SVector[0.,-g,0.])
 
     data                    = Dict()
     data["total_time"]      = Tf
@@ -94,10 +95,10 @@ function main()
     plotParticles_3D(output2,solids,mats,0)
 
 	#reset_timer!
-    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,algo1,output2,fix,data)
+    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,algo2,output2,fix,data)
     #print_timer()
 
 	# #PyPlot.savefig("plot_2Disk_Julia.pdf")
-end
+# end
 
-@time main()
+# @time main()

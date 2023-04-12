@@ -38,7 +38,7 @@ using Basis
 using Fix
 using Util
 
-function main()
+#function main()
 
     # problem parameters
 	g             = 1e6
@@ -52,7 +52,7 @@ function main()
     basis     =  LinearBasis()
 
 
-    solid1   = FEM3D("bar1000.msh")
+    solid1   = FEM3D("bar8000.msh")
     #solid1   = FEM3D("bar640.msh")
     #solid1   = FEM3D("bar8000.msh")
 
@@ -107,6 +107,6 @@ function main()
     PyPlot.plot(v[:, 1], v[:, 2])
     PyPlot.plot(v[:, 1], v[:, 3])
 
-end
+# end
 
-@time main()
+# @time main()

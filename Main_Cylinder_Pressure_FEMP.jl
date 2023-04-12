@@ -14,17 +14,13 @@
 # paper 'A generalized particle in cell metghod for explicit solid dynamics', V.P. Nguyen et all 2020.
 
 push!(LOAD_PATH,"./")
-# import Gadfly
+
 import PyPlot
 using Printf
 using LinearAlgebra
 using StaticArrays   # if not yet installed, in REPL, do import Pkg and Pkd.add("StaticArrays")
 using TimerOutputs
-# pyFig_RealTime = PyPlot.figure("MPM 2Disk Real-time",
-#                                figsize=(8/2.54, 8/2.54), edgecolor="white", facecolor="white")
-
-#include("./Grid.jl")
-#include("./Problem.jl")
+using DelimitedFiles
 
 using Fem
 using Solid
@@ -99,9 +95,9 @@ function main()
 	# fixYNodes(solid2, "fix")
 
 	#output1  = PyPlotOutput(interval,"twodisks-results/","Two Disks Collision",(4., 4.))
-	output2  = VTKOutput(interval,"cylinder-pressure-femp/",["pressure"])
-	fix      = DisplacementFemFix(solid1,"cylinder-pressure-femp/",2)
-	fix      = EnergiesFix(solids,"cylinder-pressure-femp/energies.txt")
+	output2  = VTKOutput(interval,"cylinder-pressure-femp/",["pressure","sigmayy"])
+	fix1     = DisplacementFemFix(solid1,"cylinder-pressure-femp/",2)
+	fix2     = EnergiesFix(solids,"cylinder-pressure-femp/energies.txt")
 
     algo1    = USL(0.)
     algo2    = TLFEM(0.,1.)
@@ -114,10 +110,13 @@ function main()
     plotParticles_3D(output2,solids,mats,0)
 
 	#reset_timer!
-    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,algo2,output2,fix,data)
+    solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,algo2,output2,[fix1,fix2],data)
     #print_timer()
 
-	# #PyPlot.savefig("plot_2Disk_Julia.pdf")
+	v = readdlm("cylinder-pressure-femp/recorded-position.txt")
+
+    PyPlot.plot(v[:, 1], v[:, 2])
+    PyPlot.plot(v[:, 1], v[:, 3])
 
 end
 

@@ -217,6 +217,10 @@ function compute(fix::DisplacementFix,time)
     write(fix.file, "$(time) $(x[1]) $(x[2])\n")
 end
 
+function compute_femp(fixes,t)
+    for fix in fixes compute_femp(fix,t) end
+end
+
 function compute_femp(fix::EmptyFix,time)
 end
 
@@ -346,6 +350,10 @@ end
 
 function closeFile(fix::FixBase)
     close(fix.file)
+end
+
+function closeFile(fixes)
+    for fix in fixes close(fix.file) end
 end
 
 # function closeFile(fix::EnergiesFix)

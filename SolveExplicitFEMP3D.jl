@@ -390,11 +390,13 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 	@inbounds for s = 1:solidCount
 		solid  = solids[s]
         initializeBasis(solid,mats[s].density)
-    end
+  end
 
-    # time-independent Dirichlet boundary conditions on grid/solids
-    fix_Dirichlet_grid(grid,data)
-    fix_Dirichlet_solid(solids,data)
+  @printf("Minimum element size: %f \n", cbrt(minimum(solids[1].volume)) ) 
+
+  # time-independent Dirichlet boundary conditions on grid/solids
+  fix_Dirichlet_grid(grid,data)
+  fix_Dirichlet_solid(solids,data)
 
   while t < Tf
 
@@ -595,16 +597,16 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 	  	feJaco    = solid.detJ
 	  	neighbours = solid.neighbours
 	  	
-	  	for ip=1:solid.nodeCount 
-	  		fint[ip]  = @SVector [0., 0., 0.]
-	  		fbody[ip] = @SVector [0., 0., 0.]
+	  	for ipp=1:solid.nodeCount 
+	  		fint[ipp]  = @SVector [0., 0., 0.]
+	  		fbody[ipp] = @SVector [0., 0., 0.]
 	  	end
         # loop over solid elements, not solid nodes
 	  	@inbounds for ip = 1:solid.parCount
 			elemNodes =  @view elems[ip,:]  
 			#coords    =  @view XX[elemNodes]
-	        vel_grad   =  SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
-	        vel_gradT  =  SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
+	    vel_grad   =  SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
+	    vel_gradT  =  SMatrix{3,3}(0,0,0,0,0,0,0,0,0)
 			
 			#detJ      = lagrange_basis_derivatives!(N, dNdx, meshBasis, gpCoords, coords)
 			detJ      = feJaco[ip]
@@ -620,13 +622,13 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 				vI         = du[id]
 				vIt        = xx[id] - XX[id]
 				vel_grad  += SMatrix{3,3}(dNi[1]*vI[1], dNi[1]*vI[2], dNi[1]*vI[3],
-   										  dNi[2]*vI[1], dNi[2]*vI[2], dNi[2]*vI[3],
-   										  dNi[3]*vI[1], dNi[3]*vI[2], dNi[3]*vI[3] )
+   										            dNi[2]*vI[1], dNi[2]*vI[2], dNi[2]*vI[3],
+   										            dNi[3]*vI[1], dNi[3]*vI[2], dNi[3]*vI[3] )
 
 				vel_gradT += SMatrix{3,3}(dNi[1]*vIt[1], dNi[1]*vIt[2], dNi[1]*vIt[3],
-   										  dNi[2]*vIt[1], dNi[2]*vIt[2], dNi[2]*vIt[3],
-   										  dNi[3]*vIt[1], dNi[3]*vIt[2], dNi[3]*vIt[3] )
-		   	end
+   										            dNi[2]*vIt[1], dNi[2]*vIt[2], dNi[2]*vIt[3],
+   										            dNi[3]*vIt[1], dNi[3]*vIt[2], dNi[3]*vIt[3] )
+		  end
 		   	
 			#dstrain      = 0.5 * (vel_grad + vel_grad' + vel_grad * vel_grad') - strain[ip] 
 			
@@ -645,21 +647,24 @@ function solve_explicit_dynamics_femp_3D(grid,solids,mats,basis,body,alg::TLFEM,
 		   	#println(strain[ip])
 	   	     #@timeit "3" update_stress!(stress[ip],mat,strain[ip],F[ip],J,ip)
 
-	   	    stress[ip] =  update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
+   	    stress[ip] =  update_stress!(stress[ip],mat,strain[ip],D,F[ip],J,ip,dtime)
 
 
-            P     = J*stress[ip]*inv(F[ip])'  # convert to Piola Kirchoof stress
+          P     = J*stress[ip]*inv(F[ip])'  # convert to Piola Kirchoof stress
 
-            body(g,xx[ip],t)  
+          body(g,xx[ip],t)  
             #println(g)
             # compute nodal internal force fint
+          #println(elemNodes)
 		    for i = 1:length(elemNodes)
-				in  = elemNodes[i]; # index of node 'i'
+				  id  = elemNodes[i] # index of node 'i'
 			    dNi = @view dNdx[:,i]			
-	   	        fint[in]  +=  detJ * @SVector[P[1,1] * dNi[1] + P[1,2] * dNi[2] + P[1,3] * dNi[3],
-										      P[2,1] * dNi[1] + P[2,2] * dNi[2] + P[2,3] * dNi[3],
-										      P[3,1] * dNi[1] + P[3,2] * dNi[2] + P[3,3] * dNi[3] ]
-                fbody[in] += detJ*mat.density*N[i]*g								        
+
+	   	    fint[id]  +=  detJ * @SVector[P[1,1] * dNi[1] + P[1,2] * dNi[2] + P[1,3] * dNi[3],
+										                    P[2,1] * dNi[1] + P[2,2] * dNi[2] + P[2,3] * dNi[3],
+										                    P[3,1] * dNi[1] + P[3,2] * dNi[2] + P[3,3] * dNi[3] ]
+
+          fbody[id] += detJ*mat.density*N[i]*g								        
         end
 	   end
 	end
